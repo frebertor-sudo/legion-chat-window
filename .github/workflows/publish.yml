@@ -28,11 +28,11 @@ jobs:
       EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
       EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Сборка
         env:
@@ -50,7 +50,18 @@ jobs:
       - name: Проверка расширения для Firefox
         if: env.SKIP != '1'
         continue-on-error: true   # только подсказки, публикацию не останавливает
-        run: npx --yes web-ext@8 lint --source-dir build/firefox --self-hosted=false --warnings-as-errors=false
+        run: |
+          npx --yes web-ext@8 lint --source-dir build/firefox --output=json > lint.json || true
+          python3 - <<'PY'
+          import json
+          r = json.load(open('lint.json'))
+          s = r.get('summary', {})
+          print(f"::notice title=Проверка Firefox::ошибок {s.get('errors', 0)}, предупреждений {s.get('warnings', 0)}, замечаний {s.get('notices', 0)}")
+          for kind in ('errors', 'warnings'):
+              for m in r.get(kind, [])[:15]:
+                  lvl = 'error' if kind == 'errors' else 'warning'
+                  print(f"::{lvl} title=web-ext {m.get('code')}::{m.get('message')} ({m.get('file', '')}:{m.get('line', '')})")
+          PY
 
       - name: Firefox Add-ons
         if: env.SKIP != '1' && env.AMO_JWT_ISSUER != '' && env.AMO_JWT_SECRET != ''
