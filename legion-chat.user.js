@@ -2,9 +2,9 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      2.3.0
-// @description  Чат шахты и города игры «Легион» (play.multidonate.ru) в отдельном окне: стримеры, вкладки города, стикеры 7TV/BTTV/FFZ, пасты, темы, закрепление поверх окон
-// @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru) in a separate window: channel switching, 7TV/BTTV/FFZ emotes, saved pastes, themes, always-on-top
+// @version      3.0.0
+// @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
+// @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
 // @license      MIT
 // @homepageURL  https://github.com/frebertor-sudo/legion-chat-window
@@ -14,7 +14,6 @@
 // @match        https://play.multidonate.ru/c/*
 // @match        https://play.multidonate.ru/site/ver*
 // @run-at       document-start
-// @noframes
 // @grant        none
 // ==/UserScript==
 
@@ -29,7 +28,8 @@
 
 /*
   Как устроено:
-  • На странице игры (…/c/<канал>/) слева внизу кнопка «💬 Чат ⧉» — открывает окно чата.
+  • На странице игры (…/c/<канал>/) слева внизу кнопки «💬 Чат» (панель сбоку прямо в игре) и «⧉» (отдельное окно).
+  • Панель — это то же окно чата в рамке (&embed=1); код работает и как userscript, и как расширение (tools/build.py).
   • Окно живёт по адресу https://play.multidonate.ru/site/ver?minechat=<канал>[&room=city]
     (служебный адрес сайта без строгой CSP — с него можно ходить в API игры под твоим входом).
   • Шахта: GET /c/<канал>/api/mine/state?c=<шахта>&mc=<номер>, отправка POST /c/<канал>/api/mine/chat/say?c=<шахта>.
@@ -38,39 +38,112 @@
     отправка POST /api/city/say; при уходе — POST /api/city/leave.
   • Список стримеров — GET /c/<канал>/api/channels.
   • «🔀 Всё»: шахта и город текущего стримера в одной ленте по времени, с пометкой источника и фильтрами.
+  • Личные: k: 'dm', to — диалоги собираются из ленты города и копятся в браузере (lgmc_dm_<канал>).
+  • Если город уже открыт в игре (GET /api/city/state отвечает), чат не входит повторно и не выводит героя.
   • Модерация (только у админа и модераторов чата): GET/POST <чат>/mod — удалить, мут, бан, снять, назначить модератора.
 */
 
 (function () {
   'use strict';
   const ORIGIN = 'https://play.multidonate.ru';
+  // В расширении для Firefox обычный fetch из скрипта расширения идёт без куки входа в игру;
+  // content.fetch делает запрос «от имени страницы». В Chrome и в userscript такого объекта нет — там обычный fetch.
+  /* global content */
+  const pfetch = typeof content === 'object' && content && typeof content.fetch === 'function' ? content.fetch.bind(content) : fetch.bind(window);
   const chatUrl = (ch, room) => `${ORIGIN}/site/ver?minechat=${encodeURIComponent(ch)}${room === 'city' || room === 'all' ? '&room=' + room : ''}`;
 
-  // ---------- 1. Страница игры: кнопка «вынести чат в окно» ----------
+  // ---------- 1. Страница игры: панель чата сбоку + кнопка «в отдельное окно» ----------
   const game = location.pathname.match(/^\/c\/([^/]+)\/?$/i);
   if (game) {
-    const CH = game[1];
-    const addBtn = () => {
-      if (document.getElementById('lgmc-pop')) return;
-      const b = document.createElement('button');
-      b.id = 'lgmc-pop';
-      b.type = 'button';
-      b.textContent = '💬 Чат ⧉';
-      b.title = 'Открыть чат шахты и города в отдельном окне';
-      b.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:2147483647;padding:6px 10px;border-radius:8px;border:1px solid #6b5a3a;background:#2a2218;color:#f1d9a5;font:600 13px system-ui,sans-serif;cursor:pointer;opacity:.85';
-      b.onmouseenter = () => (b.style.opacity = '1');
-      b.onmouseleave = () => (b.style.opacity = '.85');
-      b.onclick = () => window.open(chatUrl(CH), 'lgChat', 'popup,width=420,height=720');
-      document.body.appendChild(b);
+    if (window.top !== window) return;
+    const CH = game[1].toLowerCase();
+    const lg = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch { return d; } };
+    const ls = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+    const roomFor = () => { const last = lg('lgmc_last', null); return last && last.ch === CH ? last.room : null; };
+    const minW = 280, maxW = () => Math.max(minW, Math.min(900, window.innerWidth - 120));
+    let dock = null, frame = null, btn = null;
+
+    function build() {
+      dock = document.createElement('div');
+      dock.id = 'lgmc-dock';
+      dock.hidden = true;
+      dock.innerHTML = '<div class="lgmc-grip" title="Потяни, чтобы изменить ширину" aria-hidden="true"></div><div class="lgmc-shield" hidden></div>';
+      const st = document.createElement('style');
+      st.textContent = `#lgmc-dock{box-sizing:border-box;position:fixed;top:0;right:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;z-index:2147483000;background:#17130e;border-left:1px solid #3a3024;box-shadow:-12px 0 30px -18px rgba(0,0,0,.7)}
+        #lgmc-dock[hidden]{display:none}
+        #lgmc-dock iframe{display:block;width:100%;height:100%;border:0;background:#17130e}
+        #lgmc-dock .lgmc-grip{position:absolute;left:-5px;top:0;bottom:0;width:10px;cursor:ew-resize;z-index:2}
+        #lgmc-dock .lgmc-grip:hover,#lgmc-dock.drag .lgmc-grip{background:linear-gradient(90deg,transparent 4px,#f0b84a 4px,#f0b84a 6px,transparent 6px)}
+        #lgmc-dock .lgmc-shield{position:fixed;inset:0;z-index:1;cursor:ew-resize}
+        #lgmc-btns{position:fixed;left:10px;bottom:10px;z-index:2147483001;display:flex;border-radius:8px;overflow:hidden;border:1px solid #6b5a3a;opacity:.88;font:600 13px system-ui,sans-serif}
+        #lgmc-btns:hover{opacity:1}
+        #lgmc-btns button{background:#2a2218;color:#f1d9a5;border:0;padding:6px 10px;cursor:pointer;font:inherit}
+        #lgmc-btns button+button{border-left:1px solid #6b5a3a}
+        #lgmc-btns button[aria-pressed="true"]{background:#f0b84a;color:#1a1206}
+        @media (max-width:640px){#lgmc-dock{width:100vw!important;border-left:0}#lgmc-dock .lgmc-grip{display:none}}`;
+      document.head.appendChild(st);
+      document.body.appendChild(dock);
+      setW(lg('lgmc_dock_w', 380));
+      // ширина: тянуть за левый край (поверх рамки — прозрачный щит, иначе рамка «съедает» движение мыши)
+      const grip = dock.querySelector('.lgmc-grip'), shield = dock.querySelector('.lgmc-shield');
+      grip.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); dock.classList.add('drag'); shield.hidden = false;
+        const move = (ev) => setW(window.innerWidth - ev.clientX);
+        const up = () => { dock.classList.remove('drag'); shield.hidden = true; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); ls('lgmc_dock_w', dock.offsetWidth); };
+        window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+      });
+      window.addEventListener('resize', () => setW(dock.offsetWidth));
+    }
+    const setW = (w) => { if (dock) dock.style.setProperty('--lgmc-w', Math.round(Math.max(minW, Math.min(maxW(), w))) + 'px'); };
+
+    function setOpen(on) {
+      if (on) {
+        if (!dock) build();
+        if (!frame) {   // рамка создаётся при открытии и убирается при закрытии — скрытый чат не опрашивает сервер
+          frame = document.createElement('iframe');
+          frame.title = 'Чат Легиона';
+          frame.src = chatUrl(CH, roomFor()) + '&embed=1';
+          dock.appendChild(frame);
+        }
+        dock.hidden = false;
+      } else if (dock) {
+        dock.hidden = true;
+        if (frame) { frame.remove(); frame = null; }
+      }
+      ls('lgmc_dock_open', !!on);
+      if (btn) btn.setAttribute('aria-pressed', String(!!on));
+    }
+
+    const addUi = () => {
+      if (document.getElementById('lgmc-btns')) return;
+      if (!dock) build();
+      const g = document.createElement('div');
+      g.id = 'lgmc-btns';
+      g.innerHTML = '<button type="button" data-a="dock" aria-pressed="false" title="Показать или скрыть чат сбоку">💬 Чат</button><button type="button" data-a="win" title="Открыть чат отдельным окном" aria-label="Открыть чат отдельным окном">⧉</button>';
+      btn = g.querySelector('[data-a="dock"]');
+      g.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-a]'); if (!b) return;
+        if (b.dataset.a === 'dock') setOpen(dock.hidden);
+        else { setOpen(false); window.open(chatUrl(CH, roomFor()), 'lgChat', 'popup,width=420,height=720'); }
+      });
+      document.body.appendChild(g);
+      if (lg('lgmc_dock_open', false)) setOpen(true);
     };
-    if (document.body) addBtn(); else document.addEventListener('DOMContentLoaded', addBtn);
+    // команды от чата в рамке: «скрыть», «вынесен в окно»
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin || !e.data || typeof e.data.lgmc !== 'string') return;
+      if (e.data.lgmc === 'close' || e.data.lgmc === 'popped') setOpen(false);
+    });
+    if (document.body) addUi(); else document.addEventListener('DOMContentLoaded', addUi);
     return;
   }
 
   // ---------- 2. Окно чата: /site/ver?minechat=<канал> ----------
   if (location.pathname !== '/site/ver') return;
   const Q = new URLSearchParams(location.search);
-  const CH0 = Q.get('minechat');
+  const EMBED = Q.get('embed') === '1' && window.parent !== window;   // открыт панелью внутри игры
+  const LAST0 = (() => { try { return JSON.parse(localStorage.getItem('lgmc_last') || 'null'); } catch { return null; } })();
+  const CH0 = Q.get('minechat') === 'last' ? (LAST0 && LAST0.ch) || 'zakvielchannel' : Q.get('minechat');
   const okLogin = (s) => /^[a-z0-9_]{1,40}$/i.test(String(s || ''));
   if (!okLogin(CH0)) return;
 
@@ -93,13 +166,14 @@
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
   const S = {
-    ch: CH0.toLowerCase(), chName: CH0, room: ['city', 'all'].includes(Q.get('room')) ? Q.get('room') : 'mine', mine: 'home', mines: [],
+    ch: CH0.toLowerCase(), chName: CH0, room: ['city', 'all'].includes(Q.get('room')) ? Q.get('room') : Q.get('minechat') === 'last' && LAST0 && ['city', 'all'].includes(LAST0.room) ? LAST0.room : 'mine', mine: 'home', mines: [],
     channels: [], me: '', hero: null, flags: { cc: false, tr: false, dm: false }, inCity: false, entering: false,
     tab: 'g', un: { g: 0, tr: 0, ev: 0, dm: 0 }, ign: new Set(), gen: 0,
     mc: 0, cc: 0, list: [], ids: new Set(), mix: Object.assign({ mine: true, g: true, tr: true, ev: true, dm: true }, lsGet('lgmc_mix', {})), to: lsGet('lgmc_mix_to', 'g'), timer: 0, busy: false, fails: 0, stick: true, unseen: 0, unseenTitle: 0,
   };
   // если в адресе канал не указан явно иначе — вернуть то, где был в прошлый раз (только комнату для того же канала)
   { const last = lsGet(LAST_KEY, null); if (last && last.ch === S.ch && !Q.get('room') && ROOMS[last.room]) S.room = last.room; }
+  if (Q.get('minechat') === 'last') try { history.replaceState(null, '', chatUrl(S.ch, S.room) + (EMBED ? '&embed=1' : '')); } catch {}
   const BASE = () => `/c/${S.ch}`;
   const title = () => `${{ mine: 'Шахта', city: 'Город', all: 'Все чаты' }[S.room]} · ${S.chName}`;
 
@@ -140,6 +214,25 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #ctabs .lbl{color:var(--mut);font:600 11px system-ui;align-self:center;margin-right:2px}
 #cbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;background:var(--me);border-bottom:1px solid var(--line);font-size:12px;flex:none}
 #cbar[hidden]{display:none}
+#dmbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--panel);font-size:13px;flex:none}
+#dmbar[hidden]{display:none}
+#dmbar b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#dmbar button{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font:600 12px system-ui;cursor:pointer}
+#dmbar button:hover{border-color:var(--acc)}
+#dmbar form{display:flex;gap:6px;flex:1;min-width:0}
+#dmbar input{flex:1;min-width:0;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font:inherit;font-size:13px}
+#dmbar input:focus{outline:none;border-color:var(--acc)}
+#log li.conv{display:flex;gap:10px;align-items:center;padding:7px 8px;cursor:pointer;border:1px solid transparent}
+#log li.conv:hover,#log li.conv:focus-visible{border-color:var(--line);background:var(--hov);outline:none}
+#log li.conv .cv{flex:1;min-width:0}
+#log li.conv .cv b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#log li.conv .cv span{display:block;color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#log li.conv .ct{color:var(--mut);font-size:11px;font-variant-numeric:tabular-nums;flex:none}
+#log li.conv .cu{flex:none;min-width:18px;padding:0 5px;border-radius:9px;background:var(--acc);color:var(--on-acc);font:700 11px/18px system-ui;text-align:center}
+#log .dmb{position:absolute;right:2px;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:12px/18px system-ui;cursor:pointer;opacity:0}
+#log li:has(.mb) .dmb{right:34px}
+#log li:hover .dmb,#log .dmb:focus-visible{opacity:1}
+@media (hover:none){#log .dmb{opacity:.6}}
 #cbar span{flex:1;min-width:160px;color:var(--tx)}
 #cbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:3px 10px;font:600 12px system-ui;cursor:pointer}
 #cbar .go:disabled{opacity:.6}
@@ -301,10 +394,11 @@ html.pinned.mini #log{padding-bottom:12px}
 </style></head>
 <body>
 <header>
-  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span><button id="pin" class="hb" type="button" aria-pressed="false">📌</button></div>
+  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${ROOMS.mine}</button><button type="button" data-r="city">${ROOMS.city}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${ROOMS.all}</button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="cbar" hidden></div>
+<div id="dmbar" hidden></div>
 <ol id="log" role="log" aria-live="polite"></ol><p id="empty">Загружаю чат…</p><div id="gate" hidden></div>
 <button id="more" type="button">↓ новые</button>
 <footer><p id="err" role="status"></p><p id="okm" role="status"></p>
@@ -317,7 +411,7 @@ html.pinned.mini #log{padding-bottom:12px}
     const $ = (id) => document.getElementById(id);
     S.el = {
       log: $('log'), empty: $('empty'), gate: $('gate'), more: $('more'), dot: $('dot'), err: $('err'), f: $('f'),
-      inp: $('in'), send: $('send'), mine: $('mine'), chan: $('chan'), room: $('room'), ctabs: $('ctabs'), cbar: $('cbar'), tgt: $('tgt'),
+      inp: $('in'), send: $('send'), mine: $('mine'), chan: $('chan'), room: $('room'), ctabs: $('ctabs'), cbar: $('cbar'), dmbar: $('dmbar'), tgt: $('tgt'),
     };
     S.el.log.addEventListener('scroll', () => {
       const l = S.el.log; S.stick = l.scrollHeight - l.scrollTop - l.clientHeight < 40;
@@ -330,6 +424,13 @@ html.pinned.mini #log{padding-bottom:12px}
       const li = b.closest('li'), m = li && S.list.find((x) => x._key === li.dataset.key);
       if (m) modMenu(m, b);
     }, true);
+    S.el.log.addEventListener('click', (e) => {   // ✉ у ника — личная переписка; строка в списке диалогов — открыть
+      const d = e.target.closest('.dmb');
+      if (d) { e.stopPropagation(); openDm(d.dataset.l, d.dataset.n); return; }
+      const cv = e.target.closest('li.conv');
+      if (cv) { e.stopPropagation(); openDm(cv.dataset.peer, cv.dataset.n); }
+    }, true);
+    S.el.log.addEventListener('keydown', (e) => { const cv = e.target.closest && e.target.closest('li.conv'); if (cv && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openDm(cv.dataset.peer, cv.dataset.n); } });
     S.el.log.addEventListener('click', (e) => {   // клик по нику — ответить @ником
       const n = e.target.closest('.n'); if (!n || !n.dataset.l) return;
       const li = n.closest('li');
@@ -387,6 +488,14 @@ html.pinned.mini #log{padding-bottom:12px}
   const pinOk = () => 'documentPictureInPicture' in window;
 
   function pinInit() {
+    if (EMBED) {   // внутри игры «поверх окон» недоступно (браузер разрешает это только самому окну) — вместо этого «⧉» и «✕»
+      document.getElementById('popb').onclick = () => {
+        window.open(chatUrl(S.ch, S.room), 'lgChat', 'popup,width=420,height=720');
+        window.parent.postMessage({ lgmc: 'popped' }, location.origin);
+      };
+      document.getElementById('closeb').onclick = () => window.parent.postMessage({ lgmc: 'close' }, location.origin);
+      return;
+    }
     S.el.pin = document.getElementById('pin');
     if (!pinOk()) {
       S.el.pin.disabled = true;
@@ -458,7 +567,7 @@ html.pinned.mini #log{padding-bottom:12px}
   async function api(path, body, keepalive) {
     const c = new AbortController(), tm = setTimeout(() => c.abort(), 20000);
     try {
-      const r = await fetch(BASE() + path, {
+      const r = await pfetch(BASE() + path, {
         credentials: 'same-origin', signal: c.signal, keepalive: !!keepalive,
         ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
       });
@@ -494,7 +603,7 @@ html.pinned.mini #log{padding-bottom:12px}
     S.ch = ch; S.room = room;
     const cur = S.channels.find((c) => c.login.toLowerCase() === ch); S.chName = (cur && cur.name) || ch;
     lsSet(LAST_KEY, { ch, room });
-    try { history.replaceState(null, '', chatUrl(ch, room)); } catch {}
+    try { history.replaceState(null, '', chatUrl(ch, room) + (EMBED ? '&embed=1' : '')); } catch {}
     renderChannels();
     if (chChanged) { S.me = ''; S.hero = null; emLoad(); }
     await start(keepCity);
@@ -504,7 +613,8 @@ html.pinned.mini #log{padding-bottom:12px}
     const gen = ++S.gen;
     clearTimeout(S.timer);
     clearLog('Загружаю чат…');
-    S.tab = 'g'; S.un = { g: 0, tr: 0, ev: 0, dm: 0 }; S.inCity = !!keepCity;
+    if (!keepCity) S.cityByGame = false;
+    S.tab = 'g'; S.peer = null; S.dmNames = lsGet('lgmc_dmnames_' + S.ch, {}); S.un = { g: 0, tr: 0, ev: 0, dm: 0 }; S.inCity = !!keepCity;
     S.el.err.textContent = '';
     try {
       const me = await api('/api/me'); if (gen !== S.gen) return;
@@ -528,14 +638,19 @@ html.pinned.mini #log{padding-bottom:12px}
     if (rb(S.room).disabled) S.room = hasCity ? 'city' : 'mine';
     for (const b of S.el.room.querySelectorAll('[data-r]')) b.setAttribute('aria-pressed', String(b.dataset.r === S.room));
     S.el.mine.hidden = !usesMine(S.room) || S.mines.length < 2;
-    renderTabs(); renderTargets(); updateBar();
+    renderTabs(); renderTargets(); updateBar(); updateDmBar();
     modLoad(gen);
     document.title = title(); if (S.pip) S.pip.document.title = title();
     inputState();
     if (S.room === 'mine' && !hasMine) { clearLog('На этом канале у тебя нет шахты — переключись на 🏰 Город.'); return; }
-    if (S.room === 'city' && !S.inCity) { if (lsGet(CITY_AUTO_KEY, false)) cityEnter(); else showGate(); return; }
+    if (S.room === 'city' && !S.inCity) {
+      if (await cityAttach(gen)) return;   // герой уже в городе (например, город открыт в игре) — просто подхватываем
+      if (gen !== S.gen) return;
+      if (lsGet(CITY_AUTO_KEY, false)) cityEnter(); else showGate();
+      return;
+    }
     poll(true);   // шахта, город (если уже на Ярмарке) или всё сразу
-    if (S.room === 'all' && hasCity && !S.inCity && lsGet(CITY_AUTO_KEY, false)) cityEnter();
+    if (S.room === 'all' && hasCity && !S.inCity) cityAttach(gen).then((ok) => { if (!ok && gen === S.gen && lsGet(CITY_AUTO_KEY, false)) cityEnter(); });
   }
   const restart = () => start(usesCity(S.room) && S.inCity);
 
@@ -569,11 +684,34 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.cbar.querySelector('input').onchange = (e) => lsSet(CITY_AUTO_KEY, e.target.checked);
   }
 
+  // Если герой уже на Ярмарке этого канала (город открыт в игре), повторный вход переставил бы его к воротам.
+  // Поэтому сначала спрашиваем ленту (только чтение): ответила — значит, мы уже в городе, входить не надо.
+  async function cityAttach(gen) {
+    let r = null; try { r = await api('/api/city/state?c=0'); } catch {}
+    if (gen !== S.gen || !usesCity(S.room) || S.inCity || !r || !r.ok) return false;
+    S.inCity = true; S.cityByGame = true; S.cityCh = S.ch;
+    cityReady(r);
+    return true;
+  }
+  function cityReady(r) {
+    S.el.dot.className = 'ok';
+    if (S.room === 'city') clearLog('');
+    if (Array.isArray(r.ign)) S.ign = new Set(r.ign);
+    if (r.mod === 'own' || r.mod === 'mod') { S.mod.city = Object.assign(S.mod.city || { bans: [], mods: [] }, { role: r.mod }); modUi(); }
+    apply(r, 'city', true);
+    dmRestore();
+    updateBar(); updateDmBar(); inputState();
+    if (S.room === 'all' && S.ign.size) renderLog();   // игнор пришёл только сейчас — убрать уже показанное от игнорируемых
+    if (S.room === 'city' && S.tab === 'dm') renderLog();
+    schedule();
+  }
+
   async function cityEnter() {
     if (S.entering) return;
     const gen = S.gen;
     S.entering = true;
     for (const go of [S.el.gate.querySelector('.go'), S.el.cbar.querySelector('.go')]) if (go) { go.disabled = true; go.textContent = 'Вхожу…'; }
+    if (await cityAttach(gen)) { S.entering = false; return; }
     let r = null;
     try { r = await api('/api/city/enter', CITY_SPAWN); } catch {}
     S.entering = false;
@@ -583,26 +721,21 @@ html.pinned.mini #log{padding-bottom:12px}
       if (S.room === 'city') { S.el.dot.className = 'bad'; showGate(t); } else updateBar(t);
       return;
     }
-    S.inCity = true; S.cityCh = S.ch;
-    S.el.dot.className = 'ok';
-    if (S.room === 'city') clearLog('');
-    S.ign = new Set(Array.isArray(r.ign) ? r.ign : []);
-    if (r.mod === 'own' || r.mod === 'mod') { S.mod.city = Object.assign(S.mod.city || { bans: [], mods: [] }, { role: r.mod }); modUi(); }
-    apply(r, 'city', true);
-    updateBar(); inputState();
-    if (S.room === 'all' && S.ign.size) renderLog();   // игнор пришёл только сейчас — убрать уже показанное от игнорируемых
-    schedule();
+    S.inCity = true; S.cityByGame = false; S.cityCh = S.ch;
+    if (!Array.isArray(r.ign)) r.ign = [];
+    cityReady(r);
   }
 
   function cityLeave(onUnload) {
     if (!S.inCity) return;
     S.inCity = false;
+    if (S.cityByGame) { S.cityByGame = false; return; }   // в город заходила игра, не мы — и выводить героя не нам
     const ch = S.cityCh || S.ch;
     const url = `/c/${ch}/api/city/leave`;
     // при закрытии окна обычный запрос может не успеть уйти — для этого есть sendBeacon
     let sent = false;
     if (onUnload && navigator.sendBeacon) { try { sent = navigator.sendBeacon(url, new Blob(['{}'], { type: 'application/json' })); } catch {} }
-    if (!sent) { try { fetch(url, { method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' }); } catch {} }
+    if (!sent) { try { pfetch(url, { method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' }); } catch {} }
     if (!onUnload) S.cityCh = null;
   }
 
@@ -630,9 +763,12 @@ html.pinned.mini #log{padding-bottom:12px}
       if (reset) { S.list = []; S.ids.clear(); S.el.log.innerHTML = ''; }
       const errs = [];
       for (const [src, r] of res) {
-        if (r && r.ok) { apply(src === 'mine' ? r.mchat || {} : r, src, reset); continue; }
-        if (src === 'city' && /не в городе/.test((r && r.error) || '')) {   // присутствие слетело (например, город открыт и закрыт в другой вкладке) — заходим снова
-          S.inCity = false; cityEnter(); continue;
+        if (r && r.ok) { apply(src === 'mine' ? r.mchat || {} : r, src, reset); if (src === 'city' && reset) dmRestore(); continue; }
+        if (src === 'city' && /не в городе/.test((r && r.error) || '')) {   // присутствие слетело (например, город закрыт в игре или в другой вкладке)
+          const byGame = S.cityByGame; S.inCity = false; S.cityByGame = false;
+          if (byGame && !lsGet(CITY_AUTO_KEY, false)) { if (S.room === 'city') showGate(); else updateBar(); inputState(); }   // сами мы не входили — спросим
+          else cityEnter();
+          continue;
         }
         errs.push((r && (ERR[r.error] || r.error)) || 'ошибка');
       }
@@ -657,11 +793,12 @@ html.pinned.mini #log{padding-bottom:12px}
   const visible = (m) => {
     if (S.ign.has(m.l)) return false;
     const k = kind(m);
+    if (S.room === 'city' && S.tab === 'dm') return k === 'dm' && !!S.peer && dmPeer(m) === S.peer;
     return S.room === 'mine' ? k === 'mine' : S.room === 'city' ? k === S.tab : !!S.mix[k];
   };
 
   function apply(d, src, initial) {
-    let added = 0, resort = false;
+    let added = 0, resort = false, dmChanged = false;
     for (const msg of d.chat || []) {
       if (!msg || !msg.id) continue;
       if (src === 'mine' && msg.k === 'dm') continue;
@@ -673,6 +810,7 @@ html.pinned.mini #log{padding-bottom:12px}
       const last = S.list[S.list.length - 1];
       S.list.push(m);
       if (last && (last.at || 0) > (m.at || 0)) { S.list.sort((x, y) => (x.at || 0) - (y.at || 0)); resort = true; }
+      if (src === 'city' && m.k === 'dm') { dmSave(m); if (String(m.l).toLowerCase() !== S.me) dmName(dmPeer(m), m.n || m.l); dmChanged = true; }
       if (S.ign.has(m.l)) continue;
       const k = kind(m), mine = String(m.l).toLowerCase() === S.me;
       if (visible(m)) { if (!resort) S.el.log.appendChild(row(m)); added++; }
@@ -688,6 +826,11 @@ html.pinned.mini #log{padding-bottom:12px}
     while (S.list.length > 500) { const old = S.list.shift(); S.ids.delete(old._key); const li = S.el.log.querySelector(`li[data-key="${CSS.escape(old._key)}"]`); if (li) li.remove(); }
     if (d.c != null) { if (src === 'mine') S.mc = Math.max(S.mc, +d.c || 0); else S.cc = Math.max(S.cc, +d.c || 0); }
     if (d.chatMe && 'muted' in d.chatMe && d.chatMe.muted) S.el.err.textContent = 'Модератор запретил тебе писать в этот чат';
+    if (dmChanged && S.room === 'city' && S.tab === 'dm') {
+      if (S.peer) dmMarkRead(S.peer);
+      else resort = true;   // открыт список диалогов — перерисовать с новыми счётчиками
+    }
+    if (dmChanged && !(S.room === 'city' && S.tab === 'dm')) S.un.dm = dmUnreadTotal(), renderTabs();
     if (resort) renderLog();
     emptyState();
     if (added) {
@@ -699,6 +842,8 @@ html.pinned.mini #log{padding-bottom:12px}
   function renderLog() {
     if (S.mmenu) modMenuClose();
     S.el.log.innerHTML = '';
+    updateDmBar();
+    if (S.room === 'city' && S.tab === 'dm' && !S.peer) { renderConvs(); emptyState(); return; }
     const f = document.createDocumentFragment();
     for (const m of S.list) if (visible(m)) f.appendChild(row(m));
     S.el.log.appendChild(f);
@@ -708,7 +853,7 @@ html.pinned.mini #log{padding-bottom:12px}
   const EMPTY = {
     mine: 'В чате шахты пока тихо.', g: 'В чате города пока тихо — напиши первым.',
     tr: 'Здесь объявления: куплю, продам, меняю.', ev: 'Здесь громкие события игры: заточки +7 и выше, достижения.',
-    dm: 'Личных пока нет. Чтобы написать лично, начни сообщение с @ника.',
+    dm: 'Личных пока нет. Нажми ✉ у ника в чате или впиши ник выше.',
   };
   function emptyState() {
     if (!S.el.gate.hidden) return;
@@ -720,7 +865,8 @@ html.pinned.mini #log{padding-bottom:12px}
       S.el.empty.textContent = !any ? 'Все источники выключены — включи нужные над лентой.'
         : !S.mines.length && !S.inCity ? 'Войди в город, чтобы видеть его чат здесь.'
         : 'Здесь будут все чаты стримера: шахта и город.';
-    } else S.el.empty.textContent = S.room === 'mine' ? (S.mines.length ? EMPTY.mine : 'На этом канале у тебя нет шахты — переключись на 🏰 Город.') : EMPTY[S.tab];
+    } else if (S.room === 'city' && S.tab === 'dm' && S.peer) S.el.empty.textContent = `Переписки с ${S.dmNames[S.peer] || S.peer} пока нет — напиши первым.`;
+    else S.el.empty.textContent = S.room === 'mine' ? (S.mines.length ? EMPTY.mine : 'На этом канале у тебя нет шахты — переключись на 🏰 Город.') : EMPTY[S.tab];
   }
 
   // ---------- Вкладки города / фильтры общей ленты ----------
@@ -741,9 +887,82 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.ctabs.innerHTML = tabs.map((t) => `<button type="button" role="tab" data-tab="${t}" aria-selected="${t === S.tab}">${TABS[t]}${S.un[t] && t !== S.tab ? `<b>${S.un[t] > 99 ? '99+' : S.un[t]}</b>` : ''}</button>`).join('');
   }
   function tabTo(t) {
-    if (t === S.tab) return;
-    S.tab = t; S.un[t] = 0; renderTabs();
+    if (t === S.tab && !(t === 'dm' && S.peer)) return;
+    S.tab = t; S.peer = null; S.un[t] = t === 'dm' ? dmUnreadTotal() : 0; renderTabs();
     renderLog(); inputState(); toBottom();
+  }
+
+  // ---------- Личные сообщения: диалоги ----------
+  // Сервер отдаёт личное только автору и адресату (k: 'dm', to). Чтобы переписка не пропадала, когда старые сообщения
+  // уходят из окна сервера или окно перезагружено, личные копятся в браузере — отдельно для каждого канала.
+  S.dmNames = {};
+  const dmAvail = () => S.flags.dm && (!S.hero || S.flags.cc);
+  const dmPeer = (m) => { const l = String(m.l || '').toLowerCase(); return l === S.me ? String(m.to || '').toLowerCase() : l; };
+  const dmKey = () => 'lgmc_dm_' + S.ch, dmReadKey = () => 'lgmc_dmread_' + S.ch;
+  const dmName = (peer, name) => { if (!peer || !name || S.dmNames[peer] === name) return; S.dmNames[peer] = name; lsSet('lgmc_dmnames_' + S.ch, S.dmNames); };
+  function dmSave(m) {
+    const st = lsGet(dmKey(), []);
+    if (!Array.isArray(st) || st.some((x) => x.id === m.id)) return;
+    st.push({ id: m.id, l: m.l, n: m.n, t: m.t, at: m.at, to: m.to, k: 'dm', c: m.c, cn: m.cn });
+    lsSet(dmKey(), st.slice(-400));
+  }
+  function dmRestore() { const st = lsGet(dmKey(), []); if (Array.isArray(st) && st.length) apply({ chat: st }, 'city', true); }
+  const dmRead = () => lsGet(dmReadKey(), {});
+  function dmMarkRead(peer) {
+    const last = S.list.filter((m) => m._src === 'city' && m.k === 'dm' && dmPeer(m) === peer).reduce((a, m) => Math.max(a, m.at || 0), 0);
+    const r = dmRead(); if ((r[peer] || 0) >= last) return; r[peer] = last; lsSet(dmReadKey(), r);
+  }
+  const dmUnread = (peer, rd) => S.list.filter((m) => m._src === 'city' && m.k === 'dm' && !S.ign.has(m.l) && String(m.l).toLowerCase() === peer && (m.at || 0) > ((rd || dmRead())[peer] || 0)).length;
+  const dmUnreadTotal = () => { const rd = dmRead(); return [...new Set(S.list.filter((m) => m._src === 'city' && m.k === 'dm').map(dmPeer))].reduce((a, p) => a + dmUnread(p, rd), 0); };
+
+  // список диалогов: собеседник, последнее сообщение, время, непрочитанные — свежие сверху
+  function renderConvs() {
+    const rd = dmRead(), conv = new Map();
+    for (const m of S.list) {
+      if (m._src !== 'city' || m.k !== 'dm' || S.ign.has(m.l)) continue;
+      const p = dmPeer(m); if (!p) continue;
+      conv.set(p, m);
+    }
+    const f = document.createDocumentFragment();
+    for (const [p, m] of [...conv].sort((a, b) => (b[1].at || 0) - (a[1].at || 0))) {
+      const li = document.createElement('li'), u = dmUnread(p, rd), name = S.dmNames[p] || p, mine = String(m.l).toLowerCase() === S.me;
+      li.className = 'conv'; li.tabIndex = 0; li.dataset.peer = p; li.dataset.n = name;
+      li.setAttribute('aria-label', `Диалог с ${name}${u ? `, непрочитанных: ${u}` : ''}`);
+      li.innerHTML = `<span class="cv"><b style="color:hsl(${hue(p)} var(--ns) var(--nl))">${esc(name)}</b><span>${mine ? 'Ты: ' : ''}${esc(m.t)}</span></span><span class="ct">${m.at ? hhmm(m.at) : ''}</span>${u ? `<span class="cu">${u > 99 ? '99+' : u}</span>` : ''}`;
+      f.appendChild(li);
+    }
+    S.el.log.appendChild(f);
+  }
+
+  // полоска над лентой: «← Диалоги · собеседник» или поле «новый диалог»
+  function updateDmBar() {
+    const show = S.room === 'city' && S.tab === 'dm' && S.inCity;
+    S.el.dmbar.hidden = !show;
+    if (!show) { S.el.dmbar.innerHTML = ''; return; }
+    if (S.peer) {
+      S.el.dmbar.innerHTML = `<button type="button" data-dmback>← Диалоги</button><b style="color:hsl(${hue(S.peer)} var(--ns) var(--nl))">${esc(S.dmNames[S.peer] || S.peer)}</b>`;
+      S.el.dmbar.querySelector('[data-dmback]').onclick = () => { S.peer = null; renderTabs(); renderLog(); inputState(); };
+    } else {
+      S.el.dmbar.innerHTML = '<form autocomplete="off"><input id="dmnew" maxlength="26" placeholder="Ник — начать новый диалог" aria-label="Ник собеседника"><button type="submit">Написать</button></form>';
+      S.el.dmbar.querySelector('form').onsubmit = (e) => {
+        e.preventDefault();
+        const v = S.el.dmbar.querySelector('input').value.trim().replace(/^@/, '').toLowerCase();
+        if (!/^[a-z0-9_]{2,25}$/.test(v)) { S.el.dmbar.querySelector('input').focus(); return; }
+        if (v === S.me) { S.el.err.textContent = 'Самому себе написать нельзя'; return; }
+        openDm(v);
+      };
+    }
+  }
+
+  async function openDm(peer, name) {
+    peer = String(peer || '').toLowerCase(); if (!peer || peer === S.me) return;
+    if (!dmAvail()) { S.el.err.textContent = 'Личные сообщения на этом канале выключены'; return; }
+    if (name) dmName(peer, name);
+    if (S.room !== 'city') await switchTo(S.ch, 'city');
+    S.tab = 'dm'; S.peer = peer;
+    pickerOpen(false, true); pastesOpen(false, true);
+    renderTabs(); renderLog(); dmMarkRead(peer); S.un.dm = dmUnreadTotal(); renderTabs(); inputState(); toBottom();
+    if (!S.el.inp.disabled) S.el.inp.focus();
   }
 
   // ---------- Куда отправлять (в общей ленте) ----------
@@ -770,7 +989,7 @@ html.pinned.mini #log{padding-bottom:12px}
       : ro ? 'Здесь только события игры'
       : t === 'mine' ? 'Написать в чат шахты…'
       : t === 'tr' ? 'Куплю / продам / меняю…'
-      : t === 'dm' ? '@ник сообщение — лично'
+      : t === 'dm' ? (S.room === 'city' && S.peer ? `Лично для ${S.dmNames[S.peer] || S.peer}…` : '@ник сообщение — лично')
       : 'Написать в чат города…';
   }
 
@@ -785,7 +1004,7 @@ html.pinned.mini #log{padding-bottom:12px}
 
   async function getJson(u, ms = 12000) {
     const c = new AbortController(), tm = setTimeout(() => c.abort(), ms);
-    try { const r = await fetch(u, { signal: c.signal, credentials: 'omit' }); return r.ok ? await r.json() : null; }
+    try { const r = await pfetch(u, { signal: c.signal, credentials: 'omit' }); return r.ok ? await r.json() : null; }
     catch { return null; } finally { clearTimeout(tm); }
   }
   const http = (u) => (u && u.startsWith('//') ? 'https:' + u : u);
@@ -1065,6 +1284,13 @@ html.pinned.mini #log{padding-bottom:12px}
     const aw = (msg.aw || []).map((a) => `<span class="aw" title="${esc(a.n)}${a.d ? ' — ' + esc(a.d) : ''}">${esc(a.i || '✦')}</span>`).join('');
     const to = msg.k === 'dm' && msg.to ? ` <span class="to" title="Личное">→ <span class="n" data-l="${esc(String(msg.to).toLowerCase())}">${esc(msg.to)}</span></span>` : '';
     li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:hsl(${hue(l)} var(--ns) var(--nl))" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(text)}`;
+    const nEl = li.querySelector('.n[data-l]');
+    if (nEl && dmAvail() && l && l !== S.me && !(S.room === 'city' && S.tab === 'dm')) {
+      const d = document.createElement('button');
+      d.type = 'button'; d.className = 'dmb'; d.textContent = '✉'; d.dataset.l = l; d.dataset.n = msg.n || msg.l;
+      d.title = 'Написать лично'; d.setAttribute('aria-label', `Написать лично: ${msg.n || msg.l}`);
+      nEl.after(d);
+    }
     if (canMod(msg._src) && l !== S.me) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'mb'; b.textContent = '⋯';
@@ -1266,7 +1492,8 @@ html.pinned.mini #log{padding-bottom:12px}
     else {
       path = '/api/city/say'; body = { text: t };
       if (tg === 'tr') body.k = 'tr';
-      if (tg === 'dm') {   // лично: «@ник текст»
+      if (tg === 'dm' && S.room === 'city' && S.peer && !/^@[a-z0-9_]{2,25}\s/i.test(t)) body = { text: t, to: S.peer };   // открыт диалог — пишем собеседнику
+      else if (tg === 'dm') {   // лично: «@ник текст»
         const m = t.match(/^@([a-z0-9_]{2,25})\s+([\s\S]+)$/i);
         if (!m) { S.el.err.textContent = 'Чтобы написать лично, начни с @ника: «@ник привет»'; return; }
         body = { text: m[2].trim(), to: m[1].toLowerCase() };
@@ -1275,7 +1502,7 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.send.disabled = true;
     try {
       const r = await api(path, body);
-      if (r && r.ok) { S.el.inp.value = tg === 'dm' && body.to ? `@${body.to} ` : ''; S.el.err.textContent = ''; poll(); }
+      if (r && r.ok) { S.el.inp.value = tg === 'dm' && body.to && !(S.room === 'city' && S.peer) ? `@${body.to} ` : ''; if (tg === 'dm' && S.room === 'city' && S.tab === 'dm' && !S.peer && body.to) openDm(body.to); S.el.err.textContent = ''; poll(); }
       else {
         const e = (r && r.error) || 'не отправилось';
         S.el.err.textContent = (ERR[e] || e) + (tg === 'mine' && /шахт/i.test(e) ? ' — чтобы писать, твой герой должен быть в шахте (открой её в игре).' : '');
