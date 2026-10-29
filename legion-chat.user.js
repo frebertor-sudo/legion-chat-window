@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      2.1.0
+// @version      2.2.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru) в отдельном окне: стримеры, вкладки города, стикеры 7TV/BTTV/FFZ, пасты, темы, закрепление поверх окон
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru) in a separate window: channel switching, 7TV/BTTV/FFZ emotes, saved pastes, themes, always-on-top
 // @author       feedfinek
@@ -37,12 +37,13 @@
     только по твоей кнопке (или сразу, если ты так настроил), дальше GET /api/city/state?c=<номер>,
     отправка POST /api/city/say; при уходе — POST /api/city/leave.
   • Список стримеров — GET /c/<канал>/api/channels.
+  • «🔀 Всё»: шахта и город текущего стримера в одной ленте по времени, с пометкой источника и фильтрами.
 */
 
 (function () {
   'use strict';
   const ORIGIN = 'https://play.multidonate.ru';
-  const chatUrl = (ch, room) => `${ORIGIN}/site/ver?minechat=${encodeURIComponent(ch)}${room === 'city' ? '&room=city' : ''}`;
+  const chatUrl = (ch, room) => `${ORIGIN}/site/ver?minechat=${encodeURIComponent(ch)}${room === 'city' || room === 'all' ? '&room=' + room : ''}`;
 
   // ---------- 1. Страница игры: кнопка «вынести чат в окно» ----------
   const game = location.pathname.match(/^\/c\/([^/]+)\/?$/i);
@@ -78,7 +79,9 @@
     rate_limited: 'Не так быстро', forbidden: 'Нет прав', login_required: 'Войди через Twitch на сайте игры',
     mine_closed: 'Шахта закрыта', city_closed: 'Город закрыт', town_closed: 'Этот город сейчас закрыт',
   };
-  const ROOMS = { mine: '⛏ Шахта', city: '🏰 Город' };
+  const ROOMS = { mine: '⛏ Шахта', city: '🏰 Город', all: '🔀 Всё' };
+  const SRC = { mine: 'Шахта', g: 'Город', tr: 'Торг', ev: 'Событие', dm: 'Лично' };   // пометки источника в общей ленте
+  const usesMine = (r) => r === 'mine' || r === 'all', usesCity = (r) => r === 'city' || r === 'all';
   const TABS = { g: 'Общий', tr: 'Торговля', ev: 'Достижения', dm: 'Личные' };
   const CITY_SPAWN = { x: 2460, y: 1010, town: 'fair' };   // как в игре: Ярмарка, у входа (citymap: QW + 660, 1010)
   const LAST_KEY = 'lgmc_last', CITY_AUTO_KEY = 'lgmc_city_auto';
@@ -89,15 +92,15 @@
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
   const S = {
-    ch: CH0.toLowerCase(), chName: CH0, room: Q.get('room') === 'city' ? 'city' : 'mine', mine: 'home', mines: [],
+    ch: CH0.toLowerCase(), chName: CH0, room: ['city', 'all'].includes(Q.get('room')) ? Q.get('room') : 'mine', mine: 'home', mines: [],
     channels: [], me: '', hero: null, flags: { cc: false, tr: false, dm: false }, inCity: false, entering: false,
     tab: 'g', un: { g: 0, tr: 0, ev: 0, dm: 0 }, ign: new Set(), gen: 0,
-    c: 0, list: [], ids: new Set(), timer: 0, busy: false, fails: 0, stick: true, unseen: 0, unseenTitle: 0,
+    mc: 0, cc: 0, list: [], ids: new Set(), mix: Object.assign({ mine: true, g: true, tr: true, ev: true, dm: true }, lsGet('lgmc_mix', {})), to: lsGet('lgmc_mix_to', 'g'), timer: 0, busy: false, fails: 0, stick: true, unseen: 0, unseenTitle: 0,
   };
   // если в адресе канал не указан явно иначе — вернуть то, где был в прошлый раз (только комнату для того же канала)
   { const last = lsGet(LAST_KEY, null); if (last && last.ch === S.ch && !Q.get('room') && ROOMS[last.room]) S.room = last.room; }
   const BASE = () => `/c/${S.ch}`;
-  const title = () => `${S.room === 'city' ? 'Город' : 'Шахта'} · ${S.chName}`;
+  const title = () => `${{ mine: 'Шахта', city: 'Город', all: 'Все чаты' }[S.room]} · ${S.chName}`;
 
   function boot() {
     // на этапе document-start корня <html> может ещё не быть — тогда создаём его сами
@@ -131,6 +134,21 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 .hr.r2{flex-wrap:wrap;row-gap:5px}
 #ctabs{display:flex;gap:2px;flex-wrap:wrap;flex-basis:100%;min-width:0}
 #ctabs[hidden]{display:none}
+#ctabs button[aria-pressed]{opacity:.55}
+#ctabs button[aria-pressed="true"]{opacity:1;color:var(--tx);border-color:var(--line);background:var(--bg)}
+#ctabs .lbl{color:var(--mut);font:600 11px system-ui;align-self:center;margin-right:2px}
+#cbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;background:var(--me);border-bottom:1px solid var(--line);font-size:12px;flex:none}
+#cbar[hidden]{display:none}
+#cbar span{flex:1;min-width:160px;color:var(--tx)}
+#cbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:3px 10px;font:600 12px system-ui;cursor:pointer}
+#cbar .go:disabled{opacity:.6}
+#cbar label{display:flex;gap:4px;align-items:center;color:var(--mut);cursor:pointer}
+#log .src{display:inline-block;font:600 10px/15px system-ui;padding:0 5px;margin-right:4px;border-radius:4px;border:1px solid var(--line);color:var(--mut);vertical-align:1px;letter-spacing:.02em}
+#log .src.k-mine{color:var(--acc-tx);border-color:var(--acc)}
+#log .src.k-tr{color:var(--ok);border-color:var(--ok)}
+#log .src.k-dm{color:var(--bad);border-color:var(--bad)}
+#tgt{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:0 4px;font:600 12px system-ui;max-width:92px}
+#tgt[hidden]{display:none}
 #ctabs button{background:none;color:var(--mut);border:1px solid transparent;border-radius:6px;padding:2px 7px;font:600 12px system-ui;cursor:pointer;white-space:nowrap}
 #ctabs button[aria-selected="true"]{color:var(--acc-tx);border-color:var(--line);background:var(--bg)}
 #ctabs b{display:inline-block;min-width:16px;padding:0 4px;margin-left:3px;border-radius:8px;background:var(--acc);color:var(--on-acc);font-size:10px;line-height:15px;text-align:center}
@@ -219,6 +237,8 @@ html.pinned header select{font-size:11px;padding:1px 3px}
 html.pinned #chan{font-size:12px}
 html.pinned .seg button{padding:1px 6px;font-size:11px}
 html.pinned #ctabs button{padding:1px 5px;font-size:11px}
+html.pinned #cbar{padding:4px 6px;font-size:11px}
+html.pinned #tgt{font-size:11px;max-width:78px}
 html.pinned .hb{padding:0 5px;font-size:12px;border-color:transparent;background:none}
 html.pinned .hb:hover,html.pinned .hb[aria-pressed="true"]{border-color:var(--line);background:var(--panel)}
 html.pinned #pin[aria-pressed="true"]{background:var(--acc);border-color:var(--acc)}
@@ -228,7 +248,7 @@ html.pinned #log li:hover{background:var(--hov)}
 html.pinned #log li.mention:hover{background:var(--me)}
 html.pinned #log .t{font-size:.78em}
 html.pinned.not #log .t{display:none}
-html.pinned.noi #log li>span[title]:not(.aw):not(.n):not(.to){display:none}
+html.pinned.noi #log li>span[title]:not(.aw):not(.n):not(.to):not(.src){display:none}
 html.pinned #log img.em{height:calc(var(--fs) * 2);margin:-3px 1px}
 html.pinned footer{padding:5px 6px}
 html.pinned #in{padding:5px 8px;font-size:var(--fs)}
@@ -248,20 +268,21 @@ html.pinned.mini #log{padding-bottom:12px}
 <body>
 <header>
   <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span><button id="pin" class="hb" type="button" aria-pressed="false">📌</button></div>
-  <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${ROOMS.mine}</button><button type="button" data-r="city">${ROOMS.city}</button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
+  <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${ROOMS.mine}</button><button type="button" data-r="city">${ROOMS.city}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${ROOMS.all}</button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
+<div id="cbar" hidden></div>
 <ol id="log" role="log" aria-live="polite"></ol><p id="empty">Загружаю чат…</p><div id="gate" hidden></div>
 <button id="more" type="button">↓ новые</button>
 <footer><p id="err" role="status"></p>
 <div id="ep" role="dialog" aria-label="Стикеры"><div id="ep-top"><input id="eq" type="search" placeholder="Найти стикер…" aria-label="Поиск стикера"></div><div id="etabs" role="tablist"></div><div id="eg"></div><div id="eh"></div></div>
 <div id="pp" role="dialog" aria-label="Пасты"><div class="pp-top"><input id="pq" type="search" placeholder="Найти пасту…" aria-label="Поиск пасты"><button type="button" class="pbtn" id="pnew">＋ Новая</button></div><ul id="pl"></ul>
 <div id="pe"><input id="pn" maxlength="40" placeholder="Название (например: «приветствие»)" aria-label="Название пасты"><textarea id="pt" maxlength="500" placeholder="Текст пасты — можно со стикерами" aria-label="Текст пасты"></textarea><div class="pe-b"><small id="pc">0 / 200</small><button type="button" class="pbtn alt" id="pcancel">Отмена</button><button type="button" class="pbtn" id="psave">Сохранить</button></div></div></div>
-<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><input id="in" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение"><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
+<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><input id="in" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение"><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
 </body>`;
     const $ = (id) => document.getElementById(id);
     S.el = {
       log: $('log'), empty: $('empty'), gate: $('gate'), more: $('more'), dot: $('dot'), err: $('err'), f: $('f'),
-      inp: $('in'), send: $('send'), mine: $('mine'), chan: $('chan'), room: $('room'), ctabs: $('ctabs'),
+      inp: $('in'), send: $('send'), mine: $('mine'), chan: $('chan'), room: $('room'), ctabs: $('ctabs'), cbar: $('cbar'), tgt: $('tgt'),
     };
     S.el.log.addEventListener('scroll', () => {
       const l = S.el.log; S.stick = l.scrollHeight - l.scrollTop - l.clientHeight < 40;
@@ -270,6 +291,8 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.more.onclick = () => toBottom();
     S.el.log.addEventListener('click', (e) => {   // клик по нику — ответить @ником
       const n = e.target.closest('.n'); if (!n || !n.dataset.l) return;
+      const li = n.closest('li');
+      if (S.room === 'all' && li && li.dataset.k) { const k = li.dataset.k === 'ev' ? 'g' : li.dataset.k; if ([...S.el.tgt.options].some((o) => o.value === k)) setTarget(k); }
       const v = S.el.inp.value.replace(/^@\S+\s*/, '');
       S.el.inp.value = `@${n.dataset.l} ${v}`; S.el.inp.focus();
     });
@@ -277,7 +300,12 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.mine.onchange = () => { S.mine = S.el.mine.value; lsSet('lgmc_mine_' + S.ch, S.mine); restart(); };
     S.el.chan.onchange = () => switchTo(S.el.chan.value, S.room);
     S.el.room.onclick = (e) => { const b = e.target.closest('[data-r]'); if (b && !b.disabled && b.dataset.r !== S.room) switchTo(S.ch, b.dataset.r); };
-    S.el.ctabs.onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) tabTo(b.dataset.tab); };
+    S.el.ctabs.onclick = (e) => {
+      const b = e.target.closest('[data-tab]'); if (b) { tabTo(b.dataset.tab); return; }
+      const f = e.target.closest('[data-mix]'); if (!f) return;
+      S.mix[f.dataset.mix] = !S.mix[f.dataset.mix]; lsSet('lgmc_mix', S.mix); renderTabs(); renderLog(); toBottom();
+    };
+    S.el.tgt.onchange = () => setTarget(S.el.tgt.value);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) { S.unseenTitle = 0; document.title = title(); poll(); }
     });
@@ -417,22 +445,24 @@ html.pinned.mini #log{padding-bottom:12px}
   // ---------- Канал и комната ----------
   async function switchTo(ch, room) {
     if (!okLogin(ch)) return;
-    if (S.room === 'city' && (ch !== S.ch || room !== 'city')) cityLeave();
     const chChanged = ch !== S.ch;
+    const wasCity = usesCity(S.room) && S.inCity;
+    const keepCity = wasCity && !chChanged && usesCity(room);   // Город ↔ Всё: герой остаётся на Ярмарке
+    if (wasCity && !keepCity) cityLeave();
     S.ch = ch; S.room = room;
     const cur = S.channels.find((c) => c.login.toLowerCase() === ch); S.chName = (cur && cur.name) || ch;
     lsSet(LAST_KEY, { ch, room });
     try { history.replaceState(null, '', chatUrl(ch, room)); } catch {}
     renderChannels();
     if (chChanged) { S.me = ''; S.hero = null; emLoad(); }
-    await start();
+    await start(keepCity);
   }
 
-  async function start() {
+  async function start(keepCity) {
     const gen = ++S.gen;
     clearTimeout(S.timer);
     clearLog('Загружаю чат…');
-    S.tab = 'g'; S.un = { g: 0, tr: 0, ev: 0, dm: 0 }; S.inCity = false;
+    S.tab = 'g'; S.un = { g: 0, tr: 0, ev: 0, dm: 0 }; S.inCity = !!keepCity;
     S.el.err.textContent = '';
     try {
       const me = await api('/api/me'); if (gen !== S.gen) return;
@@ -447,35 +477,37 @@ html.pinned.mini #log{padding-bottom:12px}
     S.mine = S.mines.some((x) => x.id === saved) ? saved : (S.mines[0] ? S.mines[0].id : 'home');
     S.el.mine.innerHTML = S.mines.map((x) => `<option value="${esc(x.id)}">${esc(x.nm)}</option>`).join('');
     S.el.mine.value = S.mine;
-    // какие комнаты доступны: шахта — если у героя на канале есть шахта; город — если чат города включён
+    // какие комнаты доступны: шахта — если у героя на канале есть шахта; город — если чат города включён; «Всё» — если есть хоть что-то
     const rb = (r) => S.el.room.querySelector(`[data-r="${r}"]`);
-    rb('mine').disabled = !S.mines.length; rb('mine').title = S.mines.length ? 'Чат шахты' : 'На этом канале у тебя нет шахты';
-    rb('city').disabled = !!S.hero && !S.flags.cc; rb('city').title = rb('city').disabled ? 'Чат города на этом канале выключен' : 'Чат города';
-    if (rb(S.room).disabled) S.room = !rb('city').disabled ? 'city' : 'mine';
+    const hasMine = S.mines.length > 0, hasCity = !S.hero || S.flags.cc;
+    rb('mine').disabled = !hasMine; rb('mine').title = hasMine ? 'Чат шахты' : 'На этом канале у тебя нет шахты';
+    rb('city').disabled = !hasCity; rb('city').title = hasCity ? 'Чат города' : 'Чат города на этом канале выключен';
+    rb('all').disabled = !hasMine && !hasCity;
+    if (rb(S.room).disabled) S.room = hasCity ? 'city' : 'mine';
     for (const b of S.el.room.querySelectorAll('[data-r]')) b.setAttribute('aria-pressed', String(b.dataset.r === S.room));
-    S.el.mine.hidden = S.room !== 'mine' || S.mines.length < 2;
-    renderTabs();
+    S.el.mine.hidden = !usesMine(S.room) || S.mines.length < 2;
+    renderTabs(); renderTargets(); updateBar();
     document.title = title(); if (S.pip) S.pip.document.title = title();
     inputState();
-    if (S.room === 'mine') {
-      if (!S.mines.length) { clearLog('На этом канале у тебя нет шахты — переключись на 🏰 Город.'); return; }
-      poll(true);
-    } else if (lsGet(CITY_AUTO_KEY, false)) cityEnter();
-    else showGate();
+    if (S.room === 'mine' && !hasMine) { clearLog('На этом канале у тебя нет шахты — переключись на 🏰 Город.'); return; }
+    if (S.room === 'city' && !S.inCity) { if (lsGet(CITY_AUTO_KEY, false)) cityEnter(); else showGate(); return; }
+    poll(true);   // шахта, город (если уже на Ярмарке) или всё сразу
+    if (S.room === 'all' && hasCity && !S.inCity && lsGet(CITY_AUTO_KEY, false)) cityEnter();
   }
-  const restart = () => start();
+  const restart = () => start(usesCity(S.room) && S.inCity);
 
   function clearLog(msg) {
-    S.list = []; S.ids.clear(); S.c = 0; S.el.log.innerHTML = '';
+    S.list = []; S.ids.clear(); S.mc = 0; S.cc = 0; S.el.log.innerHTML = '';
     S.el.gate.hidden = true; S.el.log.hidden = false;
     S.el.empty.hidden = !msg; S.el.empty.textContent = msg || '';
   }
 
   // ---------- Город: вход по кнопке ----------
+  const GATE_TEXT = 'Чтобы читать и писать в чат города, твой герой зайдёт на Ярмарку этого канала — как при открытии города в игре. Его увидят другие игроки (и, возможно, на оверлее стрима). Когда переключишься или закроешь окно, герой уйдёт из города.';
   function showGate(errText) {
     S.el.log.hidden = true; S.el.empty.hidden = true; S.el.gate.hidden = false;
     const auto = lsGet(CITY_AUTO_KEY, false);
-    S.el.gate.innerHTML = `<b>🏰 Чат города · ${esc(S.chName)}</b>Чтобы читать и писать в чат города, твой герой зайдёт на Ярмарку этого канала — как при открытии города в игре. Его увидят другие игроки (и, возможно, на оверлее стрима). Когда переключишься или закроешь окно, герой уйдёт из города.
+    S.el.gate.innerHTML = `<b>🏰 Чат города · ${esc(S.chName)}</b>${GATE_TEXT}
       ${errText ? `<p style="color:var(--bad)">${esc(errText)}</p>` : ''}
       <br><button type="button" class="go">Войти в город</button>
       <label><input type="checkbox" ${auto ? 'checked' : ''}> Входить сразу, не спрашивая</label>`;
@@ -483,24 +515,39 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.gate.querySelector('input').onchange = (e) => lsSet(CITY_AUTO_KEY, e.target.checked);
     inputState();
   }
+  // в общей ленте вместо большого экрана — полоска над лентой: шахта видна сразу, город — по кнопке
+  function updateBar(errText) {
+    const show = S.room === 'all' && !S.inCity && (!S.hero || S.flags.cc);
+    S.el.cbar.hidden = !show;
+    if (!show) { S.el.cbar.innerHTML = ''; return; }
+    const auto = lsGet(CITY_AUTO_KEY, false);
+    S.el.cbar.innerHTML = `<span title="${esc(GATE_TEXT)}">🏰 Город не подключён${errText ? ' — ' + esc(errText) : ': герой зайдёт на Ярмарку, его увидят другие'}</span><button type="button" class="go">Войти в город</button><label><input type="checkbox" ${auto ? 'checked' : ''}> сразу</label>`;
+    S.el.cbar.querySelector('.go').onclick = () => cityEnter();
+    S.el.cbar.querySelector('input').onchange = (e) => lsSet(CITY_AUTO_KEY, e.target.checked);
+  }
 
   async function cityEnter() {
     if (S.entering) return;
     const gen = S.gen;
     S.entering = true;
-    const go = S.el.gate.querySelector('.go'); if (go) { go.disabled = true; go.textContent = 'Вхожу…'; }
+    for (const go of [S.el.gate.querySelector('.go'), S.el.cbar.querySelector('.go')]) if (go) { go.disabled = true; go.textContent = 'Вхожу…'; }
     let r = null;
     try { r = await api('/api/city/enter', CITY_SPAWN); } catch {}
     S.entering = false;
-    if (gen !== S.gen || S.room !== 'city') return;
-    if (!r || !r.ok) { S.el.dot.className = 'bad'; showGate('Не получилось войти: ' + ((r && (ERR[r.error] || r.error)) || 'нет связи')); return; }
+    if (gen !== S.gen || !usesCity(S.room)) return;
+    if (!r || !r.ok) {
+      const t = 'Не получилось войти: ' + ((r && (ERR[r.error] || r.error)) || 'нет связи');
+      if (S.room === 'city') { S.el.dot.className = 'bad'; showGate(t); } else updateBar(t);
+      return;
+    }
     S.inCity = true; S.cityCh = S.ch;
     S.el.dot.className = 'ok';
-    clearLog('');
+    if (S.room === 'city') clearLog('');
     S.mod = r.mod === 'own' || r.mod === 'mod' ? r.mod : null;
     S.ign = new Set(Array.isArray(r.ign) ? r.ign : []);
-    apply(r, true);
-    inputState();
+    apply(r, 'city', true);
+    updateBar(); inputState();
+    if (S.room === 'all' && S.ign.size) renderLog();   // игнор пришёл только сейчас — убрать уже показанное от игнорируемых
     schedule();
   }
 
@@ -517,38 +564,37 @@ html.pinned.mini #log{padding-bottom:12px}
   }
 
   // ---------- Опрос ----------
+  const canPoll = () => (usesMine(S.room) && S.mines.length > 0) || (usesCity(S.room) && S.inCity);
   function schedule() {
     clearTimeout(S.timer);
-    if (S.room === 'city' && !S.inCity) return;
+    if (!canPoll()) return;
     const base = hidden() ? 8000 : 2500;
     S.timer = setTimeout(() => poll(), S.fails ? Math.min(30000, base * 2 ** S.fails) : base);
   }
 
   async function poll(reset) {
     if (S.busy) { if (reset) S.pendingReset = true; return; }
-    if (S.room === 'city' && !S.inCity) return;
+    if (!canPoll()) { emptyState(); return; }
     const gen = S.gen;
     S.busy = true;
-    if (reset) S.c = 0;
+    if (reset) { S.mc = 0; S.cc = 0; }
     try {
-      let r, d;
-      if (S.room === 'mine') {
-        r = await api(`/api/mine/state?c=${encodeURIComponent(S.mine)}&mc=${S.c || 0}`);
-        d = r && r.mchat;
-      } else {
-        r = await api(`/api/city/state?c=${S.c || 0}`);
-        d = r;
-      }
+      const jobs = [];
+      if (usesMine(S.room) && S.mines.length) jobs.push(api(`/api/mine/state?c=${encodeURIComponent(S.mine)}&mc=${S.mc || 0}`).then((r) => ['mine', r]));
+      if (usesCity(S.room) && S.inCity) jobs.push(api(`/api/city/state?c=${S.cc || 0}`).then((r) => ['city', r]));
+      const res = await Promise.all(jobs);
       if (gen !== S.gen) return;
-      if (!r.ok) {
-        if (S.room === 'city' && /не в городе/.test(r.error || '')) {   // присутствие слетело (например, город открыт и закрыт в другой вкладке) — заходим снова
-          S.inCity = false; cityEnter(); return;
-        }
-        throw new Error(ERR[r.error] || r.error || 'ошибка');
-      }
-      S.fails = 0; S.el.dot.className = 'ok'; S.el.dot.title = 'На связи';
       if (reset) { S.list = []; S.ids.clear(); S.el.log.innerHTML = ''; }
-      apply(d || {}, reset);
+      const errs = [];
+      for (const [src, r] of res) {
+        if (r && r.ok) { apply(src === 'mine' ? r.mchat || {} : r, src, reset); continue; }
+        if (src === 'city' && /не в городе/.test((r && r.error) || '')) {   // присутствие слетело (например, город открыт и закрыт в другой вкладке) — заходим снова
+          S.inCity = false; cityEnter(); continue;
+        }
+        errs.push((r && (ERR[r.error] || r.error)) || 'ошибка');
+      }
+      if (errs.length) throw new Error(errs.join('; '));
+      S.fails = 0; S.el.dot.className = 'ok'; S.el.dot.title = 'На связи';
       if (S.el.err.dataset.net) { S.el.err.textContent = ''; delete S.el.err.dataset.net; }
     } catch (e) {
       if (gen !== S.gen) return;
@@ -563,35 +609,56 @@ html.pinned.mini #log{padding-bottom:12px}
     }
   }
 
-  // вкладка сообщения (как в игре): Достижения — события игры, Торговля / Личные — по виду; в шахте всё — «Общий»
-  const tabOf = (m) => (S.room === 'mine' ? 'g' : m.tb || (m.ev ? 'ev' : m.k === 'tr' ? 'tr' : m.k === 'dm' ? 'dm' : 'g'));
-  const visible = (m) => !S.ign.has(m.l) && tabOf(m) === S.tab;
+  // вид сообщения: шахта, или вкладка города (как в игре): Достижения — события игры, Торговля / Личные — по виду
+  const kind = (m) => (m._src === 'mine' ? 'mine' : m.tb || (m.ev ? 'ev' : m.k === 'tr' ? 'tr' : m.k === 'dm' ? 'dm' : 'g'));
+  const visible = (m) => {
+    if (S.ign.has(m.l)) return false;
+    const k = kind(m);
+    return S.room === 'mine' ? k === 'mine' : S.room === 'city' ? k === S.tab : !!S.mix[k];
+  };
 
-  function apply(d, initial) {
-    let added = 0;
+  function apply(d, src, initial) {
+    let added = 0, resort = false;
     for (const msg of d.chat || []) {
-      if (!msg || !msg.id || S.ids.has(msg.id)) continue;
-      if (S.room === 'mine' && msg.k === 'dm') continue;
-      S.ids.add(msg.id); S.list.push(msg);
-      if (S.ign.has(msg.l)) continue;
-      const tb = tabOf(msg), mine = String(msg.l).toLowerCase() === S.me;
-      if (tb === S.tab) { S.el.log.appendChild(row(msg)); added++; }
-      else if (!initial && !mine && tb !== 'ev') { S.un[tb] = (S.un[tb] || 0) + 1; renderTabs(); }
-      if (!initial && hidden() && !mine && tb === S.tab) document.title = `(${++S.unseenTitle}) ${title()}`;
+      if (!msg || !msg.id) continue;
+      if (src === 'mine' && msg.k === 'dm') continue;
+      const key = src + ':' + msg.id;
+      if (S.ids.has(key)) continue;
+      const m = Object.assign({}, msg, { _src: src, _key: key });
+      S.ids.add(key);
+      // лента общая для двух источников — держим её по времени
+      const last = S.list[S.list.length - 1];
+      S.list.push(m);
+      if (last && (last.at || 0) > (m.at || 0)) { S.list.sort((x, y) => (x.at || 0) - (y.at || 0)); resort = true; }
+      if (S.ign.has(m.l)) continue;
+      const k = kind(m), mine = String(m.l).toLowerCase() === S.me;
+      if (visible(m)) { if (!resort) S.el.log.appendChild(row(m)); added++; }
+      else if (S.room === 'city' && !initial && !mine && k !== 'ev' && k !== 'mine') { S.un[k] = (S.un[k] || 0) + 1; renderTabs(); }
+      if (!initial && hidden() && !mine && visible(m)) document.title = `(${++S.unseenTitle}) ${title()}`;
     }
     for (const id of d.chatDel || []) {   // удалённые модератором
-      if (!S.ids.has(id)) continue;
-      S.ids.delete(id); S.list = S.list.filter((x) => x.id !== id);
-      const li = S.el.log.querySelector(`li[data-id="${CSS.escape(id)}"]`); if (li) li.remove();
+      const key = src + ':' + id;
+      if (!S.ids.has(key)) continue;
+      S.ids.delete(key); S.list = S.list.filter((x) => x._key !== key);
+      const li = S.el.log.querySelector(`li[data-key="${CSS.escape(key)}"]`); if (li) li.remove();
     }
-    while (S.list.length > 400) { const old = S.list.shift(); S.ids.delete(old.id); const li = S.el.log.querySelector(`li[data-id="${CSS.escape(old.id)}"]`); if (li) li.remove(); }
-    if (d.c != null) S.c = Math.max(S.c, +d.c || 0);
+    while (S.list.length > 500) { const old = S.list.shift(); S.ids.delete(old._key); const li = S.el.log.querySelector(`li[data-key="${CSS.escape(old._key)}"]`); if (li) li.remove(); }
+    if (d.c != null) { if (src === 'mine') S.mc = Math.max(S.mc, +d.c || 0); else S.cc = Math.max(S.cc, +d.c || 0); }
     if (d.chatMe && 'muted' in d.chatMe && d.chatMe.muted) S.el.err.textContent = 'Модератор запретил тебе писать в этот чат';
+    if (resort) renderLog();
     emptyState();
     if (added) {
       if (S.stick || initial) toBottom();
       else { S.unseen += added; S.el.more.textContent = `↓ новые (${S.unseen})`; S.el.more.style.display = 'block'; }
     }
+  }
+
+  function renderLog() {
+    S.el.log.innerHTML = '';
+    const f = document.createDocumentFragment();
+    for (const m of S.list) if (visible(m)) f.appendChild(row(m));
+    S.el.log.appendChild(f);
+    emptyState();
   }
 
   const EMPTY = {
@@ -603,38 +670,63 @@ html.pinned.mini #log{padding-bottom:12px}
     if (!S.el.gate.hidden) return;
     const has = !!S.el.log.firstElementChild;
     S.el.empty.hidden = has;
-    if (!has) S.el.empty.textContent = S.room === 'mine' ? EMPTY.mine : EMPTY[S.tab];
+    if (has) return;
+    if (S.room === 'all') {
+      const any = Object.keys(S.mix).some((k) => S.mix[k] && mixKinds().includes(k));
+      S.el.empty.textContent = !any ? 'Все источники выключены — включи нужные над лентой.'
+        : !S.mines.length && !S.inCity ? 'Войди в город, чтобы видеть его чат здесь.'
+        : 'Здесь будут все чаты стримера: шахта и город.';
+    } else S.el.empty.textContent = S.room === 'mine' ? EMPTY.mine : EMPTY[S.tab];
   }
 
-  // ---------- Вкладки чата города ----------
+  // ---------- Вкладки города / фильтры общей ленты ----------
+  const cityTabs = () => ['g', ...(S.flags.tr ? ['tr', 'ev'] : []), ...(S.flags.dm ? ['dm'] : [])];
+  const mixKinds = () => [...(S.mines.length ? ['mine'] : []), ...((!S.hero || S.flags.cc) ? cityTabs() : [])];
   function renderTabs() {
-    const show = S.room === 'city';
+    const show = S.room === 'city' || S.room === 'all';
     S.el.ctabs.hidden = !show;
     if (!show) return;
-    const tabs = ['g', ...(S.flags.tr ? ['tr', 'ev'] : []), ...(S.flags.dm ? ['dm'] : [])];
+    if (S.room === 'all') {   // фильтры источников: что показывать в общей ленте
+      S.el.ctabs.setAttribute('role', 'group'); S.el.ctabs.setAttribute('aria-label', 'Что показывать');
+      S.el.ctabs.innerHTML = '<span class="lbl">Показывать:</span>' + mixKinds().map((k) => `<button type="button" data-mix="${k}" aria-pressed="${!!S.mix[k]}">${k === 'mine' ? '⛏ Шахта' : TABS[k]}</button>`).join('');
+      return;
+    }
+    S.el.ctabs.setAttribute('role', 'tablist'); S.el.ctabs.removeAttribute('aria-label');
+    const tabs = cityTabs();
     if (!tabs.includes(S.tab)) S.tab = 'g';
     S.el.ctabs.innerHTML = tabs.map((t) => `<button type="button" role="tab" data-tab="${t}" aria-selected="${t === S.tab}">${TABS[t]}${S.un[t] && t !== S.tab ? `<b>${S.un[t] > 99 ? '99+' : S.un[t]}</b>` : ''}</button>`).join('');
   }
   function tabTo(t) {
     if (t === S.tab) return;
     S.tab = t; S.un[t] = 0; renderTabs();
-    S.el.log.innerHTML = '';
-    for (const m of S.list) if (visible(m)) S.el.log.appendChild(row(m));
-    emptyState(); inputState(); toBottom();
+    renderLog(); inputState(); toBottom();
   }
 
+  // ---------- Куда отправлять (в общей ленте) ----------
+  const TGT = { mine: '⛏ Шахта', g: '🏰 Город', tr: '💰 Торговля', dm: '✉ Лично' };
+  function renderTargets() {
+    const opts = [...(S.mines.length ? ['mine'] : []), ...((!S.hero || S.flags.cc) ? ['g', ...(S.flags.tr ? ['tr'] : []), ...(S.flags.dm ? ['dm'] : [])] : [])];
+    S.el.tgt.innerHTML = opts.map((k) => `<option value="${k}">${TGT[k]}</option>`).join('');
+    if (!opts.includes(S.to)) S.to = opts[0] || 'g';
+    S.el.tgt.value = S.to;
+    S.el.tgt.hidden = S.room !== 'all' || !opts.length;
+  }
+  function setTarget(k) { S.to = k; S.el.tgt.value = k; lsSet('lgmc_mix_to', k); inputState(); }
+  const target = () => (S.room === 'all' ? S.to : S.room === 'mine' ? 'mine' : S.tab);
+
   function inputState() {
-    const gate = S.room === 'city' && !S.inCity;
-    const ro = S.room === 'city' && S.tab === 'ev';
+    const t = target();
+    const gate = t !== 'mine' && !S.inCity;
+    const ro = t === 'ev';
     const off = !S.me || gate || ro;
     S.el.inp.disabled = off; S.el.send.disabled = off; S.el.emb.disabled = off; if (S.el.pb) S.el.pb.disabled = off;
     if (off) { pickerOpen(false, true); pastesOpen(false, true); }
     S.el.inp.placeholder = !S.me ? 'Войди через Twitch на сайте игры, чтобы писать'
-      : gate ? 'Сначала войди в город'
+      : gate ? (S.room === 'all' ? 'Чтобы писать в город, войди в город' : 'Сначала войди в город')
       : ro ? 'Здесь только события игры'
-      : S.room === 'mine' ? 'Написать в чат шахты…'
-      : S.tab === 'tr' ? 'Куплю / продам / меняю…'
-      : S.tab === 'dm' ? '@ник сообщение — лично'
+      : t === 'mine' ? 'Написать в чат шахты…'
+      : t === 'tr' ? 'Куплю / продам / меняю…'
+      : t === 'dm' ? '@ник сообщение — лично'
       : 'Написать в чат города…';
   }
 
@@ -693,8 +785,8 @@ html.pinned.mini #log{padding-bottom:12px}
     }
     if (!EM_SETS.some((s) => s.id === S.ptab) && S.ptab !== 'recent') S.ptab = 'recent';
     pickerTabs(); pickerRender();
-    for (const li of S.el.log.querySelectorAll('li[data-id]')) {   // перерисовать уже показанные сообщения
-      const m = S.list.find((x) => x.id === li.dataset.id); if (m) li.replaceWith(row(m));
+    for (const li of S.el.log.querySelectorAll('li[data-key]')) {   // перерисовать уже показанные сообщения
+      const m = S.list.find((x) => x._key === li.dataset.key); if (m) li.replaceWith(row(m));
     }
     if (S.stick) toBottom();
   }
@@ -912,12 +1004,14 @@ html.pinned.mini #log{padding-bottom:12px}
 
   function row(msg) {
     const li = document.createElement('li');
-    li.dataset.id = msg.id;
+    const k = kind(msg);
+    li.dataset.key = msg._key; li.dataset.k = k;
     const text = String(msg.t || '');
     if (msg.sys) { li.className = 'sys'; li.textContent = text; return li; }
+    const chip = S.room === 'all' ? `<span class="src k-${k}">${SRC[k]}</span>` : '';
     if (msg.ev) {   // «Летопись»: событие игры
       li.className = 'ev';
-      li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>📜 ${fmtText(text)}`;
+      li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}📜 ${fmtText(text)}`;
       return li;
     }
     const l = String(msg.l || '').toLowerCase();
@@ -926,7 +1020,7 @@ html.pinned.mini #log{padding-bottom:12px}
     const ri = ROLE_ICO[msg.r]; const role = ri ? `<span title="${ri[1]}">${ri[0]}</span> ` : '';
     const aw = (msg.aw || []).map((a) => `<span class="aw" title="${esc(a.n)}${a.d ? ' — ' + esc(a.d) : ''}">${esc(a.i || '✦')}</span>`).join('');
     const to = msg.k === 'dm' && msg.to ? ` <span class="to" title="Личное">→ <span class="n" data-l="${esc(String(msg.to).toLowerCase())}">${esc(msg.to)}</span></span>` : '';
-    li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${role}${ico}<span class="n" data-l="${esc(l)}" style="color:hsl(${hue(l)} var(--ns) var(--nl))" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(text)}`;
+    li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:hsl(${hue(l)} var(--ns) var(--nl))" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(text)}`;
     return li;
   }
 
@@ -938,11 +1032,12 @@ html.pinned.mini #log{padding-bottom:12px}
   async function say() {
     let t = S.el.inp.value.trim(); if (!t || S.el.send.disabled) return;
     let path, body;
-    if (S.room === 'mine') { path = `/api/mine/chat/say?c=${encodeURIComponent(S.mine)}`; body = { text: t }; }
+    const tg = target();
+    if (tg === 'mine') { path = `/api/mine/chat/say?c=${encodeURIComponent(S.mine)}`; body = { text: t }; }
     else {
       path = '/api/city/say'; body = { text: t };
-      if (S.tab === 'tr') body.k = 'tr';
-      if (S.tab === 'dm') {   // лично: «@ник текст»
+      if (tg === 'tr') body.k = 'tr';
+      if (tg === 'dm') {   // лично: «@ник текст»
         const m = t.match(/^@([a-z0-9_]{2,25})\s+([\s\S]+)$/i);
         if (!m) { S.el.err.textContent = 'Чтобы написать лично, начни с @ника: «@ник привет»'; return; }
         body = { text: m[2].trim(), to: m[1].toLowerCase() };
@@ -951,11 +1046,11 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.send.disabled = true;
     try {
       const r = await api(path, body);
-      if (r && r.ok) { S.el.inp.value = S.tab === 'dm' && body.to ? `@${body.to} ` : ''; S.el.err.textContent = ''; poll(); }
+      if (r && r.ok) { S.el.inp.value = tg === 'dm' && body.to ? `@${body.to} ` : ''; S.el.err.textContent = ''; poll(); }
       else {
         const e = (r && r.error) || 'не отправилось';
-        S.el.err.textContent = (ERR[e] || e) + (S.room === 'mine' && /шахт/i.test(e) ? ' — чтобы писать, твой герой должен быть в шахте (открой её в игре).' : '');
-        if (S.room === 'city' && /не в городе/.test(e)) { S.inCity = false; cityEnter(); }
+        S.el.err.textContent = (ERR[e] || e) + (tg === 'mine' && /шахт/i.test(e) ? ' — чтобы писать, твой герой должен быть в шахте (открой её в игре).' : '');
+        if (tg !== 'mine' && /не в городе/.test(e)) { S.inCity = false; cityEnter(); }
       }
     } catch { S.el.err.textContent = 'Нет связи — сообщение не ушло'; }
     finally { inputState(); if (!S.el.inp.disabled) S.el.inp.focus(); }
