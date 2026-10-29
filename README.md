@@ -57,7 +57,7 @@ python3 tools/build.py
 
 Собирает оба zip и копию userscript в `dist/`. Версия берётся из `@version` в `legion-chat.user.js`.
 
-Новая версия: поднять `@version` → собрать → закоммитить → поставить метку `vX.Y.Z` и отправить её. Метка запускает [публикацию](.github/workflows/publish.yml): сборка, Firefox Add-ons, Chrome Web Store, Microsoft Edge Add-ons и выпуск на GitHub с zip-файлами. Магазин, для которого в настройках репозитория нет ключей, пропускается. Тексты и картинки для карточек — в [`store/`](store/LISTING.md), политика конфиденциальности — [PRIVACY.md](PRIVACY.md).
+Новая версия: поднять `@version` → собрать → закоммитить в `main`. Новая версия сама запускает [публикацию](.github/workflows/publish.yml): сборка, Firefox Add-ons, Chrome Web Store, Microsoft Edge Add-ons и выпуск на GitHub с zip-файлами. Магазин, для которого в настройках репозитория нет ключей, пропускается. Тексты и картинки для карточек — в [`store/`](store/LISTING.md), политика конфиденциальности — [PRIVACY.md](PRIVACY.md).
 
 ## Лицензия
 
