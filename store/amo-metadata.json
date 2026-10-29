@@ -1,5 +1,9 @@
 {
-  "categories": { "firefox": ["social-communication"] },
+  "categories": {
+    "firefox": [
+      "social-communication"
+    ]
+  },
   "summary": {
     "en-US": "Mine and town chat of the \"Legion\" game (play.multidonate.ru): in-game panel, separate window, DMs, 7TV emotes, moderation.",
     "ru": "Чат шахты и города игры «Легион» (play.multidonate.ru): панель в игре, отдельное окно, личные, стикеры 7TV, модерация."
@@ -8,10 +12,14 @@
     "en-US": "Mine and town chat of the \"Legion\" browser game (play.multidonate.ru), docked inside the game or in a separate window: town tabs, a merged feed, private conversations, channel switching, 7TV/BTTV/FFZ emotes, saved pastes, moderation tools for chat moderators, light and dark themes. Uses your existing game login and sends nothing to the developer. Unofficial, open source (MIT).",
     "ru": "Чат шахты и города игры «Легион» (play.multidonate.ru) — прямо в игре или в отдельном окне: вкладки города, общая лента, личные диалоги, переключение стримеров, стикеры 7TV/BTTV/FFZ, пасты, модерация для модераторов чата, светлая и тёмная тема. Пользуется твоим входом на сайте игры и ничего не отправляет разработчику. Неофициальное, открытый код (MIT)."
   },
-  "homepage": { "en-US": "https://github.com/frebertor-sudo/legion-chat-window" },
-  "support_url": { "en-US": "https://github.com/frebertor-sudo/legion-chat-window/issues" },
+  "homepage": {
+    "en-US": "https://github.com/frebertor-sudo/legion-chat-window"
+  },
+  "support_url": {
+    "en-US": "https://github.com/frebertor-sudo/legion-chat-window/issues"
+  },
   "version": {
     "license": "MIT",
-    "approval_notes": "The add-on adds a chat panel to play.multidonate.ru (a browser game) and opens the same chat in a separate window. It talks only to play.multidonate.ru (same-origin, using the user's existing session) and to public emote APIs (api.ivr.fi, 7tv.io, api.betterttv.net, api.frankerfacez.com) to render chat emotes. No data is collected. Content scripts use content.fetch so requests carry the user's game session. Source is not minified: https://github.com/frebertor-sudo/legion-chat-window"
+    "approval_notes": "The add-on adds a chat panel to play.multidonate.ru (a browser game) and opens the same chat in a separate window. It talks only to play.multidonate.ru (same-origin, using the user's existing session) and to public emote APIs (api.ivr.fi, 7tv.io, api.betterttv.net, api.frankerfacez.com) to render chat emotes. No data is collected. Content scripts use content.fetch so requests carry the user's game session. Source is not minified: https://github.com/frebertor-sudo/legion-chat-window About innerHTML (UNSAFE_VAR_ASSIGNMENT warnings): every value coming from the network or the user (nicknames, message text, emote names, URLs) goes through the esc() HTML-escaping helper before being placed into innerHTML templates; the remaining template parts are static strings."
   }
 }
