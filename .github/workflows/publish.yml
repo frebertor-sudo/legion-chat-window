@@ -1,0 +1,94 @@
+# Публикация новой версии во все магазины.
+# Запуск: метка вида v3.0.1 (её ставит выпуск новой версии) или вручную во вкладке Actions.
+# Магазин, для которого в Settings → Secrets нет ключей, просто пропускается.
+name: Публикация
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # чтобы создать выпуск (Release) с zip-файлами
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+      AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+      CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+      CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+      CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+      CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+      CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+      EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+      EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+      EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Сборка
+        run: |
+          python3 tools/build.py
+          VERSION=$(python3 -c "import json,zipfile;print(json.loads(zipfile.ZipFile('dist/legion-chat-chrome.zip').read('manifest.json'))['version'])")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$VERSION" ]; then
+            echo "::error::Метка ${GITHUB_REF_NAME} не совпадает с @version $VERSION в legion-chat.user.js"; exit 1
+          fi
+          mkdir -p build/firefox && cd build/firefox && unzip -q ../../dist/legion-chat-firefox.zip
+
+      - name: Проверка расширения для Firefox
+        continue-on-error: true   # только подсказки, публикацию не останавливает
+        run: npx --yes web-ext@8 lint --source-dir build/firefox --self-hosted=false --warnings-as-errors=false
+
+      - name: Firefox Add-ons
+        if: env.AMO_JWT_ISSUER != '' && env.AMO_JWT_SECRET != ''
+        run: |
+          npx --yes web-ext@8 sign --channel=listed --source-dir build/firefox --artifacts-dir build/amo \
+            --api-key "$AMO_JWT_ISSUER" --api-secret "$AMO_JWT_SECRET" \
+            --amo-metadata store/amo-metadata.json --approval-timeout 0
+
+      - name: Chrome Web Store
+        if: env.CWS_EXTENSION_ID != '' && env.CWS_REFRESH_TOKEN != ''
+        env:
+          EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+        run: npx --yes chrome-webstore-upload-cli --source dist/legion-chat-chrome.zip
+
+      - name: Microsoft Edge Add-ons
+        if: env.EDGE_PRODUCT_ID != '' && env.EDGE_API_KEY != ''
+        run: |
+          API="https://api.addons.microsoftedge.microsoft.com/v1/products/$EDGE_PRODUCT_ID"
+          AUTH=(-H "Authorization: ApiKey $EDGE_API_KEY" -H "X-ClientID: $EDGE_CLIENT_ID")
+          # 1) загрузить пакет в черновик
+          LOC=$(curl -sS -D - -o /dev/null "${AUTH[@]}" -H "Content-Type: application/zip" -X POST \
+                --data-binary @dist/legion-chat-chrome.zip "$API/submissions/draft/package" | awk 'tolower($1)=="location:"{print $2}' | tr -d '\r')
+          [ -n "$LOC" ] || { echo "::error::Edge не принял пакет"; exit 1; }
+          OP=${LOC##*/}
+          for i in $(seq 1 30); do
+            ST=$(curl -sS "${AUTH[@]}" "$API/submissions/draft/package/operations/$OP")
+            S=$(echo "$ST" | python3 -c "import json,sys;print(json.load(sys.stdin).get('status',''))")
+            echo "Загрузка: $S"; [ "$S" = "InProgress" ] || break; sleep 10
+          done
+          [ "$S" = "Succeeded" ] || { echo "::error::Edge: $ST"; exit 1; }
+          # 2) отправить на проверку и публикацию
+          curl -sS -f "${AUTH[@]}" -H "Content-Type: application/json" -X POST \
+            -d "{\"notes\":\"Version $VERSION. Same code as https://github.com/frebertor-sudo/legion-chat-window\"}" \
+            "$API/submissions" -o /dev/null -w "Отправлено на проверку: %{http_code}\n"
+
+      - name: Выпуск на GitHub
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/legion-chat-chrome.zip dist/legion-chat-firefox.zip dist/legion-chat.user.js \
+            --title "Чат Легиона $VERSION" --notes "Расширение для Chrome / Edge / Opera / Яндекса и Firefox, userscript. Установка — в README." \
+            || gh release upload "$GITHUB_REF_NAME" dist/legion-chat-chrome.zip dist/legion-chat-firefox.zip dist/legion-chat.user.js --clobber
