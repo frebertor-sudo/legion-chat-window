@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      2.2.0
+// @version      2.3.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru) в отдельном окне: стримеры, вкладки города, стикеры 7TV/BTTV/FFZ, пасты, темы, закрепление поверх окон
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru) in a separate window: channel switching, 7TV/BTTV/FFZ emotes, saved pastes, themes, always-on-top
 // @author       feedfinek
@@ -38,6 +38,7 @@
     отправка POST /api/city/say; при уходе — POST /api/city/leave.
   • Список стримеров — GET /c/<канал>/api/channels.
   • «🔀 Всё»: шахта и город текущего стримера в одной ленте по времени, с пометкой источника и фильтрами.
+  • Модерация (только у админа и модераторов чата): GET/POST <чат>/mod — удалить, мут, бан, снять, назначить модератора.
 */
 
 (function () {
@@ -173,6 +174,39 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #more{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;background:var(--acc);color:var(--on-acc);border:0;border-radius:14px;padding:4px 12px;font:600 12px system-ui;cursor:pointer;display:none}
 footer{flex:none;border-top:1px solid var(--line);background:var(--panel);padding:8px 10px}
 #err{color:var(--bad);font-size:12px;margin:0 0 6px}#err:empty{display:none}
+#okm{color:var(--ok);font-size:12px;margin:0 0 6px}#okm:empty{display:none}
+#log li{position:relative}
+#log .mb{position:absolute;right:2px;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:700 12px/18px system-ui;cursor:pointer;opacity:0}
+#log li:hover .mb,#log .mb:focus-visible,#log .mb[aria-expanded="true"]{opacity:1}
+@media (hover:none){#log .mb{opacity:.6}}
+.mm{position:fixed;z-index:50;min-width:210px;max-width:min(300px,calc(100vw - 16px));background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 10px 28px -10px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:4px;font:13px/1.35 system-ui,sans-serif}
+.mm .mh{font-weight:700;padding:2px 6px 4px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm .mh small{display:block;font-weight:400;color:var(--mut);font-size:11px}
+.mm button{background:none;border:1px solid transparent;border-radius:6px;color:var(--tx);text-align:left;padding:4px 8px;font:inherit;cursor:pointer}
+.mm button:hover,.mm button:focus-visible{border-color:var(--line);background:var(--hov);outline:none}
+.mm .row{display:flex;flex-wrap:wrap;gap:3px;align-items:center;padding:0 2px}
+.mm .row>span{color:var(--mut);font-size:12px;margin-right:2px}
+.mm .row button{padding:2px 7px;border-color:var(--line);font-size:12px}
+.mm .row input{width:58px;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:2px 5px;font:inherit;font-size:12px}
+.mm .danger{color:var(--bad)}
+.mm .danger.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+#mp{display:none;flex-direction:column;gap:8px;max-height:min(340px,50vh);overflow-y:auto;margin:0 0 8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px}
+#mp.on{display:flex}
+#mp h4{margin:0;font:700 12px system-ui;color:var(--mut);letter-spacing:.03em}
+#mp ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+#mp li{display:flex;gap:6px;align-items:center;font-size:13px;padding:2px 4px;border-radius:6px}
+#mp li:hover{background:var(--hov)}
+#mp li b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#mp li span{flex:1;color:var(--mut);font-size:12px;min-width:0}
+#mp li button,#mp form button{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font:600 12px system-ui;cursor:pointer}
+#mp form{display:flex;gap:6px;flex-wrap:wrap}
+#mp form input,#mp form select{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font:inherit;font-size:13px;min-width:0}
+#mp form input{flex:1;min-width:110px}
+#mp form button.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+#mp .help{color:var(--mut);font-size:11px}
+#mp .seg{align-self:flex-start}
+#mp p{margin:0;color:var(--mut);font-size:12px}
+#modb[hidden]{display:none}
 form{display:flex;gap:6px;margin:0}
 #in{flex:1;min-width:0;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
 #in:focus{outline:none;border-color:var(--acc)}
@@ -267,13 +301,14 @@ html.pinned.mini #log{padding-bottom:12px}
 </style></head>
 <body>
 <header>
-  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span><button id="pin" class="hb" type="button" aria-pressed="false">📌</button></div>
+  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span><button id="pin" class="hb" type="button" aria-pressed="false">📌</button></div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${ROOMS.mine}</button><button type="button" data-r="city">${ROOMS.city}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${ROOMS.all}</button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="cbar" hidden></div>
 <ol id="log" role="log" aria-live="polite"></ol><p id="empty">Загружаю чат…</p><div id="gate" hidden></div>
 <button id="more" type="button">↓ новые</button>
-<footer><p id="err" role="status"></p>
+<footer><p id="err" role="status"></p><p id="okm" role="status"></p>
+<div id="mp" role="dialog" aria-label="Модерация чата"></div>
 <div id="ep" role="dialog" aria-label="Стикеры"><div id="ep-top"><input id="eq" type="search" placeholder="Найти стикер…" aria-label="Поиск стикера"></div><div id="etabs" role="tablist"></div><div id="eg"></div><div id="eh"></div></div>
 <div id="pp" role="dialog" aria-label="Пасты"><div class="pp-top"><input id="pq" type="search" placeholder="Найти пасту…" aria-label="Поиск пасты"><button type="button" class="pbtn" id="pnew">＋ Новая</button></div><ul id="pl"></ul>
 <div id="pe"><input id="pn" maxlength="40" placeholder="Название (например: «приветствие»)" aria-label="Название пасты"><textarea id="pt" maxlength="500" placeholder="Текст пасты — можно со стикерами" aria-label="Текст пасты"></textarea><div class="pe-b"><small id="pc">0 / 200</small><button type="button" class="pbtn alt" id="pcancel">Отмена</button><button type="button" class="pbtn" id="psave">Сохранить</button></div></div></div>
@@ -289,6 +324,12 @@ html.pinned.mini #log{padding-bottom:12px}
       if (S.stick) { S.unseen = 0; S.el.more.style.display = 'none'; }
     });
     S.el.more.onclick = () => toBottom();
+    S.el.log.addEventListener('click', (e) => {   // «⋯» у сообщения — меню модерации
+      const b = e.target.closest('.mb'); if (!b) return;
+      e.stopPropagation();
+      const li = b.closest('li'), m = li && S.list.find((x) => x._key === li.dataset.key);
+      if (m) modMenu(m, b);
+    }, true);
     S.el.log.addEventListener('click', (e) => {   // клик по нику — ответить @ником
       const n = e.target.closest('.n'); if (!n || !n.dataset.l) return;
       const li = n.closest('li');
@@ -314,6 +355,7 @@ html.pinned.mini #log{padding-bottom:12px}
     pinInit();
     pickerInit();
     pastesInit();
+    modInit();
     start();
     loadChannels();
   }
@@ -487,6 +529,7 @@ html.pinned.mini #log{padding-bottom:12px}
     for (const b of S.el.room.querySelectorAll('[data-r]')) b.setAttribute('aria-pressed', String(b.dataset.r === S.room));
     S.el.mine.hidden = !usesMine(S.room) || S.mines.length < 2;
     renderTabs(); renderTargets(); updateBar();
+    modLoad(gen);
     document.title = title(); if (S.pip) S.pip.document.title = title();
     inputState();
     if (S.room === 'mine' && !hasMine) { clearLog('На этом канале у тебя нет шахты — переключись на 🏰 Город.'); return; }
@@ -543,8 +586,8 @@ html.pinned.mini #log{padding-bottom:12px}
     S.inCity = true; S.cityCh = S.ch;
     S.el.dot.className = 'ok';
     if (S.room === 'city') clearLog('');
-    S.mod = r.mod === 'own' || r.mod === 'mod' ? r.mod : null;
     S.ign = new Set(Array.isArray(r.ign) ? r.ign : []);
+    if (r.mod === 'own' || r.mod === 'mod') { S.mod.city = Object.assign(S.mod.city || { bans: [], mods: [] }, { role: r.mod }); modUi(); }
     apply(r, 'city', true);
     updateBar(); inputState();
     if (S.room === 'all' && S.ign.size) renderLog();   // игнор пришёл только сейчас — убрать уже показанное от игнорируемых
@@ -654,6 +697,7 @@ html.pinned.mini #log{padding-bottom:12px}
   }
 
   function renderLog() {
+    if (S.mmenu) modMenuClose();
     S.el.log.innerHTML = '';
     const f = document.createDocumentFragment();
     for (const m of S.list) if (visible(m)) f.appendChild(row(m));
@@ -676,7 +720,7 @@ html.pinned.mini #log{padding-bottom:12px}
       S.el.empty.textContent = !any ? 'Все источники выключены — включи нужные над лентой.'
         : !S.mines.length && !S.inCity ? 'Войди в город, чтобы видеть его чат здесь.'
         : 'Здесь будут все чаты стримера: шахта и город.';
-    } else S.el.empty.textContent = S.room === 'mine' ? EMPTY.mine : EMPTY[S.tab];
+    } else S.el.empty.textContent = S.room === 'mine' ? (S.mines.length ? EMPTY.mine : 'На этом канале у тебя нет шахты — переключись на 🏰 Город.') : EMPTY[S.tab];
   }
 
   // ---------- Вкладки города / фильтры общей ленты ----------
@@ -821,7 +865,7 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.etabs.onclick = (e) => { const b = e.target.closest('button'); if (!b) return; S.ptab = b.dataset.t; S.el.eq.value = ''; pickerTabs(); pickerRender(); };
     S.el.eg.onclick = (e) => { const b = e.target.closest('button[data-n]'); if (b) insertEmote(b.dataset.n, !e.shiftKey); };
     S.el.eg.onmouseover = (e) => { const b = e.target.closest('button[data-n]'); if (b) { const em = EM.get(b.dataset.n); S.el.eh.textContent = em ? `${em.n} · ${em.src}` : b.dataset.n; } };
-    S.onEsc = (e) => { if (e.key !== 'Escape') return; if (S.el.ep.classList.contains('on')) pickerOpen(false); if (S.el.pp && S.el.pp.classList.contains('on')) pastesOpen(false); };
+    S.onEsc = (e) => { if (e.key !== 'Escape') return; if (S.el.ep.classList.contains('on')) pickerOpen(false); if (S.el.pp && S.el.pp.classList.contains('on')) pastesOpen(false); if (S.el.mp && S.el.mp.classList.contains('on')) modPanel(false); };
     document.addEventListener('keydown', S.onEsc);
     pickerTabs();
     emLoad();
@@ -1021,6 +1065,12 @@ html.pinned.mini #log{padding-bottom:12px}
     const aw = (msg.aw || []).map((a) => `<span class="aw" title="${esc(a.n)}${a.d ? ' — ' + esc(a.d) : ''}">${esc(a.i || '✦')}</span>`).join('');
     const to = msg.k === 'dm' && msg.to ? ` <span class="to" title="Личное">→ <span class="n" data-l="${esc(String(msg.to).toLowerCase())}">${esc(msg.to)}</span></span>` : '';
     li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:hsl(${hue(l)} var(--ns) var(--nl))" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(text)}`;
+    if (canMod(msg._src) && l !== S.me) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'mb'; b.textContent = '⋯';
+      b.title = 'Модерация'; b.setAttribute('aria-label', `Модерация: ${msg.n || msg.l}`); b.setAttribute('aria-haspopup', 'menu');
+      li.appendChild(b);
+    }
     return li;
   }
 
@@ -1028,11 +1078,190 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.log.scrollTop = S.el.log.scrollHeight; S.stick = true; S.unseen = 0; S.el.more.style.display = 'none';
   }
 
+  // ---------- Модерация (только для админа и модераторов чата — права проверяет сервер игры) ----------
+  // Как в игре: POST <чат>/mod { op: del | mute | ban | unban | mod | unmod, id, login, min }, GET <чат>/mod — роль и список ограничений.
+  const MUTES = [[5, '5 мин'], [30, '30 мин'], [60, '1 ч'], [1440, '1 день'], [10080, '7 дней']];
+  const ROLE_NAME = { own: 'админ чата', mod: 'модератор' };
+  S.mod = { mine: null, city: null };   // { role, bans: [{ l, until, by }], mods: [] } или null — прав нет
+  const modBase = (src) => (src === 'mine' ? `/api/mine/chat/mod?c=${encodeURIComponent(S.mine)}` : '/api/city/chat/mod');
+  const canMod = (src) => !!(S.mod[src] && S.mod[src].role);
+  const leftT = (ms) => { const m = Math.max(1, Math.ceil(ms / 60000)); return m < 60 ? `${m} мин` : m < 1440 ? `${Math.ceil(m / 60)} ч` : `${Math.ceil(m / 1440)} дн`; };
+  const muteName = (min) => (MUTES.find((x) => x[0] === min) || [0, leftT(min * 60000)])[1];
+  function okMsg(t) {
+    S.el.okm.textContent = t; S.el.err.textContent = '';
+    clearTimeout(S.okT); S.okT = setTimeout(() => { S.el.okm.textContent = ''; }, 5000);
+  }
+
+  function modInit() {
+    S.el.modb = document.getElementById('modb'); S.el.mp = document.getElementById('mp'); S.el.okm = document.getElementById('okm');
+    S.el.modb.onclick = () => modPanel(!S.el.mp.classList.contains('on'));
+  }
+
+  // какие чаты сейчас на экране — для них и спрашиваем права (запрос только на чтение)
+  const modSources = () => [...(usesMine(S.room) && S.mines.length ? ['mine'] : []), ...(usesCity(S.room) && (!S.hero || S.flags.cc) ? ['city'] : [])];
+  async function modLoad(gen, only) {
+    const srcs = only ? [only] : modSources();
+    if (!only) S.mod = { mine: null, city: null };
+    await Promise.all(srcs.map(async (src) => {
+      let r = null; try { r = await api(modBase(src)); } catch {}
+      if (gen != null && gen !== S.gen) return;
+      S.mod[src] = r && r.ok && (r.role === 'own' || r.role === 'mod') ? { role: r.role, bans: r.bans || [], mods: r.mods || [] } : null;
+    }));
+    if (gen != null && gen !== S.gen) return;
+    modUi();
+  }
+  // показать/спрятать инструменты: кнопка 🔨, «⋯» у сообщений, подсказка про команды
+  function modUi() {
+    const any = canMod('mine') || canMod('city');
+    S.el.modb.hidden = !any;
+    if (!any) modPanel(false);
+    renderLog();
+    if (S.el.mp.classList.contains('on')) modPanelRender();
+  }
+
+  async function modAct(src, op, o) {
+    if (!canMod(src)) return false;
+    let r = null;
+    try { r = await api(modBase(src), { op, id: o.id, login: o.login, min: o.min }); } catch {}
+    if (!r || !r.ok) { S.el.err.textContent = 'Модерация: ' + ((r && (ERR[r.error] || r.error)) || 'нет связи'); return false; }
+    const del = [...(op === 'del' ? [r.id || o.id] : []), ...(Array.isArray(r.gone) ? r.gone : [])];
+    if (del.length) apply({ chatDel: del }, src);
+    const who = o.n || o.login || '';
+    okMsg({ del: 'Сообщение удалено', mute: `${who}: мут ${muteName(o.min)}`, ban: `${who}: бан навсегда${del.length ? ` — удалено сообщений: ${del.length}` : ''}`,
+      unban: `${who}: снова может писать`, mod: `${who} — теперь модератор чата`, unmod: `${who} больше не модератор` }[op] || 'Готово');
+    if (op === 'mod' || op === 'unmod') for (const m of S.list) if (m._src === src && String(m.l).toLowerCase() === String(r.login || o.login).toLowerCase()) m.r = op === 'mod' ? 'mod' : undefined;
+    await modLoad(null, src);
+    return true;
+  }
+
+  // ---- меню «⋯» у сообщения ----
+  function modMenuClose() {
+    const m = S.mmenu; if (!m) return; S.mmenu = null;
+    m.el.remove(); m.from.setAttribute('aria-expanded', 'false');
+    m.doc.removeEventListener('pointerdown', m.out, true); m.doc.removeEventListener('keydown', m.key, true);
+  }
+  function modMenu(msg, from) {
+    if (S.mmenu && S.mmenu.from === from) { modMenuClose(); return; }
+    modMenuClose();
+    const src = msg._src, info = S.mod[src]; if (!info) return;
+    const doc = from.ownerDocument, l = String(msg.l || '').toLowerCase(), name = msg.n || msg.l;
+    const ban = (info.bans || []).find((x) => String(x.l).toLowerCase() === l);
+    const isMod = (info.mods || []).map((x) => String(x).toLowerCase()).includes(l) || msg.r === 'mod';
+    const el = doc.createElement('div'); el.className = 'mm'; el.setAttribute('role', 'menu');
+    el.innerHTML = `<div class="mh">${esc(name)}<small>${src === 'mine' ? 'чат шахты' : 'чат города'} · ты ${ROLE_NAME[info.role]}${ban ? ` · ${ban.until ? 'мут до ' + hhmm(ban.until) : 'забанен'}` : ''}</small></div>
+      <button type="button" role="menuitem" data-a="del">🗑 Удалить это сообщение</button>
+      <div class="row" role="group" aria-label="Мут"><span>Мут:</span>${MUTES.map(([m, t]) => `<button type="button" role="menuitem" data-a="mute" data-min="${m}">${t}</button>`).join('')}</div>
+      <div class="row"><span>или</span><input type="number" min="1" max="10080" placeholder="мин" aria-label="Мут на минут"><button type="button" data-a="mutex">Мут</button></div>
+      <button type="button" role="menuitem" class="danger" data-a="ban">⛔ Бан навсегда</button>
+      ${ban ? `<button type="button" role="menuitem" data-a="unban">✅ Снять ${ban.until ? 'мут' : 'бан'}</button>` : ''}
+      ${info.role === 'own' ? `<button type="button" role="menuitem" data-a="${isMod ? 'unmod' : 'mod'}">${isMod ? '🛡 Снять модератора' : '🛡 Сделать модератором'}</button>` : ''}`;
+    doc.body.appendChild(el);
+    // рядом с «⋯», не за краем окна
+    const r = from.getBoundingClientRect(), vw = doc.defaultView.innerWidth, vh = doc.defaultView.innerHeight;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.max(8, Math.min(r.right - w, vw - w - 8)) + 'px';
+    el.style.top = (r.bottom + 4 + h > vh - 8 ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+    from.setAttribute('aria-expanded', 'true');
+    const o = { id: msg.id, login: l, n: name };
+    el.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-a]'); if (!b) return;
+      const a = b.dataset.a;
+      if (a === 'ban' && !b.classList.contains('sure')) {   // бан — в два нажатия: все сообщения игрока пропадут у всех
+        b.classList.add('sure'); b.textContent = 'Точно забанить? Все его сообщения пропадут у всех';
+        return;
+      }
+      let op = a, min;
+      if (a === 'mute') min = +b.dataset.min;
+      if (a === 'mutex') {
+        min = Math.round(+el.querySelector('input').value);
+        if (!(min >= 1 && min <= 10080)) { el.querySelector('input').focus(); S.el.err.textContent = 'Срок мута — от 1 до 10080 минут (7 дней)'; return; }
+        op = 'mute';
+      }
+      modMenuClose();
+      await modAct(src, op, { ...o, min });
+    });
+    el.querySelector('input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); el.querySelector('[data-a="mutex"]').click(); } });
+    const out = (e) => { if (!el.contains(e.target) && e.target !== from) modMenuClose(); };
+    const key = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); modMenuClose(); from.focus(); } };
+    doc.addEventListener('pointerdown', out, true); doc.addEventListener('keydown', key, true);
+    S.mmenu = { el, from, doc, out, key };
+    const first = el.querySelector('button'); if (first) first.focus();
+  }
+
+  // ---- панель 🔨: ограничения, выдать мут/бан по нику, модераторы ----
+  function modPanel(on) {
+    if (!S.el.mp) return;
+    if (on) { pickerOpen(false, true); pastesOpen(false, true); }
+    S.el.mp.classList.toggle('on', on);
+    S.el.modb.setAttribute('aria-expanded', String(on));
+    if (on) { const srcs = ['mine', 'city'].filter(canMod); if (!srcs.includes(S.msrc)) S.msrc = srcs.includes(S.room === 'mine' ? 'mine' : 'city') ? (S.room === 'mine' ? 'mine' : 'city') : srcs[0]; modPanelRender(); }
+    if (S.stick) toBottom();
+  }
+  function modPanelRender() {
+    const srcs = ['mine', 'city'].filter(canMod), src = S.msrc, info = S.mod[src];
+    if (!info) { S.el.mp.innerHTML = '<p>Нет прав модератора в этом чате.</p>'; return; }
+    const now = Date.now();
+    const bans = (info.bans || []).filter((x) => !x.until || x.until > now);
+    S.el.mp.innerHTML = `${srcs.length > 1 ? `<span class="seg" role="group" aria-label="Чат">${srcs.map((x) => `<button type="button" data-ms="${x}" aria-pressed="${x === src}">${x === 'mine' ? '⛏ Шахта' : '🏰 Город'}</button>`).join('')}</span>` : ''}
+      <h4>ОГРАНИЧЕНИЯ · ${src === 'mine' ? 'ЧАТ ШАХТЫ' : 'ЧАТ ГОРОДА'} · ТЫ ${ROLE_NAME[info.role].toUpperCase()}</h4>
+      ${bans.length ? `<ul>${bans.map((x) => `<li><b>${esc(x.l)}</b><span>${x.until ? `мут до ${hhmm(x.until)} (ещё ${leftT(x.until - now)})` : 'бан навсегда'}${x.by ? ` · ${esc(x.by)}` : ''}</span><button type="button" data-unban="${esc(x.l)}">Снять</button></li>`).join('')}</ul>` : '<p>Сейчас ни у кого нет мута или бана.</p>'}
+      <form id="mpf" autocomplete="off"><input id="mpn" maxlength="26" placeholder="ник" aria-label="Ник, кого ограничить"><select id="mpt" aria-label="Срок">${MUTES.map(([m, t]) => `<option value="${m}">мут ${t}</option>`).join('')}<option value="ban">бан навсегда</option></select><button type="submit" id="mpg">Применить</button></form>
+      ${info.role === 'own' ? `<h4>МОДЕРАТОРЫ ЧАТА</h4>${(info.mods || []).length ? `<ul>${info.mods.map((x) => `<li><b>${esc(x)}</b><span></span><button type="button" data-unmod="${esc(x)}">Снять</button></li>`).join('')}</ul>` : '<p>Модераторов пока нет.</p>'}
+      <form id="mpm" autocomplete="off"><input id="mpmn" maxlength="26" placeholder="ник нового модератора" aria-label="Ник нового модератора"><button type="submit">Назначить</button></form>` : ''}
+      <div class="help">Команды в поле ввода: /mute ник [минут] · /ban ник · /unban ник${info.role === 'own' ? ' · /mod ник · /unmod ник' : ''} · /mods</div>`;
+    const mp = S.el.mp, $q = (sel) => mp.querySelector(sel);
+    mp.onclick = async (e) => {
+      const ms = e.target.closest('[data-ms]'); if (ms) { S.msrc = ms.dataset.ms; modPanelRender(); return; }
+      const ub = e.target.closest('[data-unban]'); if (ub) { ub.disabled = true; await modAct(src, 'unban', { login: ub.dataset.unban, n: ub.dataset.unban }); return; }
+      const um = e.target.closest('[data-unmod]'); if (um) { um.disabled = true; await modAct(src, 'unmod', { login: um.dataset.unmod, n: um.dataset.unmod }); }
+    };
+    $q('#mpt').onchange = () => { const g = $q('#mpg'); g.classList.remove('sure'); g.textContent = 'Применить'; };
+    $q('#mpf').onsubmit = async (e) => {
+      e.preventDefault();
+      const nick = $q('#mpn').value.trim().replace(/^@/, '').toLowerCase(), v = $q('#mpt').value, g = $q('#mpg');
+      if (!/^[a-z0-9_]{2,25}$/.test(nick)) { $q('#mpn').focus(); S.el.err.textContent = 'Впиши ник игрока'; return; }
+      if (v === 'ban' && !g.classList.contains('sure')) { g.classList.add('sure'); g.textContent = 'Точно? Все сообщения пропадут'; return; }
+      g.disabled = true;
+      const ok = v === 'ban' ? await modAct(src, 'ban', { login: nick, n: nick }) : await modAct(src, 'mute', { login: nick, n: nick, min: +v });
+      if (!ok && g.isConnected) { g.disabled = false; g.classList.remove('sure'); g.textContent = 'Применить'; }
+    };
+    const fm = $q('#mpm');
+    if (fm) fm.onsubmit = async (e) => {
+      e.preventDefault();
+      const nick = $q('#mpmn').value.trim().replace(/^@/, '').toLowerCase();
+      if (!/^[a-z0-9_]{2,25}$/.test(nick)) { $q('#mpmn').focus(); return; }
+      await modAct(src, 'mod', { login: nick, n: nick });
+    };
+  }
+
+  // ---- команды: /mute ник [минут] · /ban ник · /unban ник · /mod ник · /unmod ник · /mods ----
+  async function modCommand(src, t) {
+    const [c0, n0, arg] = t.slice(1).trim().split(/\s+/), cmd = String(c0 || '').toLowerCase(), nick = String(n0 || '').replace(/^@/, '').toLowerCase();
+    const info = S.mod[src];
+    const needNick = () => { if (/^[a-z0-9_]{2,25}$/.test(nick)) return true; S.el.err.textContent = `Укажи ник: /${cmd} ник`; return false; };
+    if (cmd === 'help' || cmd === '?') { okMsg('/mute ник [минут] · /ban ник · /unban ник' + (info.role === 'own' ? ' · /mod ник · /unmod ник' : '') + ' · /mods'); return true; }
+    if (cmd === 'mods') { okMsg(info.mods && info.mods.length ? `Модераторы (${info.mods.length}): ${info.mods.join(', ')}` : 'Модераторов чата пока нет'); return true; }
+    if (cmd === 'mute') {
+      if (!needNick()) return false;
+      const m = arg == null ? 30 : Math.round(+arg);
+      if (!(m >= 1 && m <= 10080)) { S.el.err.textContent = 'Срок мута — от 1 до 10080 минут (7 дней)'; return false; }
+      return modAct(src, 'mute', { login: nick, n: nick, min: m });
+    }
+    if (cmd === 'ban' || cmd === 'unban') return needNick() && modAct(src, cmd, { login: nick, n: nick });
+    if (cmd === 'mod' || cmd === 'unmod') {
+      if (info.role !== 'own') { S.el.err.textContent = 'Назначать модераторов может только админ чата'; return false; }
+      return needNick() && modAct(src, cmd, { login: nick, n: nick });
+    }
+    S.el.err.textContent = `Неизвестная команда /${cmd}. Есть: /mute, /ban, /unban${info.role === 'own' ? ', /mod, /unmod' : ''}, /mods`;
+    return false;
+  }
+
   // ---------- Отправка ----------
   async function say() {
     let t = S.el.inp.value.trim(); if (!t || S.el.send.disabled) return;
     let path, body;
     const tg = target();
+    if (t[0] === '/' && canMod(tg === 'mine' ? 'mine' : 'city')) { if (await modCommand(tg === 'mine' ? 'mine' : 'city', t)) S.el.inp.value = ''; return; }
     if (tg === 'mine') { path = `/api/mine/chat/say?c=${encodeURIComponent(S.mine)}`; body = { text: t }; }
     else {
       path = '/api/city/say'; body = { text: t };
