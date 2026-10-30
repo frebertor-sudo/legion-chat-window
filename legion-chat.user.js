@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.10.2
+// @version      3.11.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -84,44 +84,44 @@
         <div class="lgmc-shield" hidden></div>`;
       const snap = document.createElement('div'); snap.id = 'lgmc-snap'; snap.hidden = true;
       const st = document.createElement('style');
-      st.textContent = `#lgmc-dock{box-sizing:border-box;position:fixed;z-index:2147483000;display:flex;flex-direction:column;background:#17130e;box-shadow:-12px 0 30px -18px rgba(0,0,0,.7)}
+      st.textContent = `#lgmc-dock{box-sizing:border-box;position:fixed;z-index:2147483000;display:flex;flex-direction:column;background:#120e22;box-shadow:-12px 0 30px -18px rgba(0,0,0,.7)}
         #lgmc-dock[hidden],#lgmc-snap[hidden],#lgmc-dock [hidden]{display:none}
-        #lgmc-dock.m-r{top:0;right:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-left:1px solid #3a3024}
-        #lgmc-dock.m-l{top:0;left:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-right:1px solid #3a3024;box-shadow:12px 0 30px -18px rgba(0,0,0,.7)}
-        #lgmc-dock.m-f{left:var(--fx,40px);top:var(--fy,40px);width:var(--fw,400px);height:var(--fh,620px);border:1px solid #6b5a3a;border-radius:10px;overflow:hidden;box-shadow:0 22px 60px -14px rgba(0,0,0,.75)}
-        #lgmc-dock .lgmc-bar{flex:none;height:24px;display:flex;align-items:center;gap:2px;padding:0 4px 0 8px;background:#211b14;color:#9c8d76;font:600 11px/1 system-ui,sans-serif;cursor:grab;user-select:none;touch-action:none;border-bottom:1px solid #3a3024}
+        #lgmc-dock.m-r{top:0;right:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-left:1px solid #322b4d}
+        #lgmc-dock.m-l{top:0;left:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-right:1px solid #322b4d;box-shadow:12px 0 30px -18px rgba(0,0,0,.7)}
+        #lgmc-dock.m-f{left:var(--fx,40px);top:var(--fy,40px);width:var(--fw,400px);height:var(--fh,620px);border:1px solid #4a4068;border-radius:14px;overflow:hidden;box-shadow:0 22px 60px -14px rgba(0,0,0,.75)}
+        #lgmc-dock .lgmc-bar{flex:none;height:24px;display:flex;align-items:center;gap:2px;padding:0 4px 0 8px;background:#1b1631;color:#a59fba;font:700 11px/1 Nunito,"Segoe UI",system-ui,sans-serif;cursor:grab;user-select:none;touch-action:none;border-bottom:1px solid #322b4d}
         #lgmc-dock.drag-move .lgmc-bar{cursor:grabbing}
         #lgmc-dock .lgmc-t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        #lgmc-dock .lgmc-bar button{background:none;border:1px solid transparent;color:#d8c39a;border-radius:4px;padding:0 5px;font:13px/18px system-ui;cursor:pointer}
-        #lgmc-dock .lgmc-bar button:hover,#lgmc-dock .lgmc-bar button:focus-visible{border-color:#6b5a3a;outline:none}
-        #lgmc-dock .lgmc-bar button[aria-pressed="true"]{background:#f0b84a;color:#1a1206;border-color:#f0b84a}
+        #lgmc-dock .lgmc-bar button{background:none;border:1px solid transparent;color:#f6f1fb;border-radius:4px;padding:0 5px;font:13px/18px system-ui;cursor:pointer}
+        #lgmc-dock .lgmc-bar button:hover,#lgmc-dock .lgmc-bar button:focus-visible{border-color:#4a4068;outline:none}
+        #lgmc-dock .lgmc-bar button[aria-pressed="true"]{background:#ff9fd0;color:#15122e;border-color:#ff9fd0}
         #lgmc-dock .lgmc-body{flex:1;min-height:0}
-        #lgmc-dock iframe{display:block;width:100%;height:100%;border:0;background:#17130e}
+        #lgmc-dock iframe{display:block;width:100%;height:100%;border:0;background:#120e22}
         #lgmc-dock .lgmc-grip{position:absolute;top:0;bottom:0;width:10px;cursor:ew-resize;z-index:2}
         #lgmc-dock.m-r .lgmc-grip{left:-5px}#lgmc-dock.m-l .lgmc-grip{right:-5px}#lgmc-dock.m-f .lgmc-grip{display:none}
-        #lgmc-dock .lgmc-grip:hover,#lgmc-dock.drag-w .lgmc-grip{background:linear-gradient(90deg,transparent 4px,#f0b84a 4px,#f0b84a 6px,transparent 6px)}
-        #lgmc-dock .lgmc-corner{display:none;position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:2;background:linear-gradient(135deg,transparent 55%,#6b5a3a 55%,#6b5a3a 62%,transparent 62%,transparent 72%,#6b5a3a 72%,#6b5a3a 79%,transparent 79%)}
+        #lgmc-dock .lgmc-grip:hover,#lgmc-dock.drag-w .lgmc-grip{background:linear-gradient(90deg,transparent 4px,#ff9fd0 4px,#ff9fd0 6px,transparent 6px)}
+        #lgmc-dock .lgmc-corner{display:none;position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:2;background:linear-gradient(135deg,transparent 55%,#4a4068 55%,#4a4068 62%,transparent 62%,transparent 72%,#4a4068 72%,#4a4068 79%,transparent 79%)}
         #lgmc-dock.m-f .lgmc-corner{display:block}
         #lgmc-dock .lgmc-shield{position:fixed;inset:0;z-index:3}
         #lgmc-dock{opacity:var(--lgmc-op,1);transition:opacity .15s}
         #lgmc-dock.ophov:hover,#lgmc-dock.ophov:focus-within,#lgmc-dock[class*="drag-"]{opacity:1}
         #lgmc-dock.clear{background:transparent;box-shadow:none}
         #lgmc-dock.clear iframe{background:transparent}
-        #lgmc-dock.clear.m-r,#lgmc-dock.clear.m-l{border-color:rgba(107,90,58,.45)}
-        #lgmc-dock.clear .lgmc-bar{background:rgba(33,27,20,.6);border-bottom-color:rgba(58,48,36,.5)}
-        #lgmc-snap{position:fixed;top:0;bottom:0;z-index:2147482999;background:rgba(240,184,74,.18);border:2px dashed #f0b84a;box-sizing:border-box;pointer-events:none}
-        #lgmc-btns{position:fixed;left:10px;bottom:10px;z-index:2147483001;display:flex;border-radius:8px;overflow:hidden;border:1px solid #6b5a3a;opacity:.88;font:600 13px system-ui,sans-serif}
+        #lgmc-dock.clear.m-r,#lgmc-dock.clear.m-l{border-color:rgba(74,64,104,.45)}
+        #lgmc-dock.clear .lgmc-bar{background:rgba(15,12,34,.6);border-bottom-color:rgba(50,43,77,.5)}
+        #lgmc-snap{position:fixed;top:0;bottom:0;z-index:2147482999;background:rgba(255,159,208,.18);border:2px dashed #ff9fd0;box-sizing:border-box;pointer-events:none}
+        #lgmc-btns{position:fixed;left:10px;bottom:10px;z-index:2147483001;display:flex;border-radius:999px;overflow:hidden;border:0;opacity:.88;font:700 13px Nunito,"Segoe UI",system-ui,sans-serif}
         #lgmc-btns:hover{opacity:1}
-        #lgmc-btns button{background:#2a2218;color:#f1d9a5;border:0;padding:6px 10px;cursor:pointer;font:inherit}
-        #lgmc-btns button+button{border-left:1px solid #6b5a3a}
-        #lgmc-btns button[aria-pressed="true"]{background:#f0b84a;color:#1a1206}
+        #lgmc-btns button{background:rgba(15,12,34,.82);color:#fff;border:0;padding:6px 10px;cursor:pointer;font:inherit}
+        #lgmc-btns button+button{border-left:1px solid rgba(255,255,255,.14)}
+        #lgmc-btns button[aria-pressed="true"]{background:#ff9fd0;color:#15122e}
         #lgmc-btns.in-game{display:none}
         .cy-chat>.lgmc-gc{position:absolute;top:0;left:var(--lgmc-gx,83px);height:var(--lgmc-gh,40px);display:flex;border-radius:999px;overflow:hidden;background:rgba(15,12,34,.82);color:#fff;font:700 14px/1 Nunito,"Segoe UI",system-ui,sans-serif;z-index:1}
         .cy-chat>.lgmc-gc[hidden],.cy-chat-t[aria-expanded="true"]~.lgmc-gc{display:none}
         .cy-chat>.lgmc-gc button{background:none;border:0;color:inherit;font:inherit;padding:0 12px;cursor:pointer;white-space:nowrap}
         .cy-chat>.lgmc-gc button+button{padding:0 11px;border-left:1px solid rgba(255,255,255,.14)}
         .cy-chat>.lgmc-gc button:hover,.cy-chat>.lgmc-gc button:focus-visible{background:rgba(255,255,255,.1);outline:none}
-        .cy-chat>.lgmc-gc button[aria-pressed="true"],.lgmc-gh button[aria-pressed="true"]{background:#f0b84a;color:#1a1206}
+        .cy-chat>.lgmc-gc button[aria-pressed="true"],.lgmc-gh button[aria-pressed="true"]{background:#ff9fd0;color:#15122e}
         .lgmc-gh{display:flex;gap:6px;margin-left:auto}
         .lgmc-gh button{width:28px;height:28px;border:0;border-radius:8px;background:rgba(255,255,255,.1);color:#fff;font:600 14px/1 system-ui,sans-serif;cursor:pointer;padding:0}
         .lgmc-gh button:hover,.lgmc-gh button:focus-visible{background:rgba(255,255,255,.2);outline:none}
@@ -352,19 +352,19 @@
     if (!document.documentElement) document.appendChild(document.createElement('html'));
     document.documentElement.innerHTML =`<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Чат · ${esc(S.chName)}</title>
 <style>
-:root{color-scheme:dark;--bg:#17130e;--panel:#211b14;--line:#3a3024;--tx:#eadfcb;--mut:#9c8d76;--acc:#f0b84a;--acc-tx:#f0b84a;--on-acc:#1a1206;--me:#3a2d14;--bad:#e06a5a;--ok:#6fbf73;--ns:65%;--nl:68%;--ncm:100%;--hov:#2b241b}
-:root[data-theme="light"]{color-scheme:light;--bg:#fbf7ef;--panel:#f1e9da;--line:#dccfb6;--tx:#2b2117;--mut:#6f5f48;--acc:#e0a42e;--acc-tx:#9a6206;--on-acc:#1a1206;--me:#fbe7bd;--bad:#b8402f;--ok:#2f8f3a;--ns:75%;--nl:29%;--ncm:52%;--hov:#e9dec9}
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#fbf7ef;--panel:#f1e9da;--line:#dccfb6;--tx:#2b2117;--mut:#6f5f48;--acc:#e0a42e;--acc-tx:#9a6206;--on-acc:#1a1206;--me:#fbe7bd;--bad:#b8402f;--ok:#2f8f3a;--ns:75%;--nl:29%;--ncm:52%;--hov:#e9dec9}}
+:root{color-scheme:dark;--bg:#120e22;--panel:#1b1631;--line:#322b4d;--tx:#f6f1fb;--mut:#a59fba;--acc:#ff9fd0;--acc-tx:#ff9fd0;--on-acc:#15122e;--me:#3b2146;--bad:#ff7b7b;--ok:#6fdc8c;--ns:65%;--nl:68%;--ncm:100%;--hov:#221c3c;--ff:Nunito,"Segoe UI",system-ui,sans-serif}
+:root[data-theme="light"]{color-scheme:light;--bg:#fbf7fc;--panel:#f2eaf5;--line:#e1d3e7;--tx:#231a2e;--mut:#6e6280;--acc:#f06aae;--acc-tx:#b2367a;--on-acc:#15122e;--me:#fde1f0;--bad:#c23b3b;--ok:#2f8f4a;--ns:75%;--nl:29%;--ncm:52%;--hov:#efe3f2}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#fbf7fc;--panel:#f2eaf5;--line:#e1d3e7;--tx:#231a2e;--mut:#6e6280;--acc:#f06aae;--acc-tx:#b2367a;--on-acc:#15122e;--me:#fde1f0;--bad:#c23b3b;--ok:#2f8f4a;--ns:75%;--nl:29%;--ncm:52%;--hov:#efe3f2}}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 [hidden]{display:none!important}
-body{background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;position:relative}
+body{background:var(--bg);color:var(--tx);font:14px/1.4 var(--ff);display:flex;flex-direction:column;position:relative}
 .hb{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:14px;line-height:1.3;cursor:pointer;flex:none}
 .hb:hover{border-color:var(--acc)}
 .hb:disabled{opacity:.45;cursor:default}
 #pin[aria-pressed="true"]{background:var(--acc);border-color:var(--acc)}
 #pinned{margin:auto;text-align:center;color:var(--mut);padding:24px;max-width:320px}
 #pinned b{display:block;color:var(--tx);font-size:16px;margin-bottom:6px}
-#pinned button{margin-top:14px;background:var(--acc);color:var(--on-acc);border:0;border-radius:8px;padding:8px 14px;font:600 13px system-ui;cursor:pointer}
+#pinned button{margin-top:14px;background:var(--acc);color:var(--on-acc);border:0;border-radius:8px;padding:8px 14px;font:600 13px var(--ff);cursor:pointer}
 header{background:var(--panel);border-bottom:1px solid var(--line);flex:none}
 .hr{display:flex;align-items:center;gap:6px;padding:7px 10px}
 .hr+.hr{padding-top:0}
@@ -373,7 +373,7 @@ header{background:var(--panel);border-bottom:1px solid var(--line);flex:none}
 header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit;font-size:12px;min-width:0}
 #chan{flex:1;font-weight:700;font-size:13px;max-width:100%}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;flex:none}
-.seg button{background:var(--bg);color:var(--mut);border:0;padding:3px 9px;font:600 12px system-ui;cursor:pointer}
+.seg button{background:var(--bg);color:var(--mut);border:0;padding:3px 9px;font:600 12px var(--ff);cursor:pointer}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button[aria-pressed="true"]{background:var(--acc);color:var(--on-acc)}
 .seg button:disabled{opacity:.4;cursor:default}
@@ -382,13 +382,13 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #ctabs[hidden]{display:none}
 #ctabs button[aria-pressed]{opacity:.55}
 #ctabs button[aria-pressed="true"]{opacity:1;color:var(--tx);border-color:var(--line);background:var(--bg)}
-#ctabs .lbl{color:var(--mut);font:600 11px system-ui;align-self:center;margin-right:2px}
+#ctabs .lbl{color:var(--mut);font:600 11px var(--ff);align-self:center;margin-right:2px}
 #cbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;background:var(--me);border-bottom:1px solid var(--line);font-size:12px;flex:none}
 #cbar[hidden]{display:none}
 #dmbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--panel);font-size:13px;flex:none}
 #dmbar[hidden]{display:none}
 #dmbar b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#dmbar button{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font:600 12px system-ui;cursor:pointer}
+#dmbar button{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font:600 12px var(--ff);cursor:pointer}
 #dmbar button:hover{border-color:var(--acc)}
 #dmbar form{display:flex;gap:6px;flex:1;min-width:0}
 #dmbar input{flex:1;min-width:0;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font:inherit;font-size:13px}
@@ -399,18 +399,18 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #log li.conv .cv b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #log li.conv .cv span{display:block;color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #log li.conv .ct{color:var(--mut);font-size:11px;font-variant-numeric:tabular-nums;flex:none}
-#log li.conv .cu{flex:none;min-width:18px;padding:0 5px;border-radius:9px;background:var(--acc);color:var(--on-acc);font:700 11px/18px system-ui;text-align:center}
+#log li.conv .cu{flex:none;min-width:18px;padding:0 5px;border-radius:9px;background:var(--acc);color:var(--on-acc);font:700 11px/18px var(--ff);text-align:center}
 #log.pm{display:flex;flex-direction:column;gap:3px;padding:8px 10px 12px}
 #log.pm li+li{margin-top:0}
-#log li.sec{font:700 11px system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);padding:10px 4px 2px}
+#log li.sec{font:700 11px var(--ff);letter-spacing:.06em;text-transform:uppercase;color:var(--mut);padding:10px 4px 2px}
 #log .av,#dmbar .av{background:color-mix(in srgb,var(--avc,#8a7a60) 62%,#000)}
 #log .av.cl,#dmbar .av.cl{background:color-mix(in srgb,var(--avc) 22%,var(--panel));box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--avc) var(--ncm,100%),#000);font-weight:400}
-#log li.conv .av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:700 14px system-ui;color:#fff;position:relative}
+#log li.conv .av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:700 14px var(--ff);color:#fff;position:relative}
 #log li.conv .av .on{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;background:var(--ok);border:2px solid var(--bg)}
 #log li.conv .cv span.st{color:var(--ok)}
 #log li.conv .acts{display:flex;gap:4px;flex:none}
 #log li.conv .cv b small.lg{font-weight:400;color:var(--mut);font-size:11px}
-#log li.conv .acts button,#dmbar .acts button,#log li.pmmore button,#log li.pm0 button{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font:600 12px system-ui;cursor:pointer}
+#log li.conv .acts button,#dmbar .acts button,#log li.pmmore button,#log li.pm0 button{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font:600 12px var(--ff);cursor:pointer}
 #log li.conv .acts button:hover,#dmbar .acts button:hover,#log li.pmmore button:hover{border-color:var(--acc)}
 #log li.conv .acts button.ok{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
 #log li.day{align-self:center;color:var(--mut);font-size:11px;padding:8px 0 2px}
@@ -424,7 +424,7 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #log li.pm0 b{display:block;color:var(--tx);font-size:14px;margin-bottom:4px}
 #log li.pm0 button{margin-top:10px}
 #dmbar .who{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
-#dmbar .who .av{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 13px system-ui;color:#fff}
+#dmbar .who .av{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--ff);color:#fff}
 #dmbar .who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #dmbar .who small{display:block;color:var(--mut);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #dmbar .who small.on{color:var(--ok)}
@@ -439,33 +439,33 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #room button[aria-pressed="true"] .rb{background:var(--on-acc);color:var(--acc)}
 #room .rb[hidden],#log li.conv .cu[hidden]{display:none}
 #log li.strip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}
-#log .fchip{display:flex;flex-direction:column;align-items:center;gap:3px;width:58px;flex:none;background:none;border:1px solid transparent;border-radius:10px;padding:4px 2px;cursor:pointer;color:var(--tx);font:11px/1.2 system-ui}
+#log .fchip{display:flex;flex-direction:column;align-items:center;gap:3px;width:58px;flex:none;background:none;border:1px solid transparent;border-radius:10px;padding:4px 2px;cursor:pointer;color:var(--tx);font:11px/1.2 var(--ff)}
 #log .fchip:hover,#log .fchip:focus-visible{border-color:var(--line);background:var(--hov);outline:none}
-#log .fchip .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font:700 16px system-ui;color:#fff;position:relative}
+#log .fchip .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font:700 16px var(--ff);color:#fff;position:relative}
 #log .fchip .av .on{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;background:var(--ok);border:2px solid var(--bg)}
-#log .fchip .av .cu{position:absolute;right:-6px;top:-4px;min-width:17px;padding:0 4px;border-radius:9px;background:var(--bad);color:#fff;font:700 10px/16px system-ui}
+#log .fchip .av .cu{position:absolute;right:-6px;top:-4px;min-width:17px;padding:0 4px;border-radius:9px;background:var(--bad);color:#fff;font:700 10px/16px var(--ff)}
 #log .fchip span.nm{max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #log .fchip.off{opacity:.55}
 #log li.filt{display:flex;gap:4px;flex-wrap:wrap;padding:2px 0 2px}
-#log li.filt button{background:none;color:var(--mut);border:1px solid transparent;border-radius:6px;padding:2px 9px;font:600 12px system-ui;cursor:pointer}
+#log li.filt button{background:none;color:var(--mut);border:1px solid transparent;border-radius:6px;padding:2px 9px;font:600 12px var(--ff);cursor:pointer}
 #log li.filt button[aria-pressed="true"]{color:var(--acc-tx);border-color:var(--line);background:var(--panel)}
-#log li.sec .gift{float:right;all:unset;float:right;cursor:pointer;color:var(--acc-tx);font:600 11px system-ui;text-transform:none;letter-spacing:0}
+#log li.sec .gift{float:right;all:unset;float:right;cursor:pointer;color:var(--acc-tx);font:600 11px var(--ff);text-transform:none;letter-spacing:0}
 #log li.sec{overflow:hidden}
 .coin{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;cursor:pointer;line-height:1.4}
 .coin[aria-disabled="true"]{opacity:.4;cursor:default;filter:grayscale(1)}
 #log .frm,#log li.conv .cv b .frm{display:inline;font-size:11px;margin-left:2px;opacity:.8;color:inherit}
-#dmbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:2px 8px;font:600 11px system-ui;cursor:pointer;margin-left:6px}
+#dmbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:2px 8px;font:600 11px var(--ff);cursor:pointer;margin-left:6px}
 #sp{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column}
 #sp .sp-h{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
 #sp .sp-h b{flex:1;font-size:14px}
 #sp .sp-b{flex:1;overflow-y:auto;padding:4px 12px 20px}
 #sp section{padding:10px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:7px}
 #sp section:last-child{border-bottom:0}
-#sp h4{margin:0;font:700 11px system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+#sp h4{margin:0;font:700 11px var(--ff);letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
 #sp h4 small,#sp .ta small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--mut);font-size:11px}
 #sp .lbl{font-size:12px;color:var(--mut)}
 #sp .sws{display:flex;gap:6px;flex-wrap:wrap}
-#sp .sw{display:flex;align-items:center;gap:6px;background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:4px 9px 4px 5px;font:600 12px system-ui;cursor:pointer}
+#sp .sw{display:flex;align-items:center;gap:6px;background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:4px 9px 4px 5px;font:600 12px var(--ff);cursor:pointer}
 #sp .sw i{width:18px;height:18px;border-radius:5px;border:3px solid}
 #sp .sw.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
 #sp .dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);cursor:pointer;display:grid;place-items:center;font-size:13px;padding:0}
@@ -487,7 +487,7 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #sp .hlr{display:flex;align-items:center;justify-content:space-between;gap:8px}
 #sp .hlr .dot.pick{flex:none;font-size:0}
 #sp .seg2{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;align-self:flex-start}
-#sp .seg2 button{background:var(--panel);color:var(--mut);border:0;padding:4px 11px;font:600 12px system-ui;cursor:pointer}
+#sp .seg2 button{background:var(--panel);color:var(--mut);border:0;padding:4px 11px;font:600 12px var(--ff);cursor:pointer}
 #sp .seg2 button+button{border-left:1px solid var(--line)}
 #sp .seg2 button[aria-pressed="true"]{background:var(--acc);color:var(--on-acc)}
 #sp .danger.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
@@ -499,23 +499,23 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #pmtoast{position:fixed;left:8px;right:8px;top:8px;z-index:60;display:flex;gap:8px;align-items:center;background:var(--panel);color:var(--tx);border:1px solid var(--acc);border-radius:10px;padding:8px 8px 8px 12px;box-shadow:0 10px 28px -12px rgba(0,0,0,.6);font-size:13px;cursor:pointer}
 #pmtoast[hidden]{display:none}
 #pmtoast span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#pmtoast button{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:4px 10px;font:600 12px system-ui;cursor:pointer}
+#pmtoast button{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:4px 10px;font:600 12px var(--ff);cursor:pointer}
 #pmtoast button.x{background:none;color:var(--mut);padding:2px 6px;font-size:14px}
-#log .dmb{position:absolute;right:2px;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:12px/18px system-ui;cursor:pointer;opacity:0}
+#log .dmb{position:absolute;right:2px;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:12px/18px var(--ff);cursor:pointer;opacity:0}
 #log li:has(.mb) .dmb{right:34px}
 #log li:hover .dmb,#log .dmb:focus-visible{opacity:1}
 @media (hover:none){#log .dmb{opacity:.6}}
 #cbar span{flex:1;min-width:160px;color:var(--tx)}
-#cbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:3px 10px;font:600 12px system-ui;cursor:pointer}
+#cbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:3px 10px;font:600 12px var(--ff);cursor:pointer}
 #cbar .go:disabled{opacity:.6}
 #cbar label{display:flex;gap:4px;align-items:center;color:var(--mut);cursor:pointer}
-#log .src{display:inline-block;font:600 10px/15px system-ui;padding:0 5px;margin-right:4px;border-radius:4px;border:1px solid var(--line);color:var(--mut);vertical-align:1px;letter-spacing:.02em}
+#log .src{display:inline-block;font:600 10px/15px var(--ff);padding:0 5px;margin-right:4px;border-radius:4px;border:1px solid var(--line);color:var(--mut);vertical-align:1px;letter-spacing:.02em}
 #log .src.k-mine{color:var(--acc-tx);border-color:var(--acc)}
 #log .src.k-tr{color:var(--ok);border-color:var(--ok)}
 #log .src.k-dm{color:var(--bad);border-color:var(--bad)}
-#tgt{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:0 4px;font:600 12px system-ui;max-width:92px}
+#tgt{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:0 4px;font:600 12px var(--ff);max-width:92px}
 #tgt[hidden]{display:none}
-#ctabs button{background:none;color:var(--mut);border:1px solid transparent;border-radius:6px;padding:2px 7px;font:600 12px system-ui;cursor:pointer;white-space:nowrap}
+#ctabs button{background:none;color:var(--mut);border:1px solid transparent;border-radius:6px;padding:2px 7px;font:600 12px var(--ff);cursor:pointer;white-space:nowrap}
 #ctabs button[aria-selected="true"]{color:var(--acc-tx);border-color:var(--line);background:var(--bg)}
 #ctabs b{display:inline-block;min-width:16px;padding:0 4px;margin-left:3px;border-radius:8px;background:var(--acc);color:var(--on-acc);font-size:10px;line-height:15px;text-align:center}
 #log{flex:1;overflow-y:auto;list-style:none;margin:0;padding:6px 10px 10px}
@@ -533,22 +533,22 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #empty{color:var(--mut);text-align:center;padding:30px 14px;margin:0}
 #gate{margin:auto;max-width:330px;text-align:center;padding:20px 16px;color:var(--mut);font-size:13px}
 #gate b{display:block;color:var(--tx);font-size:15px;margin-bottom:6px}
-#gate .go{margin:14px 0 10px;background:var(--acc);color:var(--on-acc);border:0;border-radius:8px;padding:8px 16px;font:600 13px system-ui;cursor:pointer}
+#gate .go{margin:14px 0 10px;background:var(--acc);color:var(--on-acc);border:0;border-radius:8px;padding:8px 16px;font:600 13px var(--ff);cursor:pointer}
 #gate .go:disabled{opacity:.6;cursor:default}
 #gate label{display:flex;gap:6px;justify-content:center;align-items:center;font-size:12px;cursor:pointer}
-#more{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;background:var(--acc);color:var(--on-acc);border:0;border-radius:14px;padding:4px 12px;font:600 12px system-ui;cursor:pointer;display:none}
+#more{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;background:var(--acc);color:var(--on-acc);border:0;border-radius:14px;padding:4px 12px;font:600 12px var(--ff);cursor:pointer;display:none}
 footer{flex:none;border-top:1px solid var(--line);background:var(--panel);padding:8px 10px}
 #err{color:var(--bad);font-size:12px;margin:0 0 6px}#err:empty{display:none}
 #okm{color:var(--ok);font-size:12px;margin:0 0 6px}#okm:empty{display:none}
 #log li{position:relative}
-#log .mb{position:absolute;right:2px;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:700 12px/18px system-ui;cursor:pointer;opacity:0}
+#log .mb{position:absolute;right:2px;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:700 12px/18px var(--ff);cursor:pointer;opacity:0}
 #log li:hover .mb,#log .mb:focus-visible,#log .mb[aria-expanded="true"]{opacity:1}
 @media (hover:none){#log .mb{opacity:.6}}
-#log .pgo{float:right;margin-left:6px;background:var(--panel);color:var(--acc-tx);border:1px solid var(--line);border-radius:5px;padding:0 7px;font:700 12px/18px system-ui;cursor:pointer}
+#log .pgo{float:right;margin-left:6px;background:var(--panel);color:var(--acc-tx);border:1px solid var(--line);border-radius:5px;padding:0 7px;font:700 12px/18px var(--ff);cursor:pointer}
 #log .pgo:hover,#log .pgo:focus-visible{border-color:var(--acc);outline:none}
 #ctabs .pgc{margin-left:auto;opacity:1;color:var(--bad)}
 #log li:has(.pgo) .dmb,#log li:has(.pgo) .mb{right:36px}
-.mm{position:fixed;z-index:50;min-width:210px;max-width:min(300px,calc(100vw - 16px));background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 10px 28px -10px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:4px;font:13px/1.35 system-ui,sans-serif}
+.mm{position:fixed;z-index:50;min-width:210px;max-width:min(300px,calc(100vw - 16px));background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 10px 28px -10px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:4px;font:13px/1.35 var(--ff),sans-serif}
 .mm .mh{font-weight:700;padding:2px 6px 4px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mm .mh small{display:block;font-weight:400;color:var(--mut);font-size:11px}
 .mm button{background:none;border:1px solid transparent;border-radius:6px;color:var(--tx);text-align:left;padding:4px 8px;font:inherit;cursor:pointer}
@@ -562,13 +562,13 @@ footer{flex:none;border-top:1px solid var(--line);background:var(--panel);paddin
 .mm .danger.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
 #mp{display:none;flex-direction:column;gap:8px;max-height:min(340px,50vh);overflow-y:auto;margin:0 0 8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px}
 #mp.on{display:flex}
-#mp h4{margin:0;font:700 12px system-ui;color:var(--mut);letter-spacing:.03em}
+#mp h4{margin:0;font:700 12px var(--ff);color:var(--mut);letter-spacing:.03em}
 #mp ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
 #mp li{display:flex;gap:6px;align-items:center;font-size:13px;padding:2px 4px;border-radius:6px}
 #mp li:hover{background:var(--hov)}
 #mp li b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #mp li span{flex:1;color:var(--mut);font-size:12px;min-width:0}
-#mp li button,#mp form button{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font:600 12px system-ui;cursor:pointer}
+#mp li button,#mp form button{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font:600 12px var(--ff);cursor:pointer}
 #mp form{display:flex;gap:6px;flex-wrap:wrap}
 #mp form input,#mp form select{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font:inherit;font-size:13px;min-width:0}
 #mp form input{flex:1;min-width:110px}
@@ -593,7 +593,7 @@ form{display:flex;gap:6px;margin:0}
 #eq{flex:1;min-width:0;background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;font-size:13px}
 #eq:focus{outline:none;border-color:var(--acc)}
 #etabs{display:flex;gap:4px;flex-wrap:wrap}
-#etabs button{background:none;color:var(--mut);border:1px solid transparent;border-radius:6px;padding:2px 7px;font:600 12px system-ui;cursor:pointer}
+#etabs button{background:none;color:var(--mut);border:1px solid transparent;border-radius:6px;padding:2px 7px;font:600 12px var(--ff);cursor:pointer}
 #etabs button[aria-selected="true"]{color:var(--acc-tx);border-color:var(--line);background:var(--panel)}
 #eg{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:2px;align-content:start}
 #eg button{background:none;border:1px solid transparent;border-radius:6px;height:44px;padding:3px;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -609,7 +609,7 @@ form{display:flex;gap:6px;margin:0}
 .pp-top{display:flex;gap:6px}
 #pq{flex:1;min-width:0;background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;font-size:13px}
 #pq:focus,#pp input:focus,#pp textarea:focus{outline:none;border-color:var(--acc)}
-.pbtn{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:4px 10px;font:600 12px system-ui;cursor:pointer;white-space:nowrap}
+.pbtn{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:4px 10px;font:600 12px var(--ff);cursor:pointer;white-space:nowrap}
 .pbtn.alt{background:var(--panel);color:var(--tx);border:1px solid var(--line)}
 #pl{flex:1;overflow-y:auto;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
 #pl li{display:flex;align-items:center;gap:4px;border:1px solid transparent;border-radius:7px;padding:2px 2px 2px 0}
@@ -619,7 +619,7 @@ form{display:flex;gap:6px;margin:0}
 #pl .pi span{display:block;color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #pl .px{background:none;border:1px solid transparent;border-radius:6px;color:var(--mut);padding:2px 6px;cursor:pointer;font-size:13px;flex:none}
 #pl .px:hover{border-color:var(--line);color:var(--tx)}
-#pl .px.sure{background:var(--bad);color:#fff;border-color:var(--bad);font:600 11px system-ui}
+#pl .px.sure{background:var(--bad);color:#fff;border-color:var(--bad);font:600 11px var(--ff)}
 #pl p{color:var(--mut);text-align:center;font-size:12px;margin:18px 8px}
 #pe{display:none;flex-direction:column;gap:6px;flex:1;min-height:0}
 #pp.edit #pe{display:flex}#pp.edit .pp-top,#pp.edit #pl{display:none}
@@ -668,12 +668,39 @@ html.pinned.mini body:hover footer,html.pinned.mini footer:focus-within{transfor
 html.pinned.mini #more{bottom:12px}
 html.pinned.mini #log{padding-bottom:12px}
 @media (prefers-reduced-motion: reduce){html.pinned.mini footer{transition:none}}
+
+#fbar{display:flex;gap:6px;align-items:center;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+#fq{flex:1;min-width:0;background:color-mix(in srgb,var(--tx) 7%,transparent);color:var(--tx);border:1px solid var(--acc);border-radius:10px;padding:5px 9px;font:inherit;font-size:13px;outline:none}
+#fn{color:var(--mut);font-size:12px;font-variant-numeric:tabular-nums;min-width:44px;text-align:center;flex:none}
+#fn.none{color:var(--bad)}
+#fbar .hb[data-f="only"]{font-size:12px}
+#fbar .hb[aria-pressed="true"]{background:var(--acc);color:var(--on-acc)}
+@media (max-width:400px){#fbar .hb[data-f="only"]{display:none}}
+#log mark.fm{background:color-mix(in srgb,var(--acc) 38%,transparent);color:inherit;border-radius:3px;padding:0 1px}
+#log mark.fm.cur{background:var(--acc);color:var(--on-acc);box-shadow:0 0 0 2px var(--acc)}
+#log.fonly>li:not(.fhit){display:none}
+/* облик как в чате игры: вкладки-«пилюли», полупрозрачные кнопки, поля со скруглением 10px */
+.hb{background:color-mix(in srgb,var(--tx) 9%,transparent);border-color:transparent;border-radius:8px}
+.hb:hover,.hb:focus-visible{border-color:var(--acc);outline:none}
+header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-color:color-mix(in srgb,var(--tx) 18%,transparent);border-radius:8px}
+#chan{font-family:Comfortaa,var(--ff);font-weight:700}
+.seg{border:0;gap:3px;border-radius:999px;overflow:visible}
+.seg button{background:transparent;border-radius:999px;padding:3px 10px;font-weight:700}
+.seg button+button{border-left:0}
+.seg button:not([aria-pressed="true"]):not(:disabled):hover{background:color-mix(in srgb,var(--tx) 9%,transparent);color:var(--tx)}
+#ctabs button{border-radius:999px}
+#ctabs button[aria-pressed="true"],#ctabs button[aria-selected="true"]{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
+#in,#dmbar input{background:color-mix(in srgb,var(--tx) 7%,transparent);border-color:color-mix(in srgb,var(--tx) 22%,transparent);border-radius:10px}
+#send,#pb,#emb{border-radius:10px}
+#dmbar button,#log li.conv .acts button,#log li.pmmore button,#log li.pm0 button{border-radius:8px}
+#log li.sec{font-family:Comfortaa,var(--ff)}
 </style></head>
 <body>
 <header>
   <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
+<div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
 <div id="cbar" hidden></div>
 <div id="dmbar" hidden></div>
 <div id="pmtoast" role="status" hidden></div>
@@ -751,13 +778,13 @@ html.pinned.mini #log{padding-bottom:12px}
     pickerInit();
     pastesInit();
     modInit();
-    pmInit(); pingInit();
+    pmInit(); pingInit(); findInit();
     czInit();
     start();
     loadChannels();
   }
 
-  // ---------- Тема: как в системе → светлая → тёмная ----------
+  // ---------- Тема: тёмная (как игра, по умолчанию) → как в системе → светлая ----------
   const THEME_KEY = 'lgmc_theme';
   const THEMES = { auto: ['🌓', 'Тема: как в системе'], light: ['☀️', 'Тема: светлая'], dark: ['🌙', 'Тема: тёмная'] };
   function themeApply(t) {
@@ -767,14 +794,14 @@ html.pinned.mini #log{padding-bottom:12px}
     if (b) { b.textContent = THEMES[t][0]; b.title = `${THEMES[t][1]} (нажми, чтобы сменить)`; b.setAttribute('aria-label', THEMES[t][1]); b.dataset.t = t; }
   }
   function themeInit() {
-    let t = 'auto'; try { t = localStorage.getItem(THEME_KEY) || 'auto'; } catch {}
+    let t = 'dark'; try { t = localStorage.getItem(THEME_KEY) || 'dark'; } catch {}   // игра всегда тёмная — по умолчанию и чат тёмный
     S.el.theme = document.getElementById('theme');
     themeApply(t);
     S.el.theme.onclick = (e) => {
       const order = ['auto', 'light', 'dark'], next = order[(order.indexOf(e.currentTarget.dataset.t) + 1) % order.length];
       themeApply(next); try { localStorage.setItem(THEME_KEY, next); } catch {}
     };
-    window.addEventListener('storage', (e) => { if (e.key === THEME_KEY) themeApply(e.newValue || 'auto'); });
+    window.addEventListener('storage', (e) => { if (e.key === THEME_KEY) themeApply(e.newValue || 'dark'); });
   }
 
   // ---------- Поверх всех окон: Document Picture-in-Picture (Chrome / Edge 116+) ----------
@@ -841,6 +868,7 @@ html.pinned.mini #log{padding-bottom:12px}
     const st = pd.createElement('style'); st.textContent = document.querySelector('head style').textContent; pd.head.append(st);
     pd.body.append(...document.body.childNodes);   // переносим всё вместе с обработчиками
     pd.addEventListener('keydown', S.onEsc);
+    if (S.findKeys) pd.addEventListener('keydown', S.findKeys, true);   // Ctrl+F и в окне поверх всех
     pinStyleApply(pd);
     czApply();
     document.body.innerHTML = '<div id="pinned"><b>📌 Чат закреплён поверх окон</b>Это окно можно свернуть, но не закрывай его — иначе плавающий чат тоже закроется.<br><button type="button" id="unpin">Вернуть чат сюда</button></div>';
@@ -1226,6 +1254,94 @@ html.pinned.mini #log{padding-bottom:12px}
     for (const m of S.list) if (isPing(m)) out.set(S.ch + '|' + m._key, Object.assign({ _ch: S.ch }, m));
     return [...out.values()].filter((m) => !S.ign.has(m.l) && !czHidden(m)).sort((a, b) => (a.at || 0) - (b.at || 0));
   }
+
+
+  // ---------- Поиск по сообщениям: Ctrl+F (⌘F) ----------
+  // Ищет в том, что сейчас в ленте (шахта, город, «Всё», пинги, список диалогов или переписка): подсветка,
+  // ↑ ↓ / Enter / Shift+Enter — по совпадениям, «Только найденные» — спрятать остальное. Новые сообщения проверяются сами.
+  const FD = { q: '', hits: [], i: -1, only: false, t: 0, obs: null };
+  const fnorm = (x) => x.toLowerCase().replace(/ё/g, 'е');
+  function findInit() {
+    S.el.fbar = document.getElementById('fbar'); S.el.fq = document.getElementById('fq'); S.el.fn = document.getElementById('fn');
+    const keys = (e) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.code === 'KeyF' || e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А')) { e.preventDefault(); findOpen(); return; }
+      if (e.key === 'F3') { e.preventDefault(); if (S.el.fbar.hidden) findOpen(); else findStep(e.shiftKey ? -1 : 1); }
+      if (e.key === 'Escape' && !S.el.fbar.hidden && S.el.fbar.contains(e.target)) { e.preventDefault(); e.stopPropagation(); findClose(); }
+    };
+    document.addEventListener('keydown', keys, true);
+    S.findKeys = keys;   // и в окне «поверх всех» (PiP) — pin() вешает его на тот документ
+    S.el.fq.addEventListener('input', () => { clearTimeout(FD.t); FD.t = setTimeout(() => findRun(true), 120); });
+    S.el.fq.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); findStep(e.shiftKey ? -1 : 1); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); findClose(); }
+    });
+    S.el.fbar.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-f]'); if (!b) return;
+      const a = b.dataset.f;
+      if (a === 'close') findClose();
+      else if (a === 'only') { FD.only = !FD.only; b.setAttribute('aria-pressed', String(FD.only)); S.el.log.classList.toggle('fonly', FD.only && !!FD.q); if (FD.hits[FD.i]) FD.hits[FD.i].scrollIntoView({ block: 'center' }); }
+      else findStep(a === 'prev' ? -1 : 1);
+    });
+    // лента перерисовалась или пришли новые — найти и в них (только прямые дети ленты: наши <mark> внутри строк не в счёт)
+    FD.obs = new MutationObserver(() => { if (FD.q) { clearTimeout(FD.t); FD.t = setTimeout(() => findRun(false), 150); } });
+    FD.obs.observe(S.el.log, { childList: true });
+  }
+  function findOpen() {
+    const sel = String((S.pip ? S.pip.getSelection() : window.getSelection()) || '').trim();
+    S.el.fbar.hidden = false;
+    if (sel && sel.length <= 60 && !sel.includes('\n')) S.el.fq.value = sel;
+    S.el.fq.focus(); S.el.fq.select();
+    if (S.el.fq.value) findRun(true);
+  }
+  function findClose() {
+    S.el.fbar.hidden = true; FD.q = ''; S.el.fq.value = '';
+    findClear(); S.el.log.classList.remove('fonly'); S.el.fn.textContent = '';
+    S.el.inp.focus();
+  }
+  function findClear() {
+    for (const m of S.el.log.querySelectorAll('mark.fm')) { const p = m.parentNode; p.replaceChild(document.createTextNode(m.textContent), m); p.normalize(); }
+    for (const li of S.el.log.querySelectorAll('li.fhit')) li.classList.remove('fhit');
+    FD.hits = []; FD.i = -1;
+  }
+  function findRun(jump) {
+    const q = fnorm(S.el.fq.value.trim());
+    const cur = FD.hits[FD.i] ? FD.hits[FD.i].closest('li') : null, curKey = cur && (cur.dataset.key || cur.dataset.id || cur.dataset.peer);
+    findClear(); FD.q = q;
+    S.el.log.classList.toggle('fonly', FD.only && !!q);
+    if (!q) { S.el.fn.textContent = ''; S.el.fn.classList.remove('none'); return; }
+    const skip = (n) => n.parentElement.closest('button, .t, .bt, .src, .ct, script, style');
+    for (const li of S.el.log.children) {
+      const tw = document.createTreeWalker(li, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (!n.nodeValue.trim() || skip(n) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+      const nodes = []; while (tw.nextNode()) nodes.push(tw.currentNode);
+      for (const n of nodes) {
+        const low = fnorm(n.nodeValue); let at = low.indexOf(q); if (at < 0) continue;
+        const f = document.createDocumentFragment(); let from = 0;
+        while (at >= 0) {
+          if (at > from) f.appendChild(document.createTextNode(n.nodeValue.slice(from, at)));
+          const m = document.createElement('mark'); m.className = 'fm'; m.textContent = n.nodeValue.slice(at, at + q.length); f.appendChild(m); FD.hits.push(m);
+          from = at + q.length; at = low.indexOf(q, from);
+        }
+        if (from < n.nodeValue.length) f.appendChild(document.createTextNode(n.nodeValue.slice(from)));
+        n.parentNode.replaceChild(f, n);
+        li.classList.add('fhit');
+      }
+    }
+    // текущее: при наборе — самое свежее (снизу), при обновлении ленты — то же сообщение, что было
+    let i = FD.hits.length - 1;
+    if (!jump && curKey) { const k = FD.hits.findIndex((m) => { const l = m.closest('li'); return (l.dataset.key || l.dataset.id || l.dataset.peer) === curKey; }); if (k >= 0) i = k; }
+    findGo(i, jump);
+  }
+  function findGo(i, scroll) {
+    if (FD.hits[FD.i]) FD.hits[FD.i].classList.remove('cur');
+    FD.i = FD.hits.length ? (i + FD.hits.length) % FD.hits.length : -1;
+    const n = FD.hits.length;
+    S.el.fn.textContent = n ? `${FD.i + 1} из ${n}` : 'нет';
+    S.el.fn.classList.toggle('none', !n);
+    const m = FD.hits[FD.i]; if (!m) return;
+    m.classList.add('cur');
+    if (scroll) { m.scrollIntoView({ block: 'center' }); S.stick = S.el.log.scrollHeight - S.el.log.scrollTop - S.el.log.clientHeight < 40; }
+  }
+  function findStep(d) { if (FD.hits.length) findGo(FD.i + d, true); else if (S.el.fq.value) findRun(true); }
 
   // ---------- Вкладки города / фильтры общей ленты ----------
   const cityTabs = () => ['g', ...(S.flags.tr ? ['tr', 'ev'] : [])];
@@ -2519,34 +2635,40 @@ html.pinned.mini #log{padding-bottom:12px}
   // изменение в одном месте сразу применяется в остальных (событие storage).
   const CZ_KEY = 'lgmc_cz', CZ_BG = 'lgmc_cz_bg';
   const CZ_DEF = {
-    dark: 'coal', light: 'parchment', accent: '', bgDim: 70, font: 'system', size: 14, density: 'normal',
+    dark: 'legion', light: 'legionl', accent: '', bgDim: 70, font: 'game', size: 14, density: 'normal', d2: 1,
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
     bgClear: 0, opac: 0, opHover: true, scrollbar: false,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
-  const BASE_V = { dark: { bg: '#17130e', panel: '#211b14', me: '#3a2d14', hov: '#2b241b' }, light: { bg: '#fbf7ef', panel: '#f1e9da', me: '#fbe7bd', hov: '#e9dec9' } };
+  const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
   const SCHEMES = {
-    coal: { name: 'Уголь', mode: 'dark', v: null },
+    legion: { name: 'Легион', mode: 'dark', v: null },   // как чат игры
+    coal: { name: 'Уголь', mode: 'dark', v: { bg: '#17130e', panel: '#211b14', line: '#3a3024', tx: '#eadfcb', mut: '#9c8d76', me: '#3a2d14', hov: '#2b241b', acc: '#f0b84a', 'acc-tx': '#f0b84a', 'on-acc': '#1a1206' } },
     night: { name: 'Ночь', mode: 'dark', v: { bg: '#0f1420', panel: '#171e2e', line: '#2a3550', tx: '#dde5f5', mut: '#8d9ab5', me: '#22305a', hov: '#1d2640' } },
     forest: { name: 'Лес', mode: 'dark', v: { bg: '#101712', panel: '#17211a', line: '#2a3a2e', tx: '#dcead9', mut: '#8fa592', me: '#21402a', hov: '#1c2a20' } },
     oled: { name: 'Чёрный', mode: 'dark', v: { bg: '#000000', panel: '#0d0d0d', line: '#262626', tx: '#ececec', mut: '#9a9a9a', me: '#2a2416', hov: '#161616' } },
     wine: { name: 'Вино', mode: 'dark', v: { bg: '#1a1013', panel: '#24161b', line: '#3d252e', tx: '#f0dde3', mut: '#a88c96', me: '#45202d', hov: '#2c1a20' } },
-    parchment: { name: 'Пергамент', mode: 'light', v: null },
+    legionl: { name: 'Легион', mode: 'light', v: null },
+    parchment: { name: 'Пергамент', mode: 'light', v: { bg: '#fbf7ef', panel: '#f1e9da', line: '#dccfb6', tx: '#2b2117', mut: '#6f5f48', me: '#fbe7bd', hov: '#e9dec9', acc: '#e0a42e', 'acc-tx': '#9a6206', 'on-acc': '#1a1206' } },
     snow: { name: 'Снег', mode: 'light', v: { bg: '#f6f8fb', panel: '#e9eef5', line: '#cfd8e5', tx: '#1b2430', mut: '#5a6878', me: '#dbe8ff', hov: '#e1e8f2' } },
     mint: { name: 'Мята', mode: 'light', v: { bg: '#f3faf6', panel: '#e3f1e9', line: '#c5dfd0', tx: '#17291f', mut: '#4f6b5c', me: '#cdeedb', hov: '#dbece2' } },
     rose: { name: 'Роза', mode: 'light', v: { bg: '#fdf5f7', panel: '#f6e6eb', line: '#e7c9d3', tx: '#2e1a21', mut: '#76586a', me: '#fbd9e3', hov: '#f1dde4' } },
   };
   const ACCENTS = ['#f0b84a', '#e8743b', '#e05561', '#d45ad0', '#8b6cf0', '#4f8df0', '#2fb8c9', '#3fbf6f', '#a3c43a'];
   const FONTS = {
+    game: ['Как в игре', 'Nunito,"Segoe UI",system-ui,sans-serif'],
     system: ['Обычный', 'system-ui,-apple-system,"Segoe UI",sans-serif'],
     rounded: ['Округлый', '"Segoe UI Variable Text","Nunito","Varela Round","Trebuchet MS",system-ui,sans-serif'],
     serif: ['С засечками', 'Georgia,"Times New Roman",serif'],
     mono: ['Моноширинный', 'Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace'],
     comic: ['Рукописный', '"Comic Sans MS","Comic Neue","Segoe Print",cursive'],
   };
-  let CZ = Object.assign({}, CZ_DEF, lsGet(CZ_KEY, {}) || {});
+  const CZ0 = lsGet(CZ_KEY, null);
+  let CZ = Object.assign({}, CZ_DEF, CZ0 || {});
+  // 3.11: новый облик «как в игре» — тем, у кого стояли прежние схемы по умолчанию, переключаем один раз
+  if (CZ0 && !CZ0.d2) { if (CZ.dark === 'coal') CZ.dark = 'legion'; if (CZ.light === 'parchment') CZ.light = 'legionl'; if (CZ.font === 'system') CZ.font = 'game'; CZ.d2 = 1; lsSet(CZ_KEY, CZ); }
   const czWords = (s) => String(s || '').split(/[,\n]/).map((x) => x.trim().toLowerCase()).filter((x) => x.length >= 2).slice(0, 50);
   let CZ_HL = czWords(CZ.hl), CZ_HIDE = czWords(CZ.hide);
   const czHas = (text, words) => { if (!words.length) return false; const t = String(text || '').toLowerCase(); return words.some((w) => t.includes(w)); };
@@ -2570,7 +2692,7 @@ html.pinned.mini #log{padding-bottom:12px}
       const dark = `color-mix(in srgb, ${CZ.accent} 62%, #000)`;
       css += `${LIGHT}{--acc:${CZ.accent};--acc-tx:${dark};--on-acc:${on}}` + LIGHT_AUTO.replace('%', `--acc:${CZ.accent};--acc-tx:${dark};--on-acc:${on}`);
     }
-    css += `body{font-family:${(FONTS[CZ.font] || FONTS.system)[1]}}`;
+    css += `:root{--ff:${(FONTS[CZ.font] || FONTS.game)[1]}}`;
     css += `html:not(.pinned) :is(#log,#pvlog){font-size:${Math.max(11, Math.min(22, +CZ.size || 14))}px}`;
     if (CZ.density === 'compact') css += `:is(#log,#pvlog) li{padding-top:1px;padding-bottom:1px}:is(#log,#pvlog) li+li{margin-top:0}`;
     if (CZ.density === 'airy') css += `:is(#log,#pvlog) li{padding-top:6px;padding-bottom:6px}:is(#log,#pvlog) li+li{margin-top:3px}`;
@@ -2606,6 +2728,8 @@ html.pinned.mini #log{padding-bottom:12px}
     CZ_HL = czWords(CZ.hl); CZ_HIDE = czWords(CZ.hide);
     const css = czCss();
     for (const d of docs()) {
+      // шрифты игры (Nunito, Comfortaa) — с того же Google Fonts, откуда их берёт сама игра
+      if (!d.getElementById('lgmc-gf')) { const lk = d.createElement('link'); lk.id = 'lgmc-gf'; lk.rel = 'stylesheet'; lk.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Comfortaa:wght@700&display=swap'; d.head.appendChild(lk); }
       let st = d.getElementById('lgmc-cz');
       if (!st) { st = d.createElement('style'); st.id = 'lgmc-cz'; d.head.appendChild(st); }
       st.textContent = css;
@@ -2671,7 +2795,7 @@ html.pinned.mini #log{padding-bottom:12px}
   function czRender() {
     const sp = S.el.sp, bg = lsGet(CZ_BG, null);
     const opt = (o, v) => Object.entries(o).map(([k, x]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(Array.isArray(x) ? x[0] : x.name)}</option>`).join('');
-    const sch = (mode) => Object.entries(SCHEMES).filter(([, x]) => x.mode === mode).map(([k, x]) => `<button type="button" class="sw${CZ[mode] === k ? ' on' : ''}" data-sch="${mode}:${k}" aria-pressed="${CZ[mode] === k}" title="${esc(x.name)}"><i style="background:${(x.v || (mode === 'dark' ? { bg: '#17130e', panel: '#211b14' } : { bg: '#fbf7ef', panel: '#f1e9da' })).bg};border-color:${(x.v || (mode === 'dark' ? { panel: '#3a3024' } : { panel: '#dccfb6' })).panel}"></i>${esc(x.name)}</button>`).join('');
+    const sch = (mode) => Object.entries(SCHEMES).filter(([, x]) => x.mode === mode).map(([k, x]) => `<button type="button" class="sw${CZ[mode] === k ? ' on' : ''}" data-sch="${mode}:${k}" aria-pressed="${CZ[mode] === k}" title="${esc(x.name)}"><i style="background:${(x.v || (mode === 'dark' ? { bg: '#120e22' } : { bg: '#fbf7fc' })).bg};border-color:${(x.v || (mode === 'dark' ? { panel: '#ff9fd0' } : { panel: '#f06aae' })).panel}"></i>${esc(x.name)}</button>`).join('');
     const tg = (k, t) => `<label class="ck"><input type="checkbox" data-ck="${k}"${CZ[k] ? ' checked' : ''}> ${t}</label>`;
     sp.innerHTML = `<div class="sp-h"><b>⚙ Настройки чата</b><button type="button" class="hb" data-cz="close" aria-label="Закрыть настройки">✕</button></div>
       <div class="sp-b">
@@ -2679,7 +2803,7 @@ html.pinned.mini #log{padding-bottom:12px}
         <section><h4>Цвета</h4>
           <div class="lbl">Тёмная тема</div><div class="sws">${sch('dark')}</div>
           <div class="lbl">Светлая тема</div><div class="sws">${sch('light')}</div>
-          <div class="lbl">Акцент</div><div class="sws acc">${['', ...ACCENTS].map((c) => `<button type="button" class="dot${(CZ.accent || '') === c ? ' on' : ''}" data-acc="${c}" title="${c || 'Как в теме'}" aria-label="Акцент ${c || 'как в теме'}" style="background:${c || 'linear-gradient(135deg,#f0b84a 50%,#e0a42e 50%)'}"></button>`).join('')}<label class="dot pick" title="Свой цвет"><input type="color" data-cz="accent" value="${hex2rgb(CZ.accent) ? CZ.accent : '#f0b84a'}" aria-label="Свой цвет акцента">🎨</label></div>
+          <div class="lbl">Акцент</div><div class="sws acc">${['', ...ACCENTS].map((c) => `<button type="button" class="dot${(CZ.accent || '') === c ? ' on' : ''}" data-acc="${c}" title="${c || 'Как в теме'}" aria-label="Акцент ${c || 'как в теме'}" style="background:${c || 'linear-gradient(135deg,#ff9fd0 50%,#f06aae 50%)'}"></button>`).join('')}<label class="dot pick" title="Свой цвет"><input type="color" data-cz="accent" value="${hex2rgb(CZ.accent) ? CZ.accent : '#f0b84a'}" aria-label="Свой цвет акцента">🎨</label></div>
           <div class="lbl">Фон ленты</div>
           <div class="row">${bg ? `<span class="bgp" style="background-image:url('${bg}')"></span>` : ''}<label class="pbtn alt fl">🖼 ${bg ? 'Другая картинка' : 'Своя картинка'}<input type="file" accept="image/*" data-cz="bgfile" hidden></label>${bg ? '<button type="button" class="pbtn alt" data-cz="bgdel">Убрать</button>' : ''}</div>
           ${bg ? `<label class="rng">Затемнение картинки <input type="range" min="0" max="95" step="5" data-rng="bgDim" value="${CZ.bgDim}"><output>${CZ.bgDim}%</output></label>` : ''}
