@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.10.0
+// @version      3.10.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -1488,8 +1488,25 @@ html.pinned.mini #log{padding-bottom:12px}
     } catch {}
   }
 
+  // ---- классы для аватарок: игра отдаёт класс героя только рядом с его сообщениями в чатах шахты и города,
+  // поэтому, открыв «Личные», читаем историю этих чатов (только чтение: город — если герой уже там, входить не будем)
+  async function learnCls() {
+    if (!S.me || Date.now() - (S.lcT || 0) < 300000) return;
+    S.lcT = Date.now();
+    const jobs = S.mines.map((m) => api(`/api/mine/state?c=${encodeURIComponent(m.id)}&mc=0`));
+    if (!S.hero || S.flags.cc) jobs.push(api('/api/city/state?c=0'));
+    const rs = await Promise.allSettled(jobs);
+    let n = 0;
+    for (const x of rs) {
+      const r = x.value, chat = r && r.ok ? (r.mchat ? r.mchat.chat : r.chat) || [] : [];
+      for (const m of chat) if (m && m.l && m.c) { const had = (seenMap().get(String(m.l).toLowerCase()) || [])[2]; seenAdd(m.l, m.n, m.at, m.c, m.cn); if (!had) n++; }
+    }
+    if (n && S.room === 'pm') { if (S.pm.peer) pmBar(); else pmRefresh(); }
+  }
+
   // ---- комната «✉ Личные» ----
   function pmEnter() {
+    learnCls();
     S.el.log.classList.add('pm');
     if (S.pm.esOk) { S.el.dot.className = 'ok'; S.el.dot.title = 'На связи'; }
     if (S.pm.peer && !S.pm.loaded.has(S.pm.peer)) pmLoad(S.pm.peer);
