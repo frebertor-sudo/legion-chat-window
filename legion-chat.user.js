@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.4.0
+// @version      3.5.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -109,6 +109,16 @@
         #lgmc-btns button{background:#2a2218;color:#f1d9a5;border:0;padding:6px 10px;cursor:pointer;font:inherit}
         #lgmc-btns button+button{border-left:1px solid #6b5a3a}
         #lgmc-btns button[aria-pressed="true"]{background:#f0b84a;color:#1a1206}
+        #lgmc-btns.in-game{display:none}
+        .cy-chat>.lgmc-gc{position:absolute;top:0;left:var(--lgmc-gx,83px);height:var(--lgmc-gh,40px);display:flex;border-radius:999px;overflow:hidden;background:rgba(15,12,34,.82);color:#fff;font:700 14px/1 Nunito,"Segoe UI",system-ui,sans-serif;z-index:1}
+        .cy-chat>.lgmc-gc[hidden],.cy-chat-t[aria-expanded="true"]~.lgmc-gc{display:none}
+        .cy-chat>.lgmc-gc button{background:none;border:0;color:inherit;font:inherit;padding:0 12px;cursor:pointer;white-space:nowrap}
+        .cy-chat>.lgmc-gc button+button{padding:0 11px;border-left:1px solid rgba(255,255,255,.14)}
+        .cy-chat>.lgmc-gc button:hover,.cy-chat>.lgmc-gc button:focus-visible{background:rgba(255,255,255,.1);outline:none}
+        .cy-chat>.lgmc-gc button[aria-pressed="true"],.lgmc-gh button[aria-pressed="true"]{background:#f0b84a;color:#1a1206}
+        .lgmc-gh{display:flex;gap:6px;margin-left:auto}
+        .lgmc-gh button{width:28px;height:28px;border:0;border-radius:8px;background:rgba(255,255,255,.1);color:#fff;font:600 14px/1 system-ui,sans-serif;cursor:pointer;padding:0}
+        .lgmc-gh button:hover,.lgmc-gh button:focus-visible{background:rgba(255,255,255,.2);outline:none}
         @media (prefers-reduced-motion: no-preference){#lgmc-dock.anim{transition:left .15s,top .15s,width .15s,height .15s}}
         @media (max-width:640px){#lgmc-dock.m-r,#lgmc-dock.m-l{width:100vw!important;border:0}#lgmc-dock .lgmc-grip{display:none}}`;
       document.head.appendChild(st);
@@ -186,13 +196,18 @@
       if (g) g.style.left = !dock.hidden && L.mode === 'l' && vw() > 640 ? (L.w + 10) + 'px' : '10px';
     }
 
-    function setOpen(on) {
+    // из какого чата игры открыли: та же комната («Всё» и «Личные», если ты там был, не сбиваются)
+    const urlFor = (room) => {
+      const last = roomFor(), r = !room || last === 'all' || last === 'pm' ? last : room;
+      return r === 'mine' ? chatUrl(CH) + '&room=mine' : chatUrl(CH, r);
+    };
+    function setOpen(on, room) {
       if (on) {
         if (!dock) build();
         if (!frame) {   // рамка создаётся при открытии и убирается при закрытии — скрытый чат не опрашивает сервер
           frame = document.createElement('iframe');
           frame.title = 'Чат Легиона';
-          frame.src = chatUrl(CH, roomFor()) + '&embed=1';
+          frame.src = urlFor(room) + '&embed=1';
           dock.querySelector('.lgmc-body').appendChild(frame);
         }
         dock.hidden = false; apply();
@@ -202,8 +217,46 @@
       }
       ls('lgmc_dock_open', !!on);
       if (btn) btn.setAttribute('aria-pressed', String(!!on));
+      for (const b of document.querySelectorAll('.lgmc-gc [data-a="dock"],.lgmc-gh [data-a="dock"]')) b.setAttribute('aria-pressed', String(!!on));
       apply();
     }
+    const popOut = (room) => { setOpen(false); window.open(urlFor(room), 'lgChat', 'popup,width=420,height=720'); };
+
+    // кнопки прямо в чате игры (город и шахта — один и тот же компонент .cy-chat):
+    // свёрнут — рядом с «💬 Чат», открыт — в шапке рядом с «свернуть». Плавающие кнопки — только там, где чата игры нет.
+    function gameChats() {
+      const g = document.getElementById('lgmc-btns');
+      let shown = false;
+      for (const c of document.querySelectorAll('.cy-chat')) {
+        const room = c.closest('#tab-city') ? 'city' : 'mine';
+        const t = c.querySelector(':scope > .cy-chat-t'), h = c.querySelector('.cy-chat-h');
+        const on = String(!!dock && !dock.hidden);
+        let p = c.querySelector(':scope > .lgmc-gc');
+        if (t && !p) {
+          p = document.createElement('div'); p.className = 'lgmc-gc'; p.dataset.room = room;
+          p.innerHTML = `<button type="button" data-a="dock" aria-pressed="${on}" title="Открыть Чат Легиона панелью (её можно двигать)">Чат Легиона</button><button type="button" data-a="win" title="Чат Легиона отдельным окном" aria-label="Чат Легиона отдельным окном">⧉</button>`;
+          t.after(p);
+        }
+        if (h && !h.querySelector('.lgmc-gh')) {
+          const q = document.createElement('span'); q.className = 'lgmc-gh'; q.dataset.room = room;
+          q.innerHTML = `<button type="button" data-a="dock" aria-pressed="${on}" title="Чат Легиона панелью" aria-label="Чат Легиона панелью">◨</button><button type="button" data-a="win" title="Чат Легиона отдельным окном" aria-label="Чат Легиона отдельным окном">⧉</button>`;
+          const first = h.querySelector(':scope > button'); if (first) first.before(q); else h.appendChild(q);
+        }
+        if (p && t) {   // встать вплотную справа от «💬 Чат» (ширина меняется со счётчиком)
+          p.style.setProperty('--lgmc-gx', (t.offsetLeft + t.offsetWidth + 6) + 'px');
+          p.style.setProperty('--lgmc-gh', (t.offsetHeight || 40) + 'px');
+          p.style.top = t.offsetTop + 'px';
+        }
+        if (c.offsetParent !== null && !c.hidden) shown = true;
+      }
+      if (g) g.classList.toggle('in-game', shown);
+    }
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest && e.target.closest('.lgmc-gc [data-a], .lgmc-gh [data-a]'); if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      const room = b.parentElement.dataset.room;
+      if (b.dataset.a === 'dock') setOpen(!dock || dock.hidden, room); else popOut(room);
+    }, true);
 
     const addUi = () => {
       if (document.getElementById('lgmc-btns')) return;
@@ -215,10 +268,11 @@
       g.addEventListener('click', (e) => {
         const b = e.target.closest('[data-a]'); if (!b) return;
         if (b.dataset.a === 'dock') setOpen(dock.hidden);
-        else { setOpen(false); window.open(chatUrl(CH, roomFor()), 'lgChat', 'popup,width=420,height=720'); }
+        else popOut();
       });
       document.body.appendChild(g);
       if (lg('lgmc_dock_open', false)) setOpen(true);
+      gameChats(); setInterval(gameChats, 700);
     };
     // команды от чата в рамке: «скрыть», «вынесен в окно»
     window.addEventListener('message', (e) => {
