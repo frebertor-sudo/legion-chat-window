@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.2.0
+// @version      3.3.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -283,6 +283,45 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 .coin[aria-disabled="true"]{opacity:.4;cursor:default;filter:grayscale(1)}
 #log .frm,#log li.conv .cv b .frm{display:inline;font-size:11px;margin-left:2px;opacity:.8;color:inherit}
 #dmbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:2px 8px;font:600 11px system-ui;cursor:pointer;margin-left:6px}
+#sp{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column}
+#sp .sp-h{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+#sp .sp-h b{flex:1;font-size:14px}
+#sp .sp-b{flex:1;overflow-y:auto;padding:4px 12px 20px}
+#sp section{padding:10px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:7px}
+#sp section:last-child{border-bottom:0}
+#sp h4{margin:0;font:700 11px system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+#sp h4 small,#sp .ta small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--mut);font-size:11px}
+#sp .lbl{font-size:12px;color:var(--mut)}
+#sp .sws{display:flex;gap:6px;flex-wrap:wrap}
+#sp .sw{display:flex;align-items:center;gap:6px;background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:4px 9px 4px 5px;font:600 12px system-ui;cursor:pointer}
+#sp .sw i{width:18px;height:18px;border-radius:5px;border:3px solid}
+#sp .sw.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+#sp .dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);cursor:pointer;display:grid;place-items:center;font-size:13px;padding:0}
+#sp .dot.on{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--tx)}
+#sp .dot.pick{background:var(--panel);position:relative;overflow:hidden}
+#sp .dot.pick input{position:absolute;inset:0;opacity:0;cursor:pointer}
+#sp .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+#sp .bgp{width:56px;height:34px;border-radius:6px;background:center/cover;border:1px solid var(--line)}
+#sp .fl{cursor:pointer}
+#sp label.rng,#sp label.sel{display:flex;align-items:center;gap:8px;font-size:13px}
+#sp label.rng input{flex:1;accent-color:var(--acc)}
+#sp label.rng output{min-width:42px;text-align:right;color:var(--mut);font-variant-numeric:tabular-nums;font-size:12px}
+#sp select,#sp textarea,#sp #czio{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font:inherit;font-size:13px}
+#sp textarea{width:100%;resize:vertical}
+#sp textarea[data-ta="css"],#sp #czio{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:12px}
+#sp label.ta{display:flex;flex-direction:column;gap:3px;font-size:13px}
+#sp label.ck{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+#sp label.ck input{accent-color:var(--acc);width:16px;height:16px}
+#sp .seg2{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;align-self:flex-start}
+#sp .seg2 button{background:var(--panel);color:var(--mut);border:0;padding:4px 11px;font:600 12px system-ui;cursor:pointer}
+#sp .seg2 button+button{border-left:1px solid var(--line)}
+#sp .seg2 button[aria-pressed="true"]{background:var(--acc);color:var(--on-acc)}
+#sp .danger.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+#sp .note{margin:0;font-size:12px;color:var(--ok)}
+#sp section>.pbtn{align-self:flex-start}
+#sp #pvlog{flex:none;overflow:visible;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin:0;list-style:none}
+#sp button:focus-visible,#sp input:focus-visible,#sp select:focus-visible,#sp textarea:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+#czb[aria-pressed="true"]{border-color:var(--acc)}
 #pmtoast{position:fixed;left:8px;right:8px;top:8px;z-index:60;display:flex;gap:8px;align-items:center;background:var(--panel);color:var(--tx);border:1px solid var(--acc);border-radius:10px;padding:8px 8px 8px 12px;box-shadow:0 10px 28px -12px rgba(0,0,0,.6);font-size:13px;cursor:pointer}
 #pmtoast[hidden]{display:none}
 #pmtoast span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -454,12 +493,13 @@ html.pinned.mini #log{padding-bottom:12px}
 </style></head>
 <body>
 <header>
-  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
+  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${ROOMS.mine}</button><button type="button" data-r="city">${ROOMS.city}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${ROOMS.all}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${ROOMS.pm}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="cbar" hidden></div>
 <div id="dmbar" hidden></div>
 <div id="pmtoast" role="status" hidden></div>
+<div id="sp" role="dialog" aria-label="Настройки чата" hidden></div>
 <ol id="log" role="log" aria-live="polite"></ol><p id="empty">Загружаю чат…</p><div id="gate" hidden></div>
 <button id="more" type="button">↓ новые</button>
 <footer><p id="err" role="status"></p><p id="okm" role="status"></p>
@@ -469,6 +509,7 @@ html.pinned.mini #log{padding-bottom:12px}
 <div id="pe"><input id="pn" maxlength="40" placeholder="Название (например: «приветствие»)" aria-label="Название пасты"><textarea id="pt" maxlength="500" placeholder="Текст пасты — можно со стикерами" aria-label="Текст пасты"></textarea><div class="pe-b"><small id="pc">0 / 200</small><button type="button" class="pbtn alt" id="pcancel">Отмена</button><button type="button" class="pbtn" id="psave">Сохранить</button></div></div></div>
 <form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><input id="in" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение"><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
 </body>`;
+    { const st0 = document.querySelector('head style'); st0.textContent = st0.textContent.replace(/#log\b/g, ':is(#log,#pvlog)'); }   // пример в настройках выглядит как лента
     const $ = (id) => document.getElementById(id);
     S.el = {
       log: $('log'), empty: $('empty'), gate: $('gate'), more: $('more'), dot: $('dot'), err: $('err'), f: $('f'),
@@ -518,6 +559,7 @@ html.pinned.mini #log{padding-bottom:12px}
     pastesInit();
     modInit();
     pmInit();
+    czInit();
     start();
     loadChannels();
   }
@@ -607,6 +649,7 @@ html.pinned.mini #log{padding-bottom:12px}
     pd.body.append(...document.body.childNodes);   // переносим всё вместе с обработчиками
     pd.addEventListener('keydown', S.onEsc);
     pinStyleApply(pd);
+    czApply();
     document.body.innerHTML = '<div id="pinned"><b>📌 Чат закреплён поверх окон</b>Это окно можно свернуть, но не закрывай его — иначе плавающий чат тоже закроется.<br><button type="button" id="unpin">Вернуть чат сюда</button></div>';
     document.getElementById('unpin').onclick = () => pip.close();
     S.el.pin.setAttribute('aria-pressed', 'true'); S.el.pin.title = 'Открепить (вернуть в обычное окно)';
@@ -856,14 +899,14 @@ html.pinned.mini #log{padding-bottom:12px}
   // вид сообщения: шахта, или вкладка города (как в игре): Достижения — события игры, Торговля / Личные — по виду
   const kind = (m) => (m._src === 'mine' ? 'mine' : m._src === 'pm' ? 'dm' : m.tb || (m.ev ? 'ev' : m.k === 'tr' ? 'tr' : m.k === 'dm' ? 'dm' : 'g'));
   const visible = (m) => {
-    if (S.ign.has(m.l)) return false;
+    if (S.ign.has(m.l) || czHidden(m)) return false;
     const k = kind(m);
     if (S.room === 'pm') return false;
     return S.room === 'mine' ? k === 'mine' : S.room === 'city' ? k === S.tab : !!S.mix[k];
   };
 
   function apply(d, src, initial) {
-    let added = 0, resort = false;
+    let added = 0, resort = false, beep = false;
     for (const msg of d.chat || []) {
       if (!msg || !msg.id) continue;
       if (msg.k === 'dm' && src !== 'pm') continue;   // личные теперь своей системой (/api/dm) — из городского чата не берём, иначе задвоятся
@@ -880,6 +923,7 @@ html.pinned.mini #log{padding-bottom:12px}
       if (visible(m)) { if (!resort) S.el.log.appendChild(row(m)); added++; }
       else if (S.room === 'city' && !initial && !mine && k !== 'ev' && k !== 'mine') { S.un[k] = (S.un[k] || 0) + 1; renderTabs(); }
       if (!initial && hidden() && !mine && visible(m)) document.title = `(${++S.unseenTitle}) ${title()}`;
+      if (!initial && !mine && visible(m) && isMention(String(m.t || ''), String(m.l || '').toLowerCase())) beep = true;
     }
     for (const id of d.chatDel || []) {   // удалённые модератором
       const key = src + ':' + id;
@@ -890,6 +934,7 @@ html.pinned.mini #log{padding-bottom:12px}
     while (S.list.length > 500) { const old = S.list.shift(); S.ids.delete(old._key); const li = S.el.log.querySelector(`li[data-key="${CSS.escape(old._key)}"]`); if (li) li.remove(); }
     if (d.c != null) { if (src === 'mine') S.mc = Math.max(S.mc, +d.c || 0); else S.cc = Math.max(S.cc, +d.c || 0); }
     if (d.chatMe && 'muted' in d.chatMe && d.chatMe.muted) S.el.err.textContent = 'Модератор запретил тебе писать в этот чат';
+    if (beep) czBeep('mention');
     if (resort) renderLog();
     emptyState();
     if (added) {
@@ -1088,7 +1133,7 @@ html.pinned.mini #log{padding-bottom:12px}
     const watching = S.room === 'pm' && P.peer === l && !hidden();
     if (!mine) {
       if (watching) pmMarkRead(l);
-      else { P.un.set(l, (P.un.get(l) || 0) + 1); pmToast(l, `✉ ${pmName(l)}: ${m.t}`, 'Ответить'); pmNotify(l, m); }
+      else { P.un.set(l, (P.un.get(l) || 0) + 1); pmToast(l, `✉ ${pmName(l)}: ${m.t}`, 'Ответить'); pmNotify(l, m); czBeep('dm'); }
     }
     if (S.room === 'all') apply({ chat: [pmToFeed(m)] }, 'pm');
     if (S.room === 'pm') pmRender(P.peer === l);
@@ -1636,6 +1681,7 @@ html.pinned.mini #log{padding-bottom:12px}
     S.el.eg.onmouseover = (e) => { const b = e.target.closest('button[data-n]'); if (b) { const em = EM.get(b.dataset.n); S.el.eh.textContent = em ? `${em.n} · ${em.src}` : b.dataset.n; } };
     S.onEsc = (e) => {
       if (e.key !== 'Escape') return;
+      if (S.el.sp && !S.el.sp.hidden) { czOpen(false); return; }
       const ep = S.el.ep.classList.contains('on'), pp = S.el.pp && S.el.pp.classList.contains('on'), mp = S.el.mp && S.el.mp.classList.contains('on');
       if (ep) pickerOpen(false);
       if (pp) pastesOpen(false);
@@ -1803,7 +1849,7 @@ html.pinned.mini #log{padding-bottom:12px}
     for (const part of String(t).split(/(\s+)/)) {
       if (!part) continue;
       if (/^\s+$/.test(part)) { out.push(part); continue; }
-      const e = EM.get(part);
+      const e = CZ.emotes === false ? null : EM.get(part);
       if (e) {
         const img = `<img class="em" src="${esc(e.u)}" srcset="${esc(e.u2)} 2x" alt="${esc(part)}" title="${esc(part)} · ${e.src}" loading="lazy">`;
         if (e.zw) {
@@ -1835,7 +1881,7 @@ html.pinned.mini #log{padding-bottom:12px}
       return li;
     }
     const l = String(msg.l || '').toLowerCase();
-    if (S.me && l !== S.me && new RegExp(`(^|\\s)@${S.me}(\\b|$)`, 'i').test(text)) li.className = 'mention';
+    if (isMention(text, l)) li.className = 'mention';
     const ico = msg.c ? `<span title="${esc(msg.cn || msg.c)}">${CLS_ICO[msg.c] || '◆'}</span> ` : '';
     const ri = ROLE_ICO[msg.r]; const role = ri ? `<span title="${ri[1]}">${ri[0]}</span> ` : '';
     const aw = (msg.aw || []).map((a) => `<span class="aw" title="${esc(a.n)}${a.d ? ' — ' + esc(a.d) : ''}">${esc(a.i || '✦')}</span>`).join('');
@@ -2038,6 +2084,240 @@ html.pinned.mini #log{padding-bottom:12px}
     }
     S.el.err.textContent = `Неизвестная команда /${cmd}. Есть: /mute, /ban, /unban${info.role === 'own' ? ', /mod, /unmod' : ''}, /mods`;
     return false;
+  }
+
+  // ---------- Настройки чата (⚙): цвета, фон, шрифт, сообщения, подсветка, звук, свой CSS ----------
+  // Хранятся в браузере (lgmc_cz, картинка фона — lgmc_cz_bg) и общие для окна, панели в игре и закреплённого окна:
+  // изменение в одном месте сразу применяется в остальных (событие storage).
+  const CZ_KEY = 'lgmc_cz', CZ_BG = 'lgmc_cz_bg';
+  const CZ_DEF = {
+    dark: 'coal', light: 'parchment', accent: '', bgDim: 70, font: 'system', size: 14, density: 'normal',
+    time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
+    hl: '', hide: '', sound: false, volume: 50, css: '',
+  };
+  // готовые схемы: тёмные и светлые (токены — те же, что у темы)
+  const SCHEMES = {
+    coal: { name: 'Уголь', mode: 'dark', v: null },
+    night: { name: 'Ночь', mode: 'dark', v: { bg: '#0f1420', panel: '#171e2e', line: '#2a3550', tx: '#dde5f5', mut: '#8d9ab5', me: '#22305a', hov: '#1d2640' } },
+    forest: { name: 'Лес', mode: 'dark', v: { bg: '#101712', panel: '#17211a', line: '#2a3a2e', tx: '#dcead9', mut: '#8fa592', me: '#21402a', hov: '#1c2a20' } },
+    oled: { name: 'Чёрный', mode: 'dark', v: { bg: '#000000', panel: '#0d0d0d', line: '#262626', tx: '#ececec', mut: '#9a9a9a', me: '#2a2416', hov: '#161616' } },
+    wine: { name: 'Вино', mode: 'dark', v: { bg: '#1a1013', panel: '#24161b', line: '#3d252e', tx: '#f0dde3', mut: '#a88c96', me: '#45202d', hov: '#2c1a20' } },
+    parchment: { name: 'Пергамент', mode: 'light', v: null },
+    snow: { name: 'Снег', mode: 'light', v: { bg: '#f6f8fb', panel: '#e9eef5', line: '#cfd8e5', tx: '#1b2430', mut: '#5a6878', me: '#dbe8ff', hov: '#e1e8f2' } },
+    mint: { name: 'Мята', mode: 'light', v: { bg: '#f3faf6', panel: '#e3f1e9', line: '#c5dfd0', tx: '#17291f', mut: '#4f6b5c', me: '#cdeedb', hov: '#dbece2' } },
+    rose: { name: 'Роза', mode: 'light', v: { bg: '#fdf5f7', panel: '#f6e6eb', line: '#e7c9d3', tx: '#2e1a21', mut: '#76586a', me: '#fbd9e3', hov: '#f1dde4' } },
+  };
+  const ACCENTS = ['#f0b84a', '#e8743b', '#e05561', '#d45ad0', '#8b6cf0', '#4f8df0', '#2fb8c9', '#3fbf6f', '#a3c43a'];
+  const FONTS = {
+    system: ['Обычный', 'system-ui,-apple-system,"Segoe UI",sans-serif'],
+    rounded: ['Округлый', '"Segoe UI Variable Text","Nunito","Varela Round","Trebuchet MS",system-ui,sans-serif'],
+    serif: ['С засечками', 'Georgia,"Times New Roman",serif'],
+    mono: ['Моноширинный', 'Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace'],
+    comic: ['Рукописный', '"Comic Sans MS","Comic Neue","Segoe Print",cursive'],
+  };
+  let CZ = Object.assign({}, CZ_DEF, lsGet(CZ_KEY, {}) || {});
+  const czWords = (s) => String(s || '').split(/[,\n]/).map((x) => x.trim().toLowerCase()).filter((x) => x.length >= 2).slice(0, 50);
+  let CZ_HL = czWords(CZ.hl), CZ_HIDE = czWords(CZ.hide);
+  const czHas = (text, words) => { if (!words.length) return false; const t = String(text || '').toLowerCase(); return words.some((w) => t.includes(w)); };
+  const czHidden = (m) => !!CZ_HIDE.length && String(m.l || '').toLowerCase() !== S.me && czHas(m.t, CZ_HIDE);
+  const isMention = (text, l) => !!S.me && l !== S.me && (new RegExp(`(^|\\s)@${S.me}(\\b|$)`, 'i').test(text) || czHas(text, CZ_HL));
+
+  const hex2rgb = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+  const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+
+  function czCss() {
+    const vars = (v) => Object.entries(v).map(([k, x]) => `--${k}:${x}`).join(';');
+    const d = SCHEMES[CZ.dark] && SCHEMES[CZ.dark].v, li = SCHEMES[CZ.light] && SCHEMES[CZ.light].v;
+    const LIGHT = ':root[data-theme="light"]', LIGHT_AUTO = '@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){%}}';
+    let css = '';
+    if (d) css += `:root{${vars(d)}}`;
+    if (li) css += `${LIGHT}{${vars(li)}}` + LIGHT_AUTO.replace('%', vars(li));
+    const rgb = hex2rgb(CZ.accent);
+    if (rgb) {   // свой акцент: текстом — темнее на светлом фоне; надпись на акценте — чёрная или белая по контрасту
+      const on = lum(rgb) > 0.36 ? '#1a1206' : '#ffffff';
+      css += `:root{--acc:${CZ.accent};--acc-tx:${CZ.accent};--on-acc:${on}}`;
+      const dark = `color-mix(in srgb, ${CZ.accent} 62%, #000)`;
+      css += `${LIGHT}{--acc:${CZ.accent};--acc-tx:${dark};--on-acc:${on}}` + LIGHT_AUTO.replace('%', `--acc:${CZ.accent};--acc-tx:${dark};--on-acc:${on}`);
+    }
+    css += `body{font-family:${(FONTS[CZ.font] || FONTS.system)[1]}}`;
+    css += `html:not(.pinned) :is(#log,#pvlog){font-size:${Math.max(11, Math.min(22, +CZ.size || 14))}px}`;
+    if (CZ.density === 'compact') css += `:is(#log,#pvlog) li{padding-top:1px;padding-bottom:1px}:is(#log,#pvlog) li+li{margin-top:0}`;
+    if (CZ.density === 'airy') css += `:is(#log,#pvlog) li{padding-top:6px;padding-bottom:6px}:is(#log,#pvlog) li+li{margin-top:3px}`;
+    if (!CZ.time) css += `:is(#log,#pvlog) .t{display:none}`;
+    if (!CZ.icons) css += `:is(#log,#pvlog) li>span[title]:not(.aw):not(.n):not(.to):not(.src):not(.frm){display:none}`;
+    if (!CZ.awards) css += `:is(#log,#pvlog) .aw{display:none}`;
+    if (!CZ.nickColor) css += `:is(#log,#pvlog) .n{color:var(--tx)!important}`;
+    css += `html:not(.pinned) :is(#log,#pvlog) img.em{height:${Math.max(18, Math.min(56, +CZ.emoteSize || 28))}px}`;
+    const bg = CZ.bgOn !== false ? lsGet(CZ_BG, null) : null;
+    if (bg) css += `#log{background:linear-gradient(color-mix(in srgb, var(--bg) ${Math.max(0, Math.min(95, +CZ.bgDim || 0))}%, transparent),color-mix(in srgb, var(--bg) ${Math.max(0, Math.min(95, +CZ.bgDim || 0))}%, transparent)),url("${bg}") center/cover no-repeat}`;
+    return css + '\n/* свой CSS */\n' + String(CZ.css || '');
+  }
+  function czApply() {
+    CZ_HL = czWords(CZ.hl); CZ_HIDE = czWords(CZ.hide);
+    const css = czCss();
+    for (const d of docs()) {
+      let st = d.getElementById('lgmc-cz');
+      if (!st) { st = d.createElement('style'); st.id = 'lgmc-cz'; d.head.appendChild(st); }
+      st.textContent = css;
+    }
+  }
+  function czSet(patch, rerender) {
+    Object.assign(CZ, patch);
+    lsSet(CZ_KEY, CZ);
+    czApply();
+    if (rerender) { if (S.room === 'pm') pmRender(); else { const keep = S.stick; renderLog(); if (keep) toBottom(); } }
+    czPreview();
+  }
+
+  // ---- звук: короткий сигнал без файлов ----
+  let AC = null;
+  function czBeep(kind) {
+    if (!CZ.sound) return;
+    try {
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === 'suspended') AC.resume();
+      const t = AC.currentTime, g = AC.createGain(), o = AC.createOscillator();
+      o.type = 'sine'; o.frequency.setValueAtTime(kind === 'dm' ? 660 : 880, t); o.frequency.setValueAtTime(kind === 'dm' ? 990 : 1175, t + 0.09);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.001, (+CZ.volume || 50) / 250), t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+      o.connect(g).connect(AC.destination); o.start(t); o.stop(t + 0.3);
+    } catch {}
+  }
+
+  // ---- панель настроек ----
+  function czInit() {
+    S.el.czb = document.getElementById('czb'); S.el.sp = document.getElementById('sp');
+    S.el.czb.onclick = () => czOpen(S.el.sp.hidden);
+    window.addEventListener('storage', (e) => {   // настроили в другом окне (или в панели в игре) — применить здесь
+      if (e.key === CZ_KEY || e.key === CZ_BG) { CZ = Object.assign({}, CZ_DEF, lsGet(CZ_KEY, {}) || {}); czApply(); if (S.room === 'pm') pmRender(); else renderLog(); if (!S.el.sp.hidden) czRender(); }
+    });
+    czApply();
+  }
+  function czOpen(on) {
+    S.el.sp.hidden = !on;
+    S.el.czb.setAttribute('aria-pressed', String(on));
+    if (on) { pickerOpen(false, true); pastesOpen(false, true); czRender(); const f = S.el.sp.querySelector('button, input, select'); if (f) f.focus(); }
+    else S.el.czb.focus();
+  }
+  const SAMPLE = () => {
+    const now = Date.now(), me = S.me || 'ты';
+    return [
+      { _src: 'preview', _key: 'pv:1', id: 'pv1', l: 'kotomag', n: 'KotoMag', t: 'кто идёт в шахту? там жила серебра', at: now - 180000, c: 'mage', cn: 'Котомаг', aw: [{ i: '✦', n: 'Первопроходец' }] },
+      { _src: 'preview', _key: 'pv:2', id: 'pv2', l: 'rudokop77', n: 'Rudokop77', t: `@${me} пойдём вместе ${[...EM.keys()][0] || 'catJAM'}`, at: now - 120000, c: 'legionary', cn: 'Котоармеец' },
+      { _src: 'preview', _key: 'pv:3', id: 'pv3', l: 'lunnayamysh', n: 'LunnayaMysh', t: `продам медную кирку${CZ_HL[0] ? ' — ' + CZ_HL[0] : ''}`, at: now - 60000, c: 'priest', cn: 'Мурлыка-жрец' },
+    ];
+  };
+  function czPreview() {
+    const pv = S.el.sp && S.el.sp.querySelector('#pvlog'); if (!pv || S.el.sp.hidden) return;
+    pv.innerHTML = ''; for (const m of SAMPLE()) pv.appendChild(row(m));
+  }
+  function czRender() {
+    const sp = S.el.sp, bg = lsGet(CZ_BG, null);
+    const opt = (o, v) => Object.entries(o).map(([k, x]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(Array.isArray(x) ? x[0] : x.name)}</option>`).join('');
+    const sch = (mode) => Object.entries(SCHEMES).filter(([, x]) => x.mode === mode).map(([k, x]) => `<button type="button" class="sw${CZ[mode] === k ? ' on' : ''}" data-sch="${mode}:${k}" aria-pressed="${CZ[mode] === k}" title="${esc(x.name)}"><i style="background:${(x.v || (mode === 'dark' ? { bg: '#17130e', panel: '#211b14' } : { bg: '#fbf7ef', panel: '#f1e9da' })).bg};border-color:${(x.v || (mode === 'dark' ? { panel: '#3a3024' } : { panel: '#dccfb6' })).panel}"></i>${esc(x.name)}</button>`).join('');
+    const tg = (k, t) => `<label class="ck"><input type="checkbox" data-ck="${k}"${CZ[k] ? ' checked' : ''}> ${t}</label>`;
+    sp.innerHTML = `<div class="sp-h"><b>⚙ Настройки чата</b><button type="button" class="hb" data-cz="close" aria-label="Закрыть настройки">✕</button></div>
+      <div class="sp-b">
+        <section><h4>Пример</h4><ol id="pvlog" aria-label="Пример сообщений"></ol></section>
+        <section><h4>Цвета</h4>
+          <div class="lbl">Тёмная тема</div><div class="sws">${sch('dark')}</div>
+          <div class="lbl">Светлая тема</div><div class="sws">${sch('light')}</div>
+          <div class="lbl">Акцент</div><div class="sws acc">${['', ...ACCENTS].map((c) => `<button type="button" class="dot${(CZ.accent || '') === c ? ' on' : ''}" data-acc="${c}" title="${c || 'Как в теме'}" aria-label="Акцент ${c || 'как в теме'}" style="background:${c || 'linear-gradient(135deg,#f0b84a 50%,#e0a42e 50%)'}"></button>`).join('')}<label class="dot pick" title="Свой цвет"><input type="color" data-cz="accent" value="${hex2rgb(CZ.accent) ? CZ.accent : '#f0b84a'}" aria-label="Свой цвет акцента">🎨</label></div>
+          <div class="lbl">Фон ленты</div>
+          <div class="row">${bg ? `<span class="bgp" style="background-image:url('${bg}')"></span>` : ''}<label class="pbtn alt fl">🖼 ${bg ? 'Другая картинка' : 'Своя картинка'}<input type="file" accept="image/*" data-cz="bgfile" hidden></label>${bg ? '<button type="button" class="pbtn alt" data-cz="bgdel">Убрать</button>' : ''}</div>
+          ${bg ? `<label class="rng">Затемнение картинки <input type="range" min="0" max="95" step="5" data-rng="bgDim" value="${CZ.bgDim}"><output>${CZ.bgDim}%</output></label>` : ''}
+        </section>
+        <section><h4>Текст</h4>
+          <label class="sel">Шрифт <select data-sel="font">${opt(FONTS, CZ.font)}</select></label>
+          <label class="rng">Размер <input type="range" min="11" max="22" step="1" data-rng="size" value="${CZ.size}"><output>${CZ.size}px</output></label>
+          <div class="lbl">Плотность</div><div class="seg2">${[['compact', 'Плотно'], ['normal', 'Обычно'], ['airy', 'Свободно']].map(([k, t]) => `<button type="button" data-den="${k}" aria-pressed="${CZ.density === k}">${t}</button>`).join('')}</div>
+        </section>
+        <section><h4>Сообщения</h4>
+          ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}
+          ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
+        </section>
+        <section><h4>Подсветка и фильтр</h4>
+          <label class="ta">Подсвечивать сообщения со словами <small>через запятую; твой @ник подсвечивается всегда</small><textarea data-ta="hl" rows="2" maxlength="600" placeholder="например: продам, топаз, поход">${esc(CZ.hl)}</textarea></label>
+          <label class="ta">Скрывать сообщения со словами <small>свои сообщения не скрываются</small><textarea data-ta="hide" rows="2" maxlength="600" placeholder="например: спам, реклама">${esc(CZ.hide)}</textarea></label>
+        </section>
+        <section><h4>Звук</h4>
+          ${tg('sound', 'Сигнал при упоминании и новом личном')}
+          ${CZ.sound ? `<label class="rng">Громкость <input type="range" min="10" max="100" step="10" data-rng="volume" value="${CZ.volume}"><output>${CZ.volume}%</output></label><button type="button" class="pbtn alt" data-cz="test">▶ Послушать</button>` : ''}
+        </section>
+        <section><h4>Свой CSS <small>для тонкой настройки, применяется сразу</small></h4>
+          <textarea data-ta="css" rows="4" maxlength="20000" spellcheck="false" placeholder="#log .n { text-decoration: underline }">${esc(CZ.css)}</textarea>
+        </section>
+        <section><h4>Перенос и сброс</h4>
+          <div class="row"><button type="button" class="pbtn alt" data-cz="export">Экспорт</button><button type="button" class="pbtn alt" data-cz="import">Импорт</button><button type="button" class="pbtn alt danger" data-cz="reset">Сбросить всё</button></div>
+          <textarea id="czio" rows="3" spellcheck="false" placeholder="Сюда — настройки для импорта (JSON)" hidden></textarea>
+          <p class="note" id="czmsg" role="status"></p>
+        </section>
+      </div>`;
+    czPreview();
+    let taT = 0;
+    const note = (t) => { const n = sp.querySelector('#czmsg'); if (n) n.textContent = t; };
+    sp.onclick = async (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.cz === 'close') return czOpen(false);
+      if (b.dataset.sch) { const [mode, k] = b.dataset.sch.split(':'); czSet({ [mode]: k }); return czRender(); }
+      if ('acc' in b.dataset) { czSet({ accent: b.dataset.acc }); return czRender(); }
+      if (b.dataset.den) { czSet({ density: b.dataset.den }); return czRender(); }
+      if (b.dataset.cz === 'bgdel') { try { localStorage.removeItem(CZ_BG); } catch {} czApply(); return czRender(); }
+      if (b.dataset.cz === 'test') { const s0 = CZ.sound; CZ.sound = true; czBeep('mention'); setTimeout(() => czBeep('dm'), 450); CZ.sound = s0; return; }
+      if (b.dataset.cz === 'export') {
+        const io = sp.querySelector('#czio'); io.hidden = false;
+        io.value = JSON.stringify(Object.assign({ v: 1 }, CZ), null, 1); io.select();
+        try { await navigator.clipboard.writeText(io.value); note('Настройки скопированы (без картинки фона). Их можно вставить в другом браузере → «Импорт».'); } catch { note('Скопируй текст из поля (Ctrl+C).'); }
+        return;
+      }
+      if (b.dataset.cz === 'import') {
+        const io = sp.querySelector('#czio');
+        if (io.hidden || !io.value.trim()) { io.hidden = false; io.value = ''; io.focus(); note('Вставь настройки в поле и нажми «Импорт» ещё раз.'); return; }
+        let v = null; try { v = JSON.parse(io.value); } catch {}
+        if (!v || typeof v !== 'object') { note('Не похоже на настройки чата — проверь текст.'); return; }
+        const clean = {}; for (const k of Object.keys(CZ_DEF)) if (k in v && typeof v[k] === typeof CZ_DEF[k]) clean[k] = v[k];
+        CZ = Object.assign({}, CZ_DEF, clean); czSet({}, true); czRender(); note('Настройки применены.');
+        return;
+      }
+      if (b.dataset.cz === 'reset') {
+        if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = 'Точно сбросить?'; return; }
+        CZ = Object.assign({}, CZ_DEF); try { localStorage.removeItem(CZ_BG); } catch {} czSet({}, true); czRender(); note('Всё как было по умолчанию.');
+      }
+    };
+    sp.oninput = (e) => {
+      const t = e.target;
+      if (t.dataset.rng) { t.nextElementSibling.textContent = t.value + (t.dataset.rng === 'size' || t.dataset.rng === 'emoteSize' ? 'px' : '%'); czSet({ [t.dataset.rng]: +t.value }); }
+      if (t.dataset.cz === 'accent') czSet({ accent: t.value });
+      if (t.dataset.ta) { clearTimeout(taT); taT = setTimeout(() => czSet({ [t.dataset.ta]: t.value }, t.dataset.ta !== 'css'), 350); }
+    };
+    sp.onchange = async (e) => {
+      const t = e.target;
+      if (t.dataset.ck) { czSet({ [t.dataset.ck]: t.checked }, t.dataset.ck === 'emotes'); if (['emotes', 'sound'].includes(t.dataset.ck)) czRender(); if (t.dataset.ck === 'sound' && t.checked) czBeep('mention'); }
+      if (t.dataset.sel) czSet({ [t.dataset.sel]: t.value });
+      if (t.dataset.cz === 'accent') czRender();
+      if (t.dataset.cz === 'bgfile' && t.files && t.files[0]) {
+        const url = await czShrink(t.files[0]);
+        if (!url) { note('Не получилось открыть картинку.'); return; }
+        try { localStorage.setItem(CZ_BG, JSON.stringify(url)); } catch { note('Картинка слишком большая для браузера — выбери поменьше.'); return; }
+        czApply(); czRender();
+      }
+    };
+  }
+  // картинку фона уменьшаем (до 1600 px по большей стороне, JPEG), чтобы влезла в память браузера
+  function czShrink(file) {
+    return new Promise((res) => {
+      const fr = new FileReader();
+      fr.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          try { res(c.toDataURL('image/jpeg', 0.82)); } catch { res(null); }
+        };
+        img.onerror = () => res(null); img.src = fr.result;
+      };
+      fr.onerror = () => res(null); fr.readAsDataURL(file);
+    });
   }
 
   // ---------- Отправка ----------
