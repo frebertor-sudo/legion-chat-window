@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.7.0
+// @version      3.8.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -103,6 +103,12 @@
         #lgmc-dock .lgmc-corner{display:none;position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:2;background:linear-gradient(135deg,transparent 55%,#6b5a3a 55%,#6b5a3a 62%,transparent 62%,transparent 72%,#6b5a3a 72%,#6b5a3a 79%,transparent 79%)}
         #lgmc-dock.m-f .lgmc-corner{display:block}
         #lgmc-dock .lgmc-shield{position:fixed;inset:0;z-index:3}
+        #lgmc-dock{opacity:var(--lgmc-op,1);transition:opacity .15s}
+        #lgmc-dock.ophov:hover,#lgmc-dock.ophov:focus-within,#lgmc-dock[class*="drag-"]{opacity:1}
+        #lgmc-dock.clear{background:transparent;box-shadow:none}
+        #lgmc-dock.clear iframe{background:transparent}
+        #lgmc-dock.clear.m-r,#lgmc-dock.clear.m-l{border-color:rgba(107,90,58,.45)}
+        #lgmc-dock.clear .lgmc-bar{background:rgba(33,27,20,.6);border-bottom-color:rgba(58,48,36,.5)}
         #lgmc-snap{position:fixed;top:0;bottom:0;z-index:2147482999;background:rgba(240,184,74,.18);border:2px dashed #f0b84a;box-sizing:border-box;pointer-events:none}
         #lgmc-btns{position:fixed;left:10px;bottom:10px;z-index:2147483001;display:flex;border-radius:8px;overflow:hidden;border:1px solid #6b5a3a;opacity:.88;font:600 13px system-ui,sans-serif}
         #lgmc-btns:hover{opacity:1}
@@ -168,7 +174,18 @@
         drag('drag-size', (ev) => { L.fw = Math.max(minW, Math.min(vw() - L.x, ev.clientX + ox - L.x)); L.fh = Math.max(240, Math.min(vh() - L.y, ev.clientY + oy - L.y)); apply(); });
       });
       window.addEventListener('resize', apply);
+      // прозрачность — из настроек чата (⚙ в окне чата, тот же localStorage): меняется сразу
+      window.addEventListener('storage', (e) => { if (e.key === 'lgmc_cz') opApply(); });
+      opApply();
       apply();
+    }
+    function opApply() {
+      if (!dock) return;
+      const cz = lg('lgmc_cz', {}) || {};
+      const op = Math.max(0, Math.min(70, +cz.opac || 0)), clr = Math.max(0, Math.min(90, +cz.bgClear || 0));
+      dock.style.setProperty('--lgmc-op', String(1 - op / 100));
+      dock.classList.toggle('ophov', cz.opHover !== false);
+      dock.classList.toggle('clear', clr > 0);
     }
     const clampW = (w) => Math.round(Math.max(minW, Math.min(maxW(), +w || 380)));
     function setMode(m) {
@@ -2378,7 +2395,9 @@ html.pinned.mini #log{padding-bottom:12px}
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
+    bgClear: 0, opac: 0, opHover: true,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
+  const BASE_V = { dark: { bg: '#17130e', panel: '#211b14', me: '#3a2d14', hov: '#2b241b' }, light: { bg: '#fbf7ef', panel: '#f1e9da', me: '#fbe7bd', hov: '#e9dec9' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
   const SCHEMES = {
     coal: { name: 'Уголь', mode: 'dark', v: null },
@@ -2436,6 +2455,19 @@ html.pinned.mini #log{padding-bottom:12px}
     const mark = (cls, c) => `:is(#log,#pvlog) li.${cls}:not(.mention){background:color-mix(in srgb, ${c} 14%, transparent);box-shadow:inset 3px 0 0 ${c}}:is(#log,#pvlog) li.${cls}:not(.mention):hover{background:color-mix(in srgb, ${c} 22%, transparent)}`;
     if (CZ.hlFriend && hex2rgb(CZ.friendColor)) css += mark('fr', CZ.friendColor);
     if (CZ.hlMod && hex2rgb(CZ.modColor)) css += mark('role', CZ.modColor);
+    // прозрачный фон — только в панели внутри игры (обычное окно браузера сквозь себя не показывает): игра видна сквозь чат,
+    // текст остаётся чётким и получает тень; всплывающие панели (настройки, стикеры, пасты, меню) — непрозрачные
+    const clr = EMBED ? Math.max(0, Math.min(90, +CZ.bgClear || 0)) : 0;
+    if (clr) {
+      const al = (v, a) => { const r = hex2rgb(v); return r ? `rgba(${r[0]},${r[1]},${r[2]},${a.toFixed(2)})` : v; };
+      const a = 1 - clr / 100;
+      const set = (v, sh) => `--bg:${al(v.bg, a)};--panel:${al(v.panel, Math.min(1, a + 0.1))};--hov:${al(v.hov, Math.min(1, a + 0.15))};--me:${al(v.me, Math.min(1, a + 0.25))};--bgs:${v.bg};--pns:${v.panel};--tsh:${sh}`;
+      const dv = Object.assign({}, BASE_V.dark, d || {}), lv = Object.assign({}, BASE_V.light, li || {});
+      const dsh = '0 1px 2px rgba(0,0,0,.9),0 0 5px rgba(0,0,0,.55)', lsh = '0 0 2px rgba(255,255,255,.95),0 0 6px rgba(255,255,255,.7)';
+      css += `:root{${set(dv, dsh)}}${LIGHT}{${set(lv, lsh)}}` + LIGHT_AUTO.replace('%', set(lv, lsh));
+      css += `html{background:transparent!important}#sp,#pp,#ep{background:var(--bgs)!important}.mm{background:var(--pns)!important}`;
+      if (clr >= 30) css += `#log,#dmbar,.hr{text-shadow:var(--tsh)}`;
+    }
     const bg = CZ.bgOn !== false ? lsGet(CZ_BG, null) : null;
     if (bg) css += `#log{background:linear-gradient(color-mix(in srgb, var(--bg) ${Math.max(0, Math.min(95, +CZ.bgDim || 0))}%, transparent),color-mix(in srgb, var(--bg) ${Math.max(0, Math.min(95, +CZ.bgDim || 0))}%, transparent)),url("${bg}") center/cover no-repeat}`;
     return css + '\n/* свой CSS */\n' + String(CZ.css || '');
@@ -2479,6 +2511,14 @@ html.pinned.mini #log{padding-bottom:12px}
       if (e.key === CZ_KEY || e.key === CZ_BG) { CZ = Object.assign({}, CZ_DEF, lsGet(CZ_KEY, {}) || {}); czApply(); if (S.room === 'pm') pmRender(); else renderLog(); if (!S.el.sp.hidden) czRender(); }
     });
     czApply();
+    // панель в игре: браузер рисует под рамкой сплошной фон, если её color-scheme не совпадает со страницей чата —
+    // тогда прозрачность не видна. Держим их одинаковыми при любой смене темы.
+    if (EMBED) {
+      const sync = () => { try { window.frameElement.style.colorScheme = getComputedStyle(document.documentElement).colorScheme.includes('light') ? 'light' : 'dark'; } catch {} };
+      new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', sync); } catch {}
+      sync();
+    }
   }
   function czOpen(on) {
     S.el.sp.hidden = !on;
@@ -2527,6 +2567,11 @@ html.pinned.mini #log{padding-bottom:12px}
           ${[['hlMod', 'modColor', 'Выделять модераторов и админа чата'], ['hlFriend', 'friendColor', 'Выделять друзей']].map(([k, c, t]) => `<div class="row hlr">${tg(k, t)}<label class="dot pick" title="Цвет выделения" style="background:${esc(CZ[c])}"><input type="color" data-col="${c}" value="${hex2rgb(CZ[c]) ? CZ[c] : '#4f8df0'}" aria-label="Цвет: ${t.toLowerCase()}"></label></div>`).join('')}
           <label class="ta">Подсвечивать сообщения со словами <small>через запятую; твой @ник подсвечивается всегда</small><textarea data-ta="hl" rows="2" maxlength="600" placeholder="например: продам, топаз, поход">${esc(CZ.hl)}</textarea></label>
           <label class="ta">Скрывать сообщения со словами <small>свои сообщения не скрываются</small><textarea data-ta="hide" rows="2" maxlength="600" placeholder="например: спам, реклама">${esc(CZ.hide)}</textarea></label>
+        </section>
+        <section><h4>Прозрачность <small>${EMBED ? 'панели в игре — сквозь чат видно игру' : 'действует в панели внутри игры (отдельное окно браузера прозрачным не бывает)'}</small></h4>
+          <label class="rng">Прозрачность фона <input type="range" min="0" max="90" step="5" data-rng="bgClear" value="${CZ.bgClear}"><output>${CZ.bgClear}%</output></label>
+          <label class="rng">Прозрачность всего чата <input type="range" min="0" max="70" step="5" data-rng="opac" value="${CZ.opac}"><output>${CZ.opac}%</output></label>
+          ${tg('opHover', 'Непрозрачный, когда мышь на чате')}
         </section>
         <section><h4>Звук</h4>
           ${tg('sound', 'Сигнал при упоминании и новом личном')}
