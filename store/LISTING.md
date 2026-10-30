@@ -20,14 +20,16 @@
 
 Чат шахты и города игры «Легион» (play.multidonate.ru) — прямо в игре или в отдельном окне.
 
-• Панель в игре — кнопка «💬 Чат» открывает чат сбоку, ширину можно менять, «⧉» выносит его в отдельное окно.
-• Шахта, город и «Всё» — чат шахты, вкладки города (общий, торговля, достижения, личные) и общая лента всего сразу по времени, с фильтрами.
-• Личные диалоги — список собеседников с непрочитанными, переписка с одним игроком, кнопка ✉ у ника. История хранится в браузере.
+• Встроен в чат самой игры: кнопки «Чат Легиона» и «⧉» рядом с чатом города и шахты. Панель можно прикрепить слева или справа или сделать плавающим окном — двигать за полоску, менять размер за уголок.
+• Прозрачность: фон панели и весь чат можно сделать полупрозрачными, чтобы не закрывать игру; при наведении чат снова сплошной.
+• Шахта, город и «Всё» — чат шахты, вкладки города (общий, торговля, достижения) и общая лента всего сразу по времени, с фильтрами.
+• Личные сообщения — новые приходят мгновенно (всплывашка, уведомление, звук), список диалогов с непрочитанными, переписка пузырями, черновики, поиск.
+• Друзья — кто в сети, где сейчас и кнопка «туда», монета дня, заявки, блок. Сообщения друзей и модераторов выделены цветом.
+• Поиск игроков по похожему нику: с опечаткой, по части ника, в русской раскладке — и сразу «написать» или «в друзья».
 • Стримеры — переключение между каналами игры, отметка тех, кто в эфире.
-• Стикеры 7TV, BTTV и FFZ канала — картинками в чате и панель выбора с поиском.
-• Пасты — сохранённые сообщения с названиями.
+• Стикеры 7TV, BTTV и FFZ канала — картинками в чате и панель выбора с поиском. Пасты — сохранённые сообщения с названиями.
 • Модерация — для админа и модераторов чата: мут, бан, удаление сообщений, список ограничений. Права проверяет сервер игры.
-• Окно поверх всех программ (Chrome и Edge), светлая и тёмная тема.
+• Настройки: цветовые схемы, акцент, своя картинка фона, шрифт и размер, подсветка слов, скрытие сообщений, звук, свой CSS. Окно поверх всех программ (Chrome и Edge), светлая и тёмная тема.
 
 Расширение пользуется твоим входом на сайте игры и ничего не отправляет разработчику. Настройки и переписка хранятся только в браузере.
 
@@ -37,7 +39,7 @@
 
 **Summary:** Mine and town chat of the "Legion" game (play.multidonate.ru): in-game panel, separate window, DMs, 7TV emotes, moderation.
 
-**Description:** Mine and town chat of the "Legion" browser game (play.multidonate.ru), docked inside the game or in a separate window: town tabs, a merged feed, private conversations, channel switching, 7TV/BTTV/FFZ emotes, saved pastes, moderation tools for chat moderators, always-on-top window, light and dark themes. Uses your existing game login and sends nothing to the developer. Unofficial, open source (MIT).
+**Description:** Mine and town chat of the "Legion" browser game (play.multidonate.ru), built into the game's own chat or in a separate window. Movable, resizable and semi-transparent in-game panel; town tabs and a merged feed; instant private messages; friends (online status, daily coin, highlighted messages); fuzzy player search; channel switching; 7TV/BTTV/FFZ emotes; saved pastes; moderation tools for chat moderators; themes and customization; always-on-top window. Uses your existing game login and sends nothing to the developer. Unofficial, open source (MIT).
 
 ---
 
