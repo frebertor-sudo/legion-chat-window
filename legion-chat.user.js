@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.3.0
+// @version      3.4.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -64,39 +64,127 @@
     const roomFor = () => { const last = lg('lgmc_last', null); return last && last.ch === CH ? last.room : null; };
     const minW = 280, maxW = () => Math.max(minW, Math.min(900, window.innerWidth - 120));
     let dock = null, frame = null, btn = null;
+    // где панель: справа / слева (во всю высоту, ширина тянется) или плавающее окно (место и размер — свои)
+    const L = Object.assign({ mode: 'r', w: lg('lgmc_dock_w', 380), x: 0, y: 0, fw: 400, fh: 620, side: 'r' }, lg('lgmc_dock_pos', {}) || {});
+    const saveL = () => ls('lgmc_dock_pos', L);
+    const vw = () => window.innerWidth, vh = () => window.innerHeight;
 
     function build() {
       dock = document.createElement('div');
       dock.id = 'lgmc-dock';
       dock.hidden = true;
-      dock.innerHTML = '<div class="lgmc-grip" title="Потяни, чтобы изменить ширину" aria-hidden="true"></div><div class="lgmc-shield" hidden></div>';
+      dock.innerHTML = `<div class="lgmc-bar" title="Потяни, чтобы переместить; двойной щелчок — прикрепить или открепить">
+          <span class="lgmc-t" aria-hidden="true">⠿ Чат Легиона</span>
+          <button type="button" data-m="l" title="Прикрепить слева" aria-label="Прикрепить слева">◧</button>
+          <button type="button" data-m="f" title="Плавающее окно — можно двигать и менять размер" aria-label="Плавающее окно">❐</button>
+          <button type="button" data-m="r" title="Прикрепить справа" aria-label="Прикрепить справа">◨</button>
+        </div><div class="lgmc-body"></div>
+        <div class="lgmc-grip" title="Потяни, чтобы изменить ширину" aria-hidden="true"></div>
+        <div class="lgmc-corner" title="Потяни, чтобы изменить размер" aria-hidden="true"></div>
+        <div class="lgmc-shield" hidden></div>`;
+      const snap = document.createElement('div'); snap.id = 'lgmc-snap'; snap.hidden = true;
       const st = document.createElement('style');
-      st.textContent = `#lgmc-dock{box-sizing:border-box;position:fixed;top:0;right:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;z-index:2147483000;background:#17130e;border-left:1px solid #3a3024;box-shadow:-12px 0 30px -18px rgba(0,0,0,.7)}
-        #lgmc-dock[hidden]{display:none}
+      st.textContent = `#lgmc-dock{box-sizing:border-box;position:fixed;z-index:2147483000;display:flex;flex-direction:column;background:#17130e;box-shadow:-12px 0 30px -18px rgba(0,0,0,.7)}
+        #lgmc-dock[hidden],#lgmc-snap[hidden],#lgmc-dock [hidden]{display:none}
+        #lgmc-dock.m-r{top:0;right:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-left:1px solid #3a3024}
+        #lgmc-dock.m-l{top:0;left:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-right:1px solid #3a3024;box-shadow:12px 0 30px -18px rgba(0,0,0,.7)}
+        #lgmc-dock.m-f{left:var(--fx,40px);top:var(--fy,40px);width:var(--fw,400px);height:var(--fh,620px);border:1px solid #6b5a3a;border-radius:10px;overflow:hidden;box-shadow:0 22px 60px -14px rgba(0,0,0,.75)}
+        #lgmc-dock .lgmc-bar{flex:none;height:24px;display:flex;align-items:center;gap:2px;padding:0 4px 0 8px;background:#211b14;color:#9c8d76;font:600 11px/1 system-ui,sans-serif;cursor:grab;user-select:none;touch-action:none;border-bottom:1px solid #3a3024}
+        #lgmc-dock.drag-move .lgmc-bar{cursor:grabbing}
+        #lgmc-dock .lgmc-t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        #lgmc-dock .lgmc-bar button{background:none;border:1px solid transparent;color:#d8c39a;border-radius:4px;padding:0 5px;font:13px/18px system-ui;cursor:pointer}
+        #lgmc-dock .lgmc-bar button:hover,#lgmc-dock .lgmc-bar button:focus-visible{border-color:#6b5a3a;outline:none}
+        #lgmc-dock .lgmc-bar button[aria-pressed="true"]{background:#f0b84a;color:#1a1206;border-color:#f0b84a}
+        #lgmc-dock .lgmc-body{flex:1;min-height:0}
         #lgmc-dock iframe{display:block;width:100%;height:100%;border:0;background:#17130e}
-        #lgmc-dock .lgmc-grip{position:absolute;left:-5px;top:0;bottom:0;width:10px;cursor:ew-resize;z-index:2}
-        #lgmc-dock .lgmc-grip:hover,#lgmc-dock.drag .lgmc-grip{background:linear-gradient(90deg,transparent 4px,#f0b84a 4px,#f0b84a 6px,transparent 6px)}
-        #lgmc-dock .lgmc-shield{position:fixed;inset:0;z-index:1;cursor:ew-resize}
+        #lgmc-dock .lgmc-grip{position:absolute;top:0;bottom:0;width:10px;cursor:ew-resize;z-index:2}
+        #lgmc-dock.m-r .lgmc-grip{left:-5px}#lgmc-dock.m-l .lgmc-grip{right:-5px}#lgmc-dock.m-f .lgmc-grip{display:none}
+        #lgmc-dock .lgmc-grip:hover,#lgmc-dock.drag-w .lgmc-grip{background:linear-gradient(90deg,transparent 4px,#f0b84a 4px,#f0b84a 6px,transparent 6px)}
+        #lgmc-dock .lgmc-corner{display:none;position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:2;background:linear-gradient(135deg,transparent 55%,#6b5a3a 55%,#6b5a3a 62%,transparent 62%,transparent 72%,#6b5a3a 72%,#6b5a3a 79%,transparent 79%)}
+        #lgmc-dock.m-f .lgmc-corner{display:block}
+        #lgmc-dock .lgmc-shield{position:fixed;inset:0;z-index:3}
+        #lgmc-snap{position:fixed;top:0;bottom:0;z-index:2147482999;background:rgba(240,184,74,.18);border:2px dashed #f0b84a;box-sizing:border-box;pointer-events:none}
         #lgmc-btns{position:fixed;left:10px;bottom:10px;z-index:2147483001;display:flex;border-radius:8px;overflow:hidden;border:1px solid #6b5a3a;opacity:.88;font:600 13px system-ui,sans-serif}
         #lgmc-btns:hover{opacity:1}
         #lgmc-btns button{background:#2a2218;color:#f1d9a5;border:0;padding:6px 10px;cursor:pointer;font:inherit}
         #lgmc-btns button+button{border-left:1px solid #6b5a3a}
         #lgmc-btns button[aria-pressed="true"]{background:#f0b84a;color:#1a1206}
-        @media (max-width:640px){#lgmc-dock{width:100vw!important;border-left:0}#lgmc-dock .lgmc-grip{display:none}}`;
+        @media (prefers-reduced-motion: no-preference){#lgmc-dock.anim{transition:left .15s,top .15s,width .15s,height .15s}}
+        @media (max-width:640px){#lgmc-dock.m-r,#lgmc-dock.m-l{width:100vw!important;border:0}#lgmc-dock .lgmc-grip{display:none}}`;
       document.head.appendChild(st);
-      document.body.appendChild(dock);
-      setW(lg('lgmc_dock_w', 380));
-      // ширина: тянуть за левый край (поверх рамки — прозрачный щит, иначе рамка «съедает» движение мыши)
-      const grip = dock.querySelector('.lgmc-grip'), shield = dock.querySelector('.lgmc-shield');
+      document.body.appendChild(dock); document.body.appendChild(snap);
+      const bar = dock.querySelector('.lgmc-bar'), grip = dock.querySelector('.lgmc-grip'), corner = dock.querySelector('.lgmc-corner'), shield = dock.querySelector('.lgmc-shield');
+      // перетаскивание: поверх рамки — прозрачный щит, иначе рамка «съедает» движение мыши
+      const drag = (cls, onMove, onUp, lazy) => {
+        dock.classList.add(cls); if (!lazy) shield.hidden = false;
+        const move = (ev) => onMove(ev);
+        const up = (ev) => { dock.classList.remove(cls); shield.hidden = true; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); if (onUp) onUp(ev); saveL(); };
+        window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+      };
+      // ширина прикреплённой панели
       grip.addEventListener('pointerdown', (e) => {
-        e.preventDefault(); dock.classList.add('drag'); shield.hidden = false;
-        const move = (ev) => setW(window.innerWidth - ev.clientX);
-        const up = () => { dock.classList.remove('drag'); shield.hidden = true; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); ls('lgmc_dock_w', dock.offsetWidth); };
-        window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+        e.preventDefault();
+        drag('drag-w', (ev) => { L.w = clampW(L.mode === 'l' ? ev.clientX : vw() - ev.clientX); apply(); });
       });
-      window.addEventListener('resize', () => setW(dock.offsetWidth));
+      // перемещение за полоску: прикреплённая — отрывается под курсором, у края — прилипает
+      bar.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || e.target.closest('button')) return;
+        e.preventDefault();
+        const r = dock.getBoundingClientRect();
+        let offX = e.clientX - r.left, offY = e.clientY - r.top, started = false, edge = null;
+        const sx = e.clientX, sy = e.clientY;
+        drag('drag-move', (ev) => {
+          if (!started) {
+            if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 6) return;   // это был щелчок, а не перенос
+            started = true; shield.hidden = false;
+            if (L.mode !== 'f') {   // оторвать: окно прежнего размера, курсор — на той же доле полоски
+              L.side = L.mode; L.mode = 'f';
+              offX = Math.round(Math.min(L.fw - 60, offX * L.fw / Math.max(1, r.width))); offY = Math.min(offY, 20);
+            }
+          }
+          L.x = ev.clientX - offX; L.y = ev.clientY - offY;
+          edge = ev.clientX <= 18 ? 'l' : ev.clientX >= vw() - 18 ? 'r' : null;
+          snap.hidden = !edge;
+          if (edge) { snap.style.left = edge === 'l' ? '0' : 'auto'; snap.style.right = edge === 'r' ? '0' : 'auto'; snap.style.width = clampW(L.w) + 'px'; }
+          apply();
+        }, () => { snap.hidden = true; if (started && edge) { L.mode = edge; L.side = edge; apply(); } }, true);
+      });
+      bar.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) setMode(L.mode === 'f' ? L.side || 'r' : 'f'); });
+      bar.addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) setMode(b.dataset.m); });
+      // размер плавающего окна — за уголок
+      corner.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        const ox = L.x + L.fw - e.clientX, oy = L.y + L.fh - e.clientY; // где взялись за уголок — без скачка
+        drag('drag-size', (ev) => { L.fw = Math.max(minW, Math.min(vw() - L.x, ev.clientX + ox - L.x)); L.fh = Math.max(240, Math.min(vh() - L.y, ev.clientY + oy - L.y)); apply(); });
+      });
+      window.addEventListener('resize', apply);
+      apply();
     }
-    const setW = (w) => { if (dock) dock.style.setProperty('--lgmc-w', Math.round(Math.max(minW, Math.min(maxW(), w))) + 'px'); };
+    const clampW = (w) => Math.round(Math.max(minW, Math.min(maxW(), +w || 380)));
+    function setMode(m) {
+      if (m === L.mode) return;
+      if (m === 'f' && (!L.x && !L.y)) { L.x = Math.max(10, vw() - L.fw - 40); L.y = 40; }   // первый раз — у правого края
+      if (m !== 'f') L.side = m;
+      L.mode = m;
+      dock.classList.add('anim'); apply(); setTimeout(() => dock && dock.classList.remove('anim'), 200);
+      saveL();
+    }
+    // разложить по сохранённому: удержать на экране (полоска всегда видна), прикреплённую — нужной ширины
+    function apply() {
+      if (!dock) return;
+      L.w = clampW(L.w);
+      // плавающее окно — целиком на экране: и полоска, и уголок размера всегда доступны
+      L.fw = Math.max(minW, Math.min(vw(), +L.fw || 400)); L.fh = Math.max(240, Math.min(vh(), +L.fh || 620));
+      L.x = Math.max(0, Math.min(vw() - L.fw, +L.x || 0)); L.y = Math.max(0, Math.min(vh() - L.fh, +L.y || 0));
+      dock.classList.toggle('m-r', L.mode === 'r'); dock.classList.toggle('m-l', L.mode === 'l'); dock.classList.toggle('m-f', L.mode === 'f');
+      dock.style.setProperty('--lgmc-w', L.w + 'px');
+      dock.style.setProperty('--fx', Math.round(L.x) + 'px'); dock.style.setProperty('--fy', Math.round(L.y) + 'px');
+      dock.style.setProperty('--fw', Math.round(L.fw) + 'px'); dock.style.setProperty('--fh', Math.round(L.fh) + 'px');
+      for (const b of dock.querySelectorAll('[data-m]')) b.setAttribute('aria-pressed', String(b.dataset.m === L.mode));
+      // кнопки «💬 Чат / ⧉» не прячутся под панелью, прикреплённой слева
+      const g = document.getElementById('lgmc-btns');
+      if (g) g.style.left = !dock.hidden && L.mode === 'l' && vw() > 640 ? (L.w + 10) + 'px' : '10px';
+    }
 
     function setOpen(on) {
       if (on) {
@@ -105,15 +193,16 @@
           frame = document.createElement('iframe');
           frame.title = 'Чат Легиона';
           frame.src = chatUrl(CH, roomFor()) + '&embed=1';
-          dock.appendChild(frame);
+          dock.querySelector('.lgmc-body').appendChild(frame);
         }
-        dock.hidden = false;
+        dock.hidden = false; apply();
       } else if (dock) {
         dock.hidden = true;
         if (frame) { frame.remove(); frame = null; }
       }
       ls('lgmc_dock_open', !!on);
       if (btn) btn.setAttribute('aria-pressed', String(!!on));
+      apply();
     }
 
     const addUi = () => {
@@ -121,7 +210,7 @@
       if (!dock) build();
       const g = document.createElement('div');
       g.id = 'lgmc-btns';
-      g.innerHTML = '<button type="button" data-a="dock" aria-pressed="false" title="Показать или скрыть чат сбоку">💬 Чат</button><button type="button" data-a="win" title="Открыть чат отдельным окном" aria-label="Открыть чат отдельным окном">⧉</button>';
+      g.innerHTML = '<button type="button" data-a="dock" aria-pressed="false" title="Показать или скрыть чат (панель можно двигать за полоску сверху)">💬 Чат</button><button type="button" data-a="win" title="Открыть чат отдельным окном" aria-label="Открыть чат отдельным окном">⧉</button>';
       btn = g.querySelector('[data-a="dock"]');
       g.addEventListener('click', (e) => {
         const b = e.target.closest('[data-a]'); if (!b) return;
