@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.9.0
+// @version      3.10.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -325,6 +325,11 @@
   const CITY_SPAWN = { x: 2460, y: 1010, town: 'fair' };   // как в игре: Ярмарка, у входа (citymap: QW + 660, 1010)
   const LAST_KEY = 'lgmc_last', CITY_AUTO_KEY = 'lgmc_city_auto';
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // цвет ника — как в чате самой игры (site-chat.js, 24.10): 16 светлых цветов, выбор по хешу FNV-1a от ника.
+  // На светлой теме те же цвета темнее (--ncm), иначе жёлтый и мятный не читаются.
+  const NICK_COLORS = ['#ffc94d', '#ff8a80', '#ffab6e', '#f4ff81', '#b9f6ca', '#69f0ae', '#84ffff', '#80d8ff', '#9fa8ff', '#b388ff', '#ea80fc', '#ff80ab', '#ffd180', '#a7ffeb', '#ccff90', '#ffcdd2'];
+  const nickColor = (l) => { let h = 2166136261; const t = String(l || '').toLowerCase(); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return NICK_COLORS[(h >>> 0) % NICK_COLORS.length]; };
+  const ncol = (l) => `color-mix(in srgb, ${nickColor(l)} var(--ncm,100%), #000)`;
   const hue = (s) => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h % 360; };
   const hhmm = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch { return d; } };
@@ -347,9 +352,9 @@
     if (!document.documentElement) document.appendChild(document.createElement('html'));
     document.documentElement.innerHTML =`<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Чат · ${esc(S.chName)}</title>
 <style>
-:root{color-scheme:dark;--bg:#17130e;--panel:#211b14;--line:#3a3024;--tx:#eadfcb;--mut:#9c8d76;--acc:#f0b84a;--acc-tx:#f0b84a;--on-acc:#1a1206;--me:#3a2d14;--bad:#e06a5a;--ok:#6fbf73;--ns:65%;--nl:68%;--hov:#2b241b}
-:root[data-theme="light"]{color-scheme:light;--bg:#fbf7ef;--panel:#f1e9da;--line:#dccfb6;--tx:#2b2117;--mut:#6f5f48;--acc:#e0a42e;--acc-tx:#9a6206;--on-acc:#1a1206;--me:#fbe7bd;--bad:#b8402f;--ok:#2f8f3a;--ns:75%;--nl:29%;--hov:#e9dec9}
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#fbf7ef;--panel:#f1e9da;--line:#dccfb6;--tx:#2b2117;--mut:#6f5f48;--acc:#e0a42e;--acc-tx:#9a6206;--on-acc:#1a1206;--me:#fbe7bd;--bad:#b8402f;--ok:#2f8f3a;--ns:75%;--nl:29%;--hov:#e9dec9}}
+:root{color-scheme:dark;--bg:#17130e;--panel:#211b14;--line:#3a3024;--tx:#eadfcb;--mut:#9c8d76;--acc:#f0b84a;--acc-tx:#f0b84a;--on-acc:#1a1206;--me:#3a2d14;--bad:#e06a5a;--ok:#6fbf73;--ns:65%;--nl:68%;--ncm:100%;--hov:#2b241b}
+:root[data-theme="light"]{color-scheme:light;--bg:#fbf7ef;--panel:#f1e9da;--line:#dccfb6;--tx:#2b2117;--mut:#6f5f48;--acc:#e0a42e;--acc-tx:#9a6206;--on-acc:#1a1206;--me:#fbe7bd;--bad:#b8402f;--ok:#2f8f3a;--ns:75%;--nl:29%;--ncm:52%;--hov:#e9dec9}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#fbf7ef;--panel:#f1e9da;--line:#dccfb6;--tx:#2b2117;--mut:#6f5f48;--acc:#e0a42e;--acc-tx:#9a6206;--on-acc:#1a1206;--me:#fbe7bd;--bad:#b8402f;--ok:#2f8f3a;--ns:75%;--nl:29%;--ncm:52%;--hov:#e9dec9}}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;position:relative}
@@ -398,6 +403,8 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #log.pm{display:flex;flex-direction:column;gap:3px;padding:8px 10px 12px}
 #log.pm li+li{margin-top:0}
 #log li.sec{font:700 11px system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);padding:10px 4px 2px}
+#log .av,#dmbar .av{background:color-mix(in srgb,var(--avc,#8a7a60) 62%,#000)}
+#log .av.cl,#dmbar .av.cl{background:color-mix(in srgb,var(--avc) 22%,var(--panel));box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--avc) var(--ncm,100%),#000);font-weight:400}
 #log li.conv .av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:700 14px system-ui;color:#fff;position:relative}
 #log li.conv .av .on{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;background:var(--ok);border:2px solid var(--bg)}
 #log li.conv .cv span.st{color:var(--ok)}
@@ -913,6 +920,7 @@ html.pinned.mini #log{padding-bottom:12px}
       const h = S.hero || {};
       S.flags = { cc: !!h.cc, tr: !!h.ct, dm: !!h.cd };
       S.meFriends = !!me.friends;
+      S.myCls = CLS_ICO[h.role] ? h.role : ''; S.myClsN = h.roleName || '';
       S.mines = Object.entries(h.mn || {}).map(([id, v]) => ({ id, nm: (v && v.nm) || id }));
     } catch { if (gen !== S.gen) return; }
     // шахты
@@ -929,6 +937,7 @@ html.pinned.mini #log{padding-bottom:12px}
     rb('pm').disabled = !S.me || !S.flags.dm; rb('pm').title = rb('pm').disabled ? (S.me ? 'Личные сообщения на этом канале выключены' : 'Войди на сайте игры, чтобы писать лично') : 'Личные сообщения и друзья';
     rb('ping').disabled = !S.me; rb('ping').title = S.me ? 'Сообщения, где тебя упомянули по @нику' : 'Войди на сайте игры — пинги ищутся по твоему нику';
     if (rb(S.room).disabled) S.room = hasCity ? 'city' : 'mine';
+    S.cityChk = isMix(S.room) && hasCity && !S.inCity;   // пока не узнали, открыт ли город в игре, — полоску не показываем
     pingBoot();
     pmBoot();
     for (const b of S.el.room.querySelectorAll('[data-r]')) b.setAttribute('aria-pressed', String(b.dataset.r === S.room));
@@ -947,7 +956,11 @@ html.pinned.mini #log{padding-bottom:12px}
     }
     if (S.room === 'ping') { S.pg.seen = Date.now(); lsSet(PING_SEEN, S.pg.seen); pingBadge(); renderLog(); }
     poll(true);   // шахта, город (если уже на Ярмарке) или всё сразу
-    if (isMix(S.room) && hasCity && !S.inCity) cityAttach(gen).then((ok) => { if (!ok && gen === S.gen && lsGet(CITY_AUTO_KEY, false)) cityEnter(); });
+    if (S.cityChk) cityAttach(gen).then((ok) => {
+      if (gen !== S.gen) return;
+      S.cityChk = false;
+      if (!ok && lsGet(CITY_AUTO_KEY, false)) cityEnter(); else updateBar();
+    });
   }
   const restart = () => start(usesCity(S.room) && S.inCity);
 
@@ -973,10 +986,11 @@ html.pinned.mini #log{padding-bottom:12px}
   }
   // в общей ленте вместо большого экрана — полоска над лентой: шахта видна сразу, город — по кнопке
   function updateBar(errText) {
-    const show = isMix(S.room) && !S.inCity && (!S.hero || S.flags.cc);
+    // «Город не подключён» — только когда это правда и надо что-то решить: не пока проверяем, не пока входим сами («сразу»)
+    const auto = lsGet(CITY_AUTO_KEY, false);
+    const show = isMix(S.room) && !S.inCity && (!S.hero || S.flags.cc) && (!!errText || (!S.cityChk && !S.entering && !auto));
     S.el.cbar.hidden = !show;
     if (!show) { S.el.cbar.innerHTML = ''; return; }
-    const auto = lsGet(CITY_AUTO_KEY, false);
     S.el.cbar.innerHTML = `<span title="${esc(GATE_TEXT)}">🏰 Город не подключён${errText ? ' — ' + esc(errText) : ': герой зайдёт на Ярмарку, его увидят другие'}</span><button type="button" class="go">Войти в город</button><label><input type="checkbox" ${auto ? 'checked' : ''}> сразу</label>`;
     S.el.cbar.querySelector('.go').onclick = () => cityEnter();
     S.el.cbar.querySelector('input').onchange = (e) => lsSet(CITY_AUTO_KEY, e.target.checked);
@@ -1108,7 +1122,7 @@ html.pinned.mini #log{padding-bottom:12px}
       const last = S.list[S.list.length - 1];
       S.list.push(m);
       if (last && (last.at || 0) > (m.at || 0)) { S.list.sort((x, y) => (x.at || 0) - (y.at || 0)); resort = true; }
-      if (m.l && !m.sys) seenAdd(m.l, m.n, m.at);
+      if (m.l && !m.sys) seenAdd(m.l, m.n, m.at, m.c, m.cn);
       if (src !== 'pm' && isPing(m)) pingAdd(m);
       if (S.ign.has(m.l)) continue;
       const k = kind(m), mine = String(m.l).toLowerCase() === S.me;
@@ -1256,7 +1270,14 @@ html.pinned.mini #log{padding-bottom:12px}
   const pmKey = (k) => `lgmc_pm${k}_${S.ch}_${S.me}`;
   const nickOf = (x) => { const l = String(x ?? '').toLowerCase().replace(/^@/, '').trim(); return /^[a-z0-9_]{1,25}$/.test(l) ? l : null; };
   const pmName = (l) => S.pm.names[l] || l;
-  const avatar = (l, cls = 'av') => `<span class="${cls}" style="background:hsl(${hue(l)} 45% 42%)" aria-hidden="true">${esc((pmName(l)[0] || '?').toUpperCase())}</span>`;
+  // аватарка: значок класса героя (класс узнаём из сообщений чата — сайт отдаёт его вместе с ником), иначе — первая буква
+  const clsOf = (l) => (l === S.me && S.myCls ? [S.myCls, S.myClsN] : ((seenMap().get(l) || [])[2] ? [seenMap().get(l)[2], seenMap().get(l)[3]] : null));
+  function avIn(l, nm, cls = 'av') {
+    const c = clsOf(l), name = nm != null ? String(nm) : pmName(l);
+    return c && CLS_ICO[c[0]] ? `<span class="${cls} cl" style="--avc:${nickColor(l)}" title="${esc(c[1] || c[0])}" aria-hidden="true">${CLS_ICO[c[0]]}`
+      : `<span class="${cls}" style="--avc:${nickColor(l)}" aria-hidden="true">${esc((name[0] || '?').toUpperCase())}`;
+  }
+  const avatar = (l, cls = 'av') => avIn(l, null, cls) + '</span>';
   const sameDay = (a, b) => { const x = new Date(a), y = new Date(b); return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate(); };
   const dayName = (t) => { const now = Date.now(); if (sameDay(t, now)) return 'Сегодня'; if (sameDay(t, now - 864e5)) return 'Вчера'; const d = new Date(t); return `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''}`; };
   const shortTime = (t) => (sameDay(t, Date.now()) ? hhmm(t) : (() => { const d = new Date(t); return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`; })());
@@ -1558,7 +1579,7 @@ html.pinned.mini #log{padding-bottom:12px}
     }
     const fr = S.meFriends ? (st === 'friends' ? '' : st === 'out' ? '' : st === 'in' ? '<button type="button" data-pa="accept" title="Принять заявку в друзья">👥 Принять</button>' : st === 'blocked' ? '' : '<button type="button" data-pa="add" title="Добавить в друзья">👥＋</button>') : '';
     const blk = S.meFriends ? (st === 'blocked' ? '<button type="button" data-pa="unblock">Разблокировать</button>' : '<button type="button" data-pa="block" title="Заблокировать — не сможет писать тебе">🚫</button>') : '';
-    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:hsl(${hue(l)} var(--ns) var(--nl))">${esc(pmName(l))}${f ? ' <span class="frm" title="Друг">👥</span>' : ''}</b>${status}</span></span><span class="acts">${f ? coinBtn(f) : ''}${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
+    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:${ncol(l)}">${esc(pmName(l))}${f ? ' <span class="frm" title="Друг">👥</span>' : ''}</b>${status}</span></span><span class="acts">${f ? coinBtn(f) : ''}${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
     bar.onclick = async (e) => {
       const cn = e.target.closest('[data-coin]');
       if (cn) { if (cn.getAttribute('aria-disabled') !== 'true') { cn.setAttribute('aria-disabled', 'true'); giveCoin(cn.dataset.coin); } return; }
@@ -1610,7 +1631,7 @@ html.pinned.mini #log{padding-bottom:12px}
       const fl = fr && fr.friends ? fr.friends.map((u) => Object.assign({}, u, { l: nickOf(u.login) })).filter((u) => u.l) : [];
       fl.sort((a, b) => (b.on ? 1 : 0) - (a.on ? 1 : 0) || ((P.last[b.l] || {}).at || 0) - ((P.last[a.l] || {}).at || 0) || pmName(a.l).localeCompare(pmName(b.l)));
       if (fl.length && !q) {
-        li('strip', fl.map((u) => { const un = P.un.get(u.l) || 0; return `<button type="button" class="fchip${u.on ? '' : ' off'}" data-peer="${esc(u.l)}" data-n="${esc(pmName(u.l))}" title="${esc(pmName(u.l))} — ${u.on ? esc(u.on.t || 'в сети') : 'не в сети'}"><span class="av" style="background:hsl(${hue(u.l)} 45% 42%)" aria-hidden="true">${esc((pmName(u.l)[0] || '?').toUpperCase())}${u.on ? '<i class="on"></i>' : ''}${un ? `<i class="cu">${un > 99 ? '99+' : un}</i>` : ''}</span><span class="nm">${esc(pmName(u.l))}</span></button>`; }).join(''), { role: 'list', 'aria-label': 'Друзья' });
+        li('strip', fl.map((u) => { const un = P.un.get(u.l) || 0; return `<button type="button" class="fchip${u.on ? '' : ' off'}" data-peer="${esc(u.l)}" data-n="${esc(pmName(u.l))}" title="${esc(pmName(u.l))} — ${u.on ? esc(u.on.t || 'в сети') : 'не в сети'}">${avIn(u.l, pmName(u.l))}${u.on ? '<i class="on"></i>' : ''}${un ? `<i class="cu">${un > 99 ? '99+' : un}</i>` : ''}</span><span class="nm">${esc(pmName(u.l))}</span></button>`; }).join(''), { role: 'list', 'aria-label': 'Друзья' });
       }
       const anyUn = [...P.un.values()].some(Boolean);
       if (!q && (fl.length || anyUn)) li('filt', [['all', 'Все'], ['fr', 'Друзья'], ['un', 'Непрочитанные']].map(([k, t]) => `<button type="button" data-pv="${k}" aria-pressed="${P.view === k}">${t}</button>`).join(''), { role: 'group', 'aria-label': 'Показывать' });
@@ -1630,7 +1651,7 @@ html.pinned.mini #log{padding-bottom:12px}
       for (const l of peers) {
         const x = P.last[l], u = P.un.get(l) || 0, fd = pmFriend(l);
         const prev = x.t ? `${x.mine ? 'Ты: ' : ''}${esc(x.t)}` : (P.drafts[l] ? `Черновик: ${esc(P.drafts[l])}` : 'Нет сообщений — напиши первым');
-        li('conv', `<span class="av" style="background:hsl(${hue(l)} 45% 42%)" aria-hidden="true">${esc((pmName(l)[0] || '?').toUpperCase())}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:hsl(${hue(l)} var(--ns) var(--nl))">${esc(pmName(l))}${isFr(l) ? ' <span class="frm" title="Друг">👥</span>' : ''}</b><span>${prev}</span></span>${x.at ? `<span class="ct">${shortTime(x.at)}</span>` : ''}${u ? `<span class="cu">${u > 99 ? '99+' : u}</span>` : ''}`,
+        li('conv', `${avIn(l, pmName(l))}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:${ncol(l)}">${esc(pmName(l))}${isFr(l) ? ' <span class="frm" title="Друг">👥</span>' : ''}</b><span>${prev}</span></span>${x.at ? `<span class="ct">${shortTime(x.at)}</span>` : ''}${u ? `<span class="cu">${u > 99 ? '99+' : u}</span>` : ''}`,
           { tabindex: '0', 'data-peer': l, 'data-n': pmName(l), 'aria-label': `Диалог с ${pmName(l)}${u ? `, непрочитанных: ${u}` : ''}` });
       }
       const friends = view === 'un' ? [] : fl.filter((u) => !P.last[u.l] && match(u.l));
@@ -1639,7 +1660,7 @@ html.pinned.mini #log{padding-bottom:12px}
       if (friends.length || (canGift && view !== 'un' && !q)) li('sec', `Друзья${fr.friends ? ` · ${fr.friends.length}${fr.max ? '/' + fr.max : ''}` : ''}${canGift > 1 ? `<button type="button" class="gift" data-pa="giftall" title="Подарить монету дня всем, кому можно">🪙 Подарить всем (${canGift})</button>` : ''}`);
       for (const u of friends) {
         if (u.name) P.names[u.l] = u.name;
-        li('conv', `<span class="av" style="background:hsl(${hue(u.l)} 45% 42%)" aria-hidden="true">${esc((pmName(u.l)[0] || '?').toUpperCase())}${u.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:hsl(${hue(u.l)} var(--ns) var(--nl))">${esc(pmName(u.l))}</b><span class="${u.on ? 'st' : ''}">${u.on ? esc(u.on.t || 'в сети') + (u.on.ch && u.on.ch !== S.ch ? ' · ' + esc(u.on.ch) : '') : 'не в сети'}</span></span><span class="acts">${coinBtn(u)}</span>`,
+        li('conv', `${avIn(u.l, pmName(u.l))}${u.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:${ncol(u.l)}">${esc(pmName(u.l))}</b><span class="${u.on ? 'st' : ''}">${u.on ? esc(u.on.t || 'в сети') + (u.on.ch && u.on.ch !== S.ch ? ' · ' + esc(u.on.ch) : '') : 'не в сети'}</span></span><span class="acts">${coinBtn(u)}</span>`,
           { tabindex: '0', 'data-peer': u.l, 'data-n': pmName(u.l), 'aria-label': `Написать ${pmName(u.l)}` });
       }
       // ---- игроки с похожим ником: найти друга, позвать нового ----
@@ -1656,7 +1677,7 @@ html.pinned.mini #log{padding-bottom:12px}
             : st === 'in' ? '<button type="button" class="ok" data-fa="accept">Принять</button>' : st === 'blocked' ? '<button type="button" data-fa="unblock">Разблокировать</button>'
             : '<button type="button" class="ok" data-fa="add" title="Позвать в друзья">👥＋</button>';
           const nm = pmName(x.l);
-          li('conv pl', `<span class="av" style="background:hsl(${hue(x.l)} 45% 42%)" aria-hidden="true">${esc((nm[0] || '?').toUpperCase())}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:hsl(${hue(x.l)} var(--ns) var(--nl))">${esc(nm)}${nm.toLowerCase() !== x.l ? ` <small class="lg">${esc(x.l)}</small>` : ''}${st === 'friends' ? ' <span class="frm" title="Друг">👥</span>' : ''}</b><span class="${fd && fd.on ? 'st' : ''}">${sub}</span></span><span class="acts"><button type="button" data-pa="dmto" title="Написать лично" aria-label="Написать ${esc(nm)}">✉</button>${act}</span>`,
+          li('conv pl', `${avIn(x.l, nm)}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:${ncol(x.l)}">${esc(nm)}${nm.toLowerCase() !== x.l ? ` <small class="lg">${esc(x.l)}</small>` : ''}${st === 'friends' ? ' <span class="frm" title="Друг">👥</span>' : ''}</b><span class="${fd && fd.on ? 'st' : ''}">${sub}</span></span><span class="acts"><button type="button" data-pa="dmto" title="Написать лично" aria-label="Написать ${esc(nm)}">✉</button>${act}</span>`,
             { tabindex: '0', 'data-peer': x.l, 'data-n': nm, 'aria-label': `${nm}: ${sub.replace(/<[^>]+>/g, '')}` });
         }
       } else PS.key = '';
@@ -1831,11 +1852,11 @@ html.pinned.mini #log{padding-bottom:12px}
   const SEEN_KEY = 'lgmc_seen';
   let SEEN = null, seenT = 0;
   const seenMap = () => SEEN || (SEEN = new Map(Object.entries(lsGet(SEEN_KEY, {}) || {})));
-  function seenAdd(l0, n, at) {
+  function seenAdd(l0, n, at, c, cn) {   // [имя, когда видели, класс героя, название класса]
     const l = nickOf(l0); if (!l || l === S.me) return;
     const m = seenMap(), o = m.get(l), t = +at || Date.now();
-    if (o && o[1] >= t && (!n || o[0] === n)) return;
-    m.set(l, [n || (o && o[0]) || l, Math.max(t, (o && o[1]) || 0)]);
+    if (o && o[1] >= t && (!n || o[0] === n) && (!c || (o[2] === c && (!cn || o[3] === cn)))) return;
+    m.set(l, [n || (o && o[0]) || l, Math.max(t, (o && o[1]) || 0), c || (o && o[2]) || '', cn || (o && o[3]) || '']);
     clearTimeout(seenT); seenT = setTimeout(seenSave, 3000);
   }
   function seenSave() {
@@ -2265,7 +2286,7 @@ html.pinned.mini #log{padding-bottom:12px}
     const ri = ROLE_ICO[msg.r]; const role = ri ? `<span title="${ri[1]}">${ri[0]}</span> ` : '';
     const aw = (msg.aw || []).map((a) => `<span class="aw" title="${esc(a.n)}${a.d ? ' — ' + esc(a.d) : ''}">${esc(a.i || '✦')}</span>`).join('');
     const to = msg.k === 'dm' && msg.to ? ` <span class="to" title="Личное">→ <span class="n" data-l="${esc(String(msg.to).toLowerCase())}">${esc(msg.to)}</span></span>` : '';
-    li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:hsl(${hue(l)} var(--ns) var(--nl))" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(text)}`;
+    li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:${ncol(l)}" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(text)}`;
     const nEl = li.querySelector('.n[data-l]');
     const isFr = !!l && (msg._fr || S.pm.frState.get(l) === 'friends');
     if (nEl && isFr) nEl.insertAdjacentHTML('afterend', '<span class="frm" title="Друг">👥</span>');
@@ -2658,6 +2679,9 @@ html.pinned.mini #log{padding-bottom:12px}
           <label class="ta">Подсвечивать сообщения со словами <small>через запятую; твой @ник подсвечивается всегда</small><textarea data-ta="hl" rows="2" maxlength="600" placeholder="например: продам, топаз, поход">${esc(CZ.hl)}</textarea></label>
           <label class="ta">Скрывать сообщения со словами <small>свои сообщения не скрываются</small><textarea data-ta="hide" rows="2" maxlength="600" placeholder="например: спам, реклама">${esc(CZ.hide)}</textarea></label>
         </section>
+        <section><h4>Город</h4>
+          <label class="ck"><input type="checkbox" data-cityauto${lsGet(CITY_AUTO_KEY, false) ? ' checked' : ''}> Входить в чат города сразу, не спрашивая <small>герой заходит на Ярмарку, его видят другие</small></label>
+        </section>
         <section><h4>Прозрачность <small>${EMBED ? 'панели в игре — сквозь чат видно игру' : 'действует в панели внутри игры (отдельное окно браузера прозрачным не бывает)'}</small></h4>
           <label class="rng">Прозрачность фона <input type="range" min="0" max="90" step="5" data-rng="bgClear" value="${CZ.bgClear}"><output>${CZ.bgClear}%</output></label>
           <label class="rng">Прозрачность всего чата <input type="range" min="0" max="70" step="5" data-rng="opac" value="${CZ.opac}"><output>${CZ.opac}%</output></label>
@@ -2716,6 +2740,7 @@ html.pinned.mini #log{padding-bottom:12px}
     };
     sp.onchange = async (e) => {
       const t = e.target;
+      if ('cityauto' in t.dataset) { lsSet(CITY_AUTO_KEY, t.checked); updateBar(); if (t.checked && isMix(S.room) && !S.inCity && !S.cityChk) cityEnter(); }
       if (t.dataset.ck) { czSet({ [t.dataset.ck]: t.checked }, t.dataset.ck === 'emotes'); if (['emotes', 'sound'].includes(t.dataset.ck)) czRender(); if (t.dataset.ck === 'sound' && t.checked) czBeep('mention'); }
       if (t.dataset.sel) czSet({ [t.dataset.sel]: t.value });
       if (t.dataset.cz === 'accent') czRender();
