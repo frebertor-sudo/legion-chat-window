@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.5.0
+// @version      3.6.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -455,6 +455,8 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #sp label.ta{display:flex;flex-direction:column;gap:3px;font-size:13px}
 #sp label.ck{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
 #sp label.ck input{accent-color:var(--acc);width:16px;height:16px}
+#sp .hlr{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#sp .hlr .dot.pick{flex:none;font-size:0}
 #sp .seg2{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;align-self:flex-start}
 #sp .seg2 button{background:var(--panel);color:var(--mut);border:0;padding:4px 11px;font:600 12px system-ui;cursor:pointer}
 #sp .seg2 button+button{border-left:1px solid var(--line)}
@@ -2031,7 +2033,11 @@ html.pinned.mini #log{padding-bottom:12px}
     const to = msg.k === 'dm' && msg.to ? ` <span class="to" title="Личное">→ <span class="n" data-l="${esc(String(msg.to).toLowerCase())}">${esc(msg.to)}</span></span>` : '';
     li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:hsl(${hue(l)} var(--ns) var(--nl))" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(text)}`;
     const nEl = li.querySelector('.n[data-l]');
-    if (nEl && l && S.pm.frState.get(l) === 'friends') nEl.insertAdjacentHTML('afterend', '<span class="frm" title="Друг">👥</span>');
+    const isFr = !!l && (msg._fr || S.pm.frState.get(l) === 'friends');
+    if (nEl && isFr) nEl.insertAdjacentHTML('afterend', '<span class="frm" title="Друг">👥</span>');
+    // выделение: модераторы и админ чата, друзья (цвет и вкл/выкл — в ⚙)
+    if (ri) li.classList.add('role', 'r-' + msg.r);
+    if (isFr && l !== S.me) li.classList.add('fr');
     if (nEl && S.flags.dm && S.me && l && l !== S.me && S.room !== 'pm' && !S.pm.blocked(l)) {
       const d = document.createElement('button');
       d.type = 'button'; d.className = 'dmb'; d.textContent = '✉'; d.dataset.l = l; d.dataset.n = msg.n || msg.l;
@@ -2237,6 +2243,7 @@ html.pinned.mini #log{padding-bottom:12px}
     dark: 'coal', light: 'parchment', accent: '', bgDim: 70, font: 'system', size: 14, density: 'normal',
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
+    hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
   };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
   const SCHEMES = {
@@ -2291,6 +2298,10 @@ html.pinned.mini #log{padding-bottom:12px}
     if (!CZ.awards) css += `:is(#log,#pvlog) .aw{display:none}`;
     if (!CZ.nickColor) css += `:is(#log,#pvlog) .n{color:var(--tx)!important}`;
     css += `html:not(.pinned) :is(#log,#pvlog) img.em{height:${Math.max(18, Math.min(56, +CZ.emoteSize || 28))}px}`;
+    // выделение друзей и модераторов: полоса слева и лёгкий фон (модератор важнее друга, упоминание — важнее всех)
+    const mark = (cls, c) => `:is(#log,#pvlog) li.${cls}:not(.mention){background:color-mix(in srgb, ${c} 14%, transparent);box-shadow:inset 3px 0 0 ${c}}:is(#log,#pvlog) li.${cls}:not(.mention):hover{background:color-mix(in srgb, ${c} 22%, transparent)}`;
+    if (CZ.hlFriend && hex2rgb(CZ.friendColor)) css += mark('fr', CZ.friendColor);
+    if (CZ.hlMod && hex2rgb(CZ.modColor)) css += mark('role', CZ.modColor);
     const bg = CZ.bgOn !== false ? lsGet(CZ_BG, null) : null;
     if (bg) css += `#log{background:linear-gradient(color-mix(in srgb, var(--bg) ${Math.max(0, Math.min(95, +CZ.bgDim || 0))}%, transparent),color-mix(in srgb, var(--bg) ${Math.max(0, Math.min(95, +CZ.bgDim || 0))}%, transparent)),url("${bg}") center/cover no-repeat}`;
     return css + '\n/* свой CSS */\n' + String(CZ.css || '');
@@ -2344,9 +2355,9 @@ html.pinned.mini #log{padding-bottom:12px}
   const SAMPLE = () => {
     const now = Date.now(), me = S.me || 'ты';
     return [
-      { _src: 'preview', _key: 'pv:1', id: 'pv1', l: 'kotomag', n: 'KotoMag', t: 'кто идёт в шахту? там жила серебра', at: now - 180000, c: 'mage', cn: 'Котомаг', aw: [{ i: '✦', n: 'Первопроходец' }] },
+      { _src: 'preview', _key: 'pv:1', id: 'pv1', l: 'kotomag', n: 'KotoMag', r: 'mod', t: 'кто идёт в шахту? там жила серебра', at: now - 180000, c: 'mage', cn: 'Котомаг', aw: [{ i: '✦', n: 'Первопроходец' }] },
       { _src: 'preview', _key: 'pv:2', id: 'pv2', l: 'rudokop77', n: 'Rudokop77', t: `@${me} пойдём вместе ${[...EM.keys()][0] || 'catJAM'}`, at: now - 120000, c: 'legionary', cn: 'Котоармеец' },
-      { _src: 'preview', _key: 'pv:3', id: 'pv3', l: 'lunnayamysh', n: 'LunnayaMysh', t: `продам медную кирку${CZ_HL[0] ? ' — ' + CZ_HL[0] : ''}`, at: now - 60000, c: 'priest', cn: 'Мурлыка-жрец' },
+      { _src: 'preview', _key: 'pv:3', id: 'pv3', l: 'lunnayamysh', n: 'LunnayaMysh', _fr: true, t: `продам медную кирку${CZ_HL[0] ? ' — ' + CZ_HL[0] : ''}`, at: now - 60000, c: 'priest', cn: 'Мурлыка-жрец' },
     ];
   };
   function czPreview() {
@@ -2379,6 +2390,7 @@ html.pinned.mini #log{padding-bottom:12px}
           ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
         </section>
         <section><h4>Подсветка и фильтр</h4>
+          ${[['hlMod', 'modColor', 'Выделять модераторов и админа чата'], ['hlFriend', 'friendColor', 'Выделять друзей']].map(([k, c, t]) => `<div class="row hlr">${tg(k, t)}<label class="dot pick" title="Цвет выделения" style="background:${esc(CZ[c])}"><input type="color" data-col="${c}" value="${hex2rgb(CZ[c]) ? CZ[c] : '#4f8df0'}" aria-label="Цвет: ${t.toLowerCase()}"></label></div>`).join('')}
           <label class="ta">Подсвечивать сообщения со словами <small>через запятую; твой @ник подсвечивается всегда</small><textarea data-ta="hl" rows="2" maxlength="600" placeholder="например: продам, топаз, поход">${esc(CZ.hl)}</textarea></label>
           <label class="ta">Скрывать сообщения со словами <small>свои сообщения не скрываются</small><textarea data-ta="hide" rows="2" maxlength="600" placeholder="например: спам, реклама">${esc(CZ.hide)}</textarea></label>
         </section>
@@ -2430,6 +2442,7 @@ html.pinned.mini #log{padding-bottom:12px}
       const t = e.target;
       if (t.dataset.rng) { t.nextElementSibling.textContent = t.value + (t.dataset.rng === 'size' || t.dataset.rng === 'emoteSize' ? 'px' : '%'); czSet({ [t.dataset.rng]: +t.value }); }
       if (t.dataset.cz === 'accent') czSet({ accent: t.value });
+      if (t.dataset.col) { czSet({ [t.dataset.col]: t.value }); t.parentElement.style.background = t.value; }
       if (t.dataset.ta) { clearTimeout(taT); taT = setTimeout(() => czSet({ [t.dataset.ta]: t.value }, t.dataset.ta !== 'css'), 350); }
     };
     sp.onchange = async (e) => {
