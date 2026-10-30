@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.1.0
+// @version      3.2.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -266,6 +266,23 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #room .rb{display:inline-block;min-width:16px;padding:0 4px;margin-left:4px;border-radius:8px;background:var(--bad);color:#fff;font-size:10px;line-height:15px;text-align:center}
 #room button[aria-pressed="true"] .rb{background:var(--on-acc);color:var(--acc)}
 #room .rb[hidden],#log li.conv .cu[hidden]{display:none}
+#log li.strip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}
+#log .fchip{display:flex;flex-direction:column;align-items:center;gap:3px;width:58px;flex:none;background:none;border:1px solid transparent;border-radius:10px;padding:4px 2px;cursor:pointer;color:var(--tx);font:11px/1.2 system-ui}
+#log .fchip:hover,#log .fchip:focus-visible{border-color:var(--line);background:var(--hov);outline:none}
+#log .fchip .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font:700 16px system-ui;color:#fff;position:relative}
+#log .fchip .av .on{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;background:var(--ok);border:2px solid var(--bg)}
+#log .fchip .av .cu{position:absolute;right:-6px;top:-4px;min-width:17px;padding:0 4px;border-radius:9px;background:var(--bad);color:#fff;font:700 10px/16px system-ui}
+#log .fchip span.nm{max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#log .fchip.off{opacity:.55}
+#log li.filt{display:flex;gap:4px;flex-wrap:wrap;padding:2px 0 2px}
+#log li.filt button{background:none;color:var(--mut);border:1px solid transparent;border-radius:6px;padding:2px 9px;font:600 12px system-ui;cursor:pointer}
+#log li.filt button[aria-pressed="true"]{color:var(--acc-tx);border-color:var(--line);background:var(--panel)}
+#log li.sec .gift{float:right;all:unset;float:right;cursor:pointer;color:var(--acc-tx);font:600 11px system-ui;text-transform:none;letter-spacing:0}
+#log li.sec{overflow:hidden}
+.coin{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;cursor:pointer;line-height:1.4}
+.coin[aria-disabled="true"]{opacity:.4;cursor:default;filter:grayscale(1)}
+#log .frm,#log li.conv .cv b .frm{display:inline;font-size:11px;margin-left:2px;opacity:.8;color:inherit}
+#dmbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:2px 8px;font:600 11px system-ui;cursor:pointer;margin-left:6px}
 #pmtoast{position:fixed;left:8px;right:8px;top:8px;z-index:60;display:flex;gap:8px;align-items:center;background:var(--panel);color:var(--tx);border:1px solid var(--acc);border-radius:10px;padding:8px 8px 8px 12px;box-shadow:0 10px 28px -12px rgba(0,0,0,.6);font-size:13px;cursor:pointer}
 #pmtoast[hidden]{display:none}
 #pmtoast span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -324,6 +341,7 @@ footer{flex:none;border-top:1px solid var(--line);background:var(--panel);paddin
 .mm .row button{padding:2px 7px;border-color:var(--line);font-size:12px}
 .mm .row input{width:58px;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:2px 5px;font:inherit;font-size:12px}
 .mm .danger{color:var(--bad)}
+.mm button:disabled{opacity:.6;cursor:default}
 .mm .danger.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
 #mp{display:none;flex-direction:column;gap:8px;max-height:min(340px,50vh);overflow-y:auto;margin:0 0 8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px}
 #mp.on{display:flex}
@@ -941,7 +959,7 @@ html.pinned.mini #log{padding-bottom:12px}
   S.pm = {
     conv: new Map(), more: new Map(), loaded: new Set(), loading: new Set(), last: {}, read: {}, names: {}, un: new Map(), total: 0,
     peer: null, drafts: {}, ban: null, es: null, esKey: '', esOk: false, esFails: 0, esT: 0, fbT: 0, boot: '', fr: null, frState: new Map(),
-    filter: '', rep: false, toastT: 0, notify: false, sureT: 0,
+    filter: '', rep: false, toastT: 0, notify: false, sureT: 0, frT: 0, frOnline: null, view: 'all', frAlert: true,
     blocked: (l) => S.pm.frState.get(String(l || '').toLowerCase()) === 'blocked',
   };
   const PM_MAX = 300, MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -955,25 +973,30 @@ html.pinned.mini #log{padding-bottom:12px}
   const pmNorm = (m) => ({ id: String(m.id), fl: String(m.fl || m.l || '').toLowerCase(), fn: m.fn || m.n || m.fl || m.l, tl: String(m.tl || m.to || '').toLowerCase(), t: String(m.t ?? ''), at: +m.at || Date.now(), old: !!m.old });
   const pmPeerOf = (m) => (m.fl === S.me ? m.tl : m.fl);
   const pmSave = () => { lsSet(pmKey('last'), S.pm.last); lsSet(pmKey('read'), S.pm.read); lsSet(pmKey('names'), S.pm.names); };
+  const pmSaveDrafts = () => { const d = {}; for (const [k, v] of Object.entries(S.pm.drafts)) if (v && v.trim()) d[k] = v.slice(0, 200); lsSet(pmKey('drafts'), d); };
 
   function pmReset() {
     const P = S.pm;
     if (P.es) { try { P.es.close(); } catch {} }
-    clearTimeout(P.esT); clearInterval(P.fbT); clearTimeout(P.toastT);
+    clearTimeout(P.esT); clearInterval(P.fbT); clearTimeout(P.toastT); clearInterval(P.frT);
     Object.assign(P, { conv: new Map(), more: new Map(), loaded: new Set(), loading: new Set(), last: {}, read: {}, names: {}, un: new Map(), total: 0,
-      peer: null, drafts: {}, ban: null, es: null, esKey: '', esOk: false, esFails: 0, fbT: 0, boot: '', fr: null, frState: new Map(), filter: '', rep: false });
+      peer: null, drafts: {}, ban: null, es: null, esKey: '', esOk: false, esFails: 0, fbT: 0, boot: '', fr: null, frState: new Map(), filter: '', rep: false, frT: 0, frOnline: null });
     pmBadge();
   }
 
   function pmInit() {
     S.pm.notify = lsGet('lgmc_pm_notify', false) && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+    S.pm.view = lsGet('lgmc_pm_view', 'all'); S.pm.frAlert = lsGet('lgmc_pm_fralert', true);
+    nickMenuInit();
     S.el.pmtoast = document.getElementById('pmtoast');
     S.el.pmtoast.addEventListener('click', (e) => {
-      const p = S.el.pmtoast.dataset.peer; S.el.pmtoast.hidden = true;
-      if (e.target.closest('.x') || !p) return;
-      pmOpen(p);
+      const p = S.el.pmtoast.dataset.peer, w = S.el.pmtoast.dataset.where; S.el.pmtoast.hidden = true;
+      if (e.target.closest('.x')) return;
+      if (w === 'list') { S.pm.peer = null; if (S.room !== 'pm') switchTo(S.ch, 'pm'); else pmRender(); return; }
+      if (p) pmOpen(p);
     });
-    S.el.inp.addEventListener('input', () => { if (S.room === 'pm' && S.pm.peer) S.pm.drafts[S.pm.peer] = S.el.inp.value; });
+    let dT = 0;
+    S.el.inp.addEventListener('input', () => { if (S.room === 'pm' && S.pm.peer) { S.pm.drafts[S.pm.peer] = S.el.inp.value; clearTimeout(dT); dT = setTimeout(pmSaveDrafts, 400); } });
     S.el.log.addEventListener('scroll', () => {   // долистал до верха переписки — подгрузить раньше
       if (S.room === 'pm' && S.pm.peer && S.el.log.scrollTop < 40 && S.pm.more.get(S.pm.peer)) pmLoad(S.pm.peer, true);
     });
@@ -986,7 +1009,7 @@ html.pinned.mini #log{padding-bottom:12px}
     if (S.pm.boot === key) { pmConnect(); return; }
     pmReset(); S.pm.boot = key;
     const P = S.pm;
-    P.last = lsGet(pmKey('last'), {}) || {}; P.read = lsGet(pmKey('read'), {}) || {}; P.names = lsGet(pmKey('names'), {}) || {};
+    P.last = lsGet(pmKey('last'), {}) || {}; P.read = lsGet(pmKey('read'), {}) || {}; P.names = lsGet(pmKey('names'), {}) || {}; P.drafts = lsGet(pmKey('drafts'), {}) || {};
     // вкладки собеседников из лички самой игры
     const g = lsGet(`lgDm:${S.ch}:${S.me}`, null);
     for (const l of (g && Array.isArray(g.tabs) ? g.tabs : []).map(nickOf).filter((x) => x && x !== S.me)) if (!P.last[l]) P.last[l] = { at: 0, t: '', mine: false };
@@ -1004,6 +1027,7 @@ html.pinned.mini #log{padding-bottom:12px}
     }
     pmConnect();
     friendsLoad();
+    P.frT = setInterval(() => { if (!hidden()) friendsLoad(); }, 60000);
     // превью и непрочитанные: подгрузить несколько свежих диалогов по очереди
     const recent = Object.keys(P.last).sort((a, b) => (P.last[b].at || 0) - (P.last[a].at || 0)).slice(0, 10);
     (async () => { for (const l of recent) { if (S.pm.boot !== key) return; await pmLoad(l); } })();
@@ -1030,7 +1054,12 @@ html.pinned.mini #log{padding-bottom:12px}
     es.addEventListener('fr', (e) => {
       let d = null; try { d = JSON.parse(e.data); } catch {}
       friendsLoad();
-      if (d && (d.k === 'req' || d.k === 'in') && d.u) pmToast(nickOf(d.u.login), `👥 ${d.u.name || d.u.login} хочет в друзья`, 'Открыть');
+      const u = d && d.from, l = u && nickOf(u.login), nm = u && (u.name || u.login);
+      if (!l) return;
+      if (u.name) S.pm.names[l] = u.name;
+      if (d.k === 'in') pmToast(l, `👥 ${nm} зовёт тебя в друзья`, 'Открыть', 'list');
+      if (d.k === 'ok') pmToast(l, `👥 ${nm} принял заявку — теперь вы друзья`, 'Написать');
+      if (d.k === 'coin') pmToast(l, `🪙 ${nm} подарил тебе монету дня: +1 бронза`, 'Спасибо!');
     });
   }
   // без канала событий: раз в 15 с переспрашивать открытый диалог и пару свежих
@@ -1130,10 +1159,10 @@ html.pinned.mini #log{padding-bottom:12px}
   }
 
   // всплывашка о новом личном в любой комнате
-  function pmToast(l, text, btn) {
+  function pmToast(l, text, btn, where) {
     if (!l || !S.el.pmtoast) return;
     const t = S.el.pmtoast;
-    t.dataset.peer = l;
+    t.dataset.peer = where === 'list' ? '' : l; t.dataset.where = where || '';
     t.innerHTML = `<span>${esc(text)}</span><button type="button">${esc(btn || 'Открыть')}</button><button type="button" class="x" aria-label="Скрыть">✕</button>`;
     t.hidden = false;
     clearTimeout(S.pm.toastT); S.pm.toastT = setTimeout(() => { t.hidden = true; }, 8000);
@@ -1195,7 +1224,7 @@ html.pinned.mini #log{padding-bottom:12px}
     if (!show) { bar.innerHTML = ''; return; }
     if (!P.peer) {
       const bell = typeof Notification !== 'undefined';
-      bar.innerHTML = `<form autocomplete="off" style="flex:1;display:flex;gap:6px;min-width:0"><input id="pmq" maxlength="26" placeholder="Найти или написать: ник" aria-label="Найти диалог или написать по нику" value="${esc(P.filter)}"><button type="submit">Написать</button></form>${bell ? `<span class="acts"><button type="button" class="bell" data-pa="bell" aria-pressed="${P.notify}" title="${P.notify ? 'Уведомления на рабочем столе включены' : 'Уведомлять на рабочем столе о новых личных'}">🔔</button></span>` : ''}`;
+      bar.innerHTML = `<form autocomplete="off" style="flex:1;display:flex;gap:6px;min-width:0"><input id="pmq" maxlength="26" placeholder="Найти или написать: ник" aria-label="Найти диалог или написать по нику" value="${esc(P.filter)}"><button type="submit">Написать</button></form>${bell ? `<span class="acts"><button type="button" class="bell" data-pa="bell" aria-pressed="${P.notify}" title="${P.notify ? 'Уведомления на рабочем столе включены' : 'Уведомлять на рабочем столе о новых личных'}">🔔</button></span>` : ''}${S.meFriends ? `<span class="acts"><button type="button" class="bell" data-pa="fralert" aria-pressed="${P.frAlert}" title="${P.frAlert ? 'Сообщаю, когда друзья заходят в игру' : 'Не сообщаю, когда друзья заходят в игру'}">🟢</button></span>` : ''}`;
       const inp = bar.querySelector('#pmq');
       inp.oninput = () => { P.filter = inp.value; pmRender(); const i = S.el.dmbar.querySelector('#pmq'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } };
       bar.querySelector('form').onsubmit = (e) => {
@@ -1205,6 +1234,8 @@ html.pinned.mini #log{padding-bottom:12px}
         if (v === S.me) { S.el.err.textContent = 'Самому себе написать нельзя'; return; }
         P.filter = ''; pmOpen(v);
       };
+      const fa = bar.querySelector('[data-pa="fralert"]');
+      if (fa) fa.onclick = () => { P.frAlert = !P.frAlert; lsSet('lgmc_pm_fralert', P.frAlert); pmBar(); okMsg(P.frAlert ? 'Скажу, когда друзья зайдут в игру' : 'Не буду говорить, когда друзья заходят'); };
       const bb = bar.querySelector('[data-pa="bell"]');
       if (bb) bb.onclick = async () => {
         if (P.notify) { P.notify = false; lsSet('lgmc_pm_notify', false); pmBar(); return; }
@@ -1216,7 +1247,11 @@ html.pinned.mini #log{padding-bottom:12px}
       return;
     }
     const l = P.peer, st = P.frState.get(l), f = pmFriend(l);
-    const status = f ? (f.on ? `<small class="on">● ${esc(f.on.t || 'в сети')}${f.on.ch && f.on.ch !== S.ch ? ' · ' + esc(f.on.ch) : ''}</small>` : '<small>не в сети</small>')
+    // друг в шахте или в городе — можно перейти в тот же чат
+    const goRoom = f && f.on ? (f.on.w === 'mine' ? 'mine' : f.on.w === 'city' ? 'city' : null) : null;
+    const goCh = f && f.on && nickOf(f.on.ch) ? nickOf(f.on.ch) : S.ch;
+    const go = goRoom ? `<button type="button" class="go" data-pa="go" data-room="${goRoom}" data-ch="${esc(goCh)}" title="Открыть чат ${goRoom === 'mine' ? 'шахты' : 'города'}${goCh !== S.ch ? ' канала ' + esc(goCh) : ''}">${goRoom === 'mine' ? '⛏' : '🏰'} туда</button>` : '';
+    const status = f ? (f.on ? `<small class="on">● ${esc(f.on.t || 'в сети')}${f.on.ch && f.on.ch !== S.ch ? ' · ' + esc(f.on.ch) : ''}${go}</small>` : '<small>не в сети</small>')
       : st === 'blocked' ? '<small>заблокирован</small>' : st === 'out' ? '<small>заявка в друзья отправлена</small>' : st === 'in' ? '<small>хочет в друзья</small>' : '<small>Читаете только вы двое</small>';
     if (P.rep) {
       bar.innerHTML = `<form class="rep" autocomplete="off"><p>Пожаловаться на ${esc(pmName(l))}? Модераторы канала увидят последние 30 сообщений вашей переписки.</p><input id="pmr" maxlength="300" placeholder="Что случилось (можно пусто)" aria-label="Причина жалобы"><div><button type="button" data-pa="norep">Отмена</button><button type="submit" class="pbtn">Отправить жалобу</button></div></form>`;
@@ -1232,11 +1267,14 @@ html.pinned.mini #log{padding-bottom:12px}
     }
     const fr = S.meFriends ? (st === 'friends' ? '' : st === 'out' ? '' : st === 'in' ? '<button type="button" data-pa="accept" title="Принять заявку в друзья">👥 Принять</button>' : st === 'blocked' ? '' : '<button type="button" data-pa="add" title="Добавить в друзья">👥＋</button>') : '';
     const blk = S.meFriends ? (st === 'blocked' ? '<button type="button" data-pa="unblock">Разблокировать</button>' : '<button type="button" data-pa="block" title="Заблокировать — не сможет писать тебе">🚫</button>') : '';
-    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:hsl(${hue(l)} var(--ns) var(--nl))">${esc(pmName(l))}</b>${status}</span></span><span class="acts">${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
+    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:hsl(${hue(l)} var(--ns) var(--nl))">${esc(pmName(l))}${f ? ' <span class="frm" title="Друг">👥</span>' : ''}</b>${status}</span></span><span class="acts">${f ? coinBtn(f) : ''}${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
     bar.onclick = async (e) => {
+      const cn = e.target.closest('[data-coin]');
+      if (cn) { if (cn.getAttribute('aria-disabled') !== 'true') { cn.setAttribute('aria-disabled', 'true'); giveCoin(cn.dataset.coin); } return; }
       const b = e.target.closest('[data-pa]'); if (!b) return;
       const a = b.dataset.pa;
       if (a === 'back') return pmBack();
+      if (a === 'go') { if (S.pm.peer) { S.pm.drafts[S.pm.peer] = S.el.inp.value; pmSaveDrafts(); } return switchTo(b.dataset.ch, b.dataset.room); }
       if (a === 'report') { P.rep = true; return pmBar(); }
       if (a === 'block' && !b.classList.contains('sure')) {   // блок — в два нажатия
         b.classList.add('sure'); b.textContent = 'Точно заблокировать?';
@@ -1249,6 +1287,13 @@ html.pinned.mini #log{padding-bottom:12px}
 
   function pmClick(e) {
     const P = S.pm;
+    const cn = e.target.closest('[data-coin]');
+    if (cn) { if (cn.getAttribute('aria-disabled') !== 'true') { cn.setAttribute('aria-disabled', 'true'); giveCoin(cn.dataset.coin); } return; }
+    if (e.target.closest('[data-pa="giftall"]')) { giveCoin(null); return; }
+    const pv = e.target.closest('[data-pv]');
+    if (pv) { P.view = pv.dataset.pv; lsSet('lgmc_pm_view', P.view); pmRender(); return; }
+    const fc = e.target.closest('.fchip');
+    if (fc) { pmOpen(fc.dataset.peer, fc.dataset.n); return; }
     const fa = e.target.closest('[data-fa]');
     if (fa) { const li = fa.closest('[data-peer]'); if (li) { fa.disabled = true; friendAct(fa.dataset.fa, li.dataset.peer); } return; }
     if (e.target.closest('[data-pa="older"]')) { pmLoad(P.peer, true); return; }
@@ -1269,7 +1314,18 @@ html.pinned.mini #log{padding-bottom:12px}
       const q = P.filter.trim().toLowerCase().replace(/^@/, '');
       const match = (l) => !q || l.includes(q) || pmName(l).toLowerCase().includes(q);
       const fr = P.fr;
-      if (fr && fr.in && fr.in.length && !q) {
+      const isFr = (l) => P.frState.get(l) === 'friends';
+      // полоса друзей: кто в сети — первыми, клик — сразу в переписку
+      const fl = fr && fr.friends ? fr.friends.map((u) => Object.assign({}, u, { l: nickOf(u.login) })).filter((u) => u.l) : [];
+      fl.sort((a, b) => (b.on ? 1 : 0) - (a.on ? 1 : 0) || ((P.last[b.l] || {}).at || 0) - ((P.last[a.l] || {}).at || 0) || pmName(a.l).localeCompare(pmName(b.l)));
+      if (fl.length && !q) {
+        li('strip', fl.map((u) => { const un = P.un.get(u.l) || 0; return `<button type="button" class="fchip${u.on ? '' : ' off'}" data-peer="${esc(u.l)}" data-n="${esc(pmName(u.l))}" title="${esc(pmName(u.l))} — ${u.on ? esc(u.on.t || 'в сети') : 'не в сети'}"><span class="av" style="background:hsl(${hue(u.l)} 45% 42%)" aria-hidden="true">${esc((pmName(u.l)[0] || '?').toUpperCase())}${u.on ? '<i class="on"></i>' : ''}${un ? `<i class="cu">${un > 99 ? '99+' : un}</i>` : ''}</span><span class="nm">${esc(pmName(u.l))}</span></button>`; }).join(''), { role: 'list', 'aria-label': 'Друзья' });
+      }
+      const anyUn = [...P.un.values()].some(Boolean);
+      if (!q && (fl.length || anyUn)) li('filt', [['all', 'Все'], ['fr', 'Друзья'], ['un', 'Непрочитанные']].map(([k, t]) => `<button type="button" data-pv="${k}" aria-pressed="${P.view === k}">${t}</button>`).join(''), { role: 'group', 'aria-label': 'Показывать' });
+      const view = q ? 'all' : P.view;
+      const inView = (l) => view === 'all' || (view === 'fr' && isFr(l)) || (view === 'un' && (P.un.get(l) || 0) > 0);
+      if (fr && fr.in && fr.in.length && !q && view !== 'un') {
         li('sec', 'Заявки в друзья');
         for (const u of fr.in) {
           const l = nickOf(u.login); if (!l) continue;
@@ -1277,29 +1333,30 @@ html.pinned.mini #log{padding-bottom:12px}
           li('conv', `${avatar(l)}<span class="cv"><b>${esc(pmName(l))}</b><span>хочет добавить тебя в друзья</span></span><span class="acts"><button type="button" class="ok" data-fa="accept">Принять</button><button type="button" data-fa="decline">Отклонить</button></span>`, { 'data-peer': l, 'data-n': pmName(l) });
         }
       }
-      const peers = Object.keys(P.last).filter((l) => nickOf(l) && l !== S.me && !P.blocked(l) && match(l))
+      const peers = Object.keys(P.last).filter((l) => nickOf(l) && l !== S.me && !P.blocked(l) && match(l) && inView(l))
         .sort((a, b) => ((P.un.get(b) ? 1 : 0) - (P.un.get(a) ? 1 : 0)) || ((P.last[b].at || 0) - (P.last[a].at || 0)));
-      if (peers.length) li('sec', 'Диалоги');
+      if (peers.length) li('sec', view === 'fr' ? 'Переписка с друзьями' : view === 'un' ? 'Непрочитанные' : 'Диалоги');
       for (const l of peers) {
         const x = P.last[l], u = P.un.get(l) || 0, fd = pmFriend(l);
         const prev = x.t ? `${x.mine ? 'Ты: ' : ''}${esc(x.t)}` : (P.drafts[l] ? `Черновик: ${esc(P.drafts[l])}` : 'Нет сообщений — напиши первым');
-        li('conv', `<span class="av" style="background:hsl(${hue(l)} 45% 42%)" aria-hidden="true">${esc((pmName(l)[0] || '?').toUpperCase())}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:hsl(${hue(l)} var(--ns) var(--nl))">${esc(pmName(l))}</b><span>${prev}</span></span>${x.at ? `<span class="ct">${shortTime(x.at)}</span>` : ''}${u ? `<span class="cu">${u > 99 ? '99+' : u}</span>` : ''}`,
+        li('conv', `<span class="av" style="background:hsl(${hue(l)} 45% 42%)" aria-hidden="true">${esc((pmName(l)[0] || '?').toUpperCase())}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:hsl(${hue(l)} var(--ns) var(--nl))">${esc(pmName(l))}${isFr(l) ? ' <span class="frm" title="Друг">👥</span>' : ''}</b><span>${prev}</span></span>${x.at ? `<span class="ct">${shortTime(x.at)}</span>` : ''}${u ? `<span class="cu">${u > 99 ? '99+' : u}</span>` : ''}`,
           { tabindex: '0', 'data-peer': l, 'data-n': pmName(l), 'aria-label': `Диалог с ${pmName(l)}${u ? `, непрочитанных: ${u}` : ''}` });
       }
-      const friends = fr && fr.friends ? fr.friends.map((u) => Object.assign({}, u, { l: nickOf(u.login) })).filter((u) => u.l && !P.last[u.l] && match(u.l)) : [];
+      const friends = view === 'un' ? [] : fl.filter((u) => !P.last[u.l] && match(u.l));
       friends.sort((a, b) => (b.on ? 1 : 0) - (a.on ? 1 : 0) || pmName(a.l).localeCompare(pmName(b.l)));
-      if (friends.length) li('sec', `Друзья${fr.friends ? ` · ${fr.friends.length}${fr.max ? '/' + fr.max : ''}` : ''}`);
+      const canGift = fl.filter((u) => u.coin === 'ok').length;
+      if (friends.length || (canGift && view !== 'un' && !q)) li('sec', `Друзья${fr.friends ? ` · ${fr.friends.length}${fr.max ? '/' + fr.max : ''}` : ''}${canGift > 1 ? `<button type="button" class="gift" data-pa="giftall" title="Подарить монету дня всем, кому можно">🪙 Подарить всем (${canGift})</button>` : ''}`);
       for (const u of friends) {
         if (u.name) P.names[u.l] = u.name;
-        li('conv', `<span class="av" style="background:hsl(${hue(u.l)} 45% 42%)" aria-hidden="true">${esc((pmName(u.l)[0] || '?').toUpperCase())}${u.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:hsl(${hue(u.l)} var(--ns) var(--nl))">${esc(pmName(u.l))}</b><span class="${u.on ? 'st' : ''}">${u.on ? esc(u.on.t || 'в сети') + (u.on.ch && u.on.ch !== S.ch ? ' · ' + esc(u.on.ch) : '') : 'не в сети'}</span></span><span class="ct">✉</span>`,
+        li('conv', `<span class="av" style="background:hsl(${hue(u.l)} 45% 42%)" aria-hidden="true">${esc((pmName(u.l)[0] || '?').toUpperCase())}${u.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:hsl(${hue(u.l)} var(--ns) var(--nl))">${esc(pmName(u.l))}</b><span class="${u.on ? 'st' : ''}">${u.on ? esc(u.on.t || 'в сети') + (u.on.ch && u.on.ch !== S.ch ? ' · ' + esc(u.on.ch) : '') : 'не в сети'}</span></span><span class="acts">${coinBtn(u)}</span>`,
           { tabindex: '0', 'data-peer': u.l, 'data-n': pmName(u.l), 'aria-label': `Написать ${pmName(u.l)}` });
       }
       const blocks = fr && fr.blocks ? fr.blocks.map((u) => Object.assign({}, u, { l: nickOf(u.login) })).filter((u) => u.l) : [];
-      if (blocks.length && !q) {
+      if (blocks.length && !q && view === 'all') {
         li('sec', `<button type="button" data-pa="blocks" style="all:unset;cursor:pointer">${P.showBlocks ? '▾' : '▸'} Заблокированные · ${blocks.length}</button>`);
         if (P.showBlocks) for (const u of blocks) li('conv', `${avatar(u.l)}<span class="cv"><b>${esc(u.name || u.l)}</b><span>не может писать тебе</span></span><span class="acts"><button type="button" data-fa="unblock">Разблокировать</button></span>`, { 'data-peer': u.l });
       }
-      if (!f.childNodes.length) li('pm0', q ? `<b>Никого не нашлось</b>Нажми «Написать», чтобы начать диалог с <b style="display:inline">${esc(q)}</b>.` : '<b>Личных пока нет</b>Нажми ✉ у ника в чате шахты или города, впиши ник выше или напиши в поле внизу «@ник текст».');
+      if (!f.querySelector('li.conv')) li('pm0', view === 'un' && !q ? '<b>Всё прочитано</b>Новых личных нет.' : view === 'fr' && !q ? (fl.length ? '<b>С друзьями пока не переписывались</b>Нажми на друга в полосе сверху.' : '<b>Друзей пока нет</b>Добавить в друзья: правый клик по нику в чате или 👥＋ в переписке.') : q ? `<b>Никого не нашлось</b>Нажми «Написать», чтобы начать диалог с <b style="display:inline">${esc(q)}</b>.` : '<b>Личных пока нет</b>Нажми ✉ у ника в чате шахты или города, впиши ник выше или напиши в поле внизу «@ник текст».');
     } else {
       // ---- переписка: пузыри, дни, «показать раньше» ----
       const l = P.peer, L = P.conv.get(l) || [];
@@ -1336,7 +1393,7 @@ html.pinned.mini #log{padding-bottom:12px}
       const msg = r.msg || { id: 'local:' + Date.now(), fl: S.me, fn: S.me, tl: to, t: text, at: Date.now() };
       pmEvent({ m: msg });
       if (tg === 'pm') {
-        S.el.inp.value = ''; delete P.drafts[to];
+        S.el.inp.value = ''; delete P.drafts[to]; pmSaveDrafts();
         if (P.peer !== to) await pmOpen(to); else pmRender(true);
       } else S.el.inp.value = `@${to} `;
     } else {
@@ -1363,13 +1420,87 @@ html.pinned.mini #log{padding-bottom:12px}
     const key = S.pm.boot;
     let r = null; try { r = await api('/api/friends'); } catch {}
     if (!r || !r.ok || S.pm.boot !== key) return;
-    const P = S.pm; P.fr = r; P.frState = new Map();
+    const P = S.pm;
+    // друг зашёл в игру (был не в сети) — сказать, если включено
+    const online = new Map((r.friends || []).filter((u) => u.on).map((u) => [String(u.login).toLowerCase(), u]));
+    if (P.frOnline && P.frAlert) for (const [l, u] of online) if (!P.frOnline.has(l)) {
+      pmToast(l, `🟢 ${u.name || u.login} в сети — ${u.on.t || 'в игре'}`, 'Написать');
+      if (P.notify && hidden()) try { const n = new Notification(`🟢 ${u.name || u.login} в сети`, { body: u.on.t || '', tag: 'lgmc-on-' + l }); n.onclick = () => { try { window.focus(); } catch {} pmOpen(l); n.close(); }; } catch {}
+    }
+    P.frOnline = new Set(online.keys());
+    const sig0 = [...P.frState].filter(([, v]) => v === 'friends').map(([k]) => k).sort().join(',');
+    P.fr = r; P.frState = new Map();
     for (const u of r.friends || []) P.frState.set(String(u.login).toLowerCase(), 'friends');
     for (const u of r.out || []) P.frState.set(String(u.login).toLowerCase(), 'out');
     for (const u of r.in || []) P.frState.set(String(u.login).toLowerCase(), 'in');
     for (const u of r.blocks || []) P.frState.set(String(u.login).toLowerCase(), 'blocked');
     for (const u of [...(r.friends || []), ...(r.in || []), ...(r.out || [])]) { const l = nickOf(u.login); if (l && u.name) P.names[l] = u.name; }
+    const sig1 = [...P.frState].filter(([, v]) => v === 'friends').map(([k]) => k).sort().join(',');
     if (S.room === 'pm') pmRender();
+    else if (sig0 !== sig1 && S.list.length) { const keep = S.stick; renderLog(); if (keep) toBottom(); }   // список друзей изменился — отметки 👥 у ников
+  }
+  const COIN_T = { given: 'Сегодня уже подарил — завтра снова', young: 'Дружбе меньше суток — завтра можно', dead: 'Герой друга пал — монета только живым', nohero: 'У друга нет героя на этом канале' };
+  const coinBtn = (u) => { const ok = u.coin === 'ok', t = ok ? `Монета дня: подарить ${u.name || u.login} 1 бронзовую` : COIN_T[u.coin] || 'Сейчас нельзя'; return `<button type="button" class="coin" data-coin="${esc(u.id)}"${ok ? '' : ' aria-disabled="true"'} title="${esc(t)}" aria-label="${esc(t)}">🪙</button>`; };
+  async function giveCoin(id) {
+    const P = S.pm, rid = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    let r = null; try { r = await api('/api/friends/coin', id ? { to: id, rid } : { all: 1, rid }); } catch {}
+    if (!r || !r.ok) { S.el.err.textContent = 'Монета дня: ' + ((r && ({ rate_limited: 'слишком часто — подожди минуту' }[r.error] || r.error)) || 'нет связи'); return; }
+    if (P.fr) for (const f of P.fr.friends || []) if ((r.to || (id ? [id] : [])).includes(f.id)) f.coin = 'given';   // сразу серая, игра подтвердит
+    okMsg(r.n > 1 ? `Дарим монету дня: ${r.n} друзьям…` : 'Дарим монету дня…');
+    if (S.room === 'pm') pmRender();
+    setTimeout(friendsLoad, 3000);
+  }
+  function nickMenuInit() {
+    let lpT = 0;
+    const target = (e) => { const n = e.target.closest && e.target.closest('#log .n[data-l]'); return n && S.room !== 'pm' ? n : null; };
+    S.el.log.addEventListener('contextmenu', (e) => { const n = target(e); if (!n) return; e.preventDefault(); nickMenu(n); });
+    S.el.log.addEventListener('pointerdown', (e) => {   // телефон: долгое нажатие
+      if (e.pointerType !== 'touch') return; const n = target(e); if (!n) return;
+      clearTimeout(lpT); lpT = setTimeout(() => nickMenu(n), 550);
+    });
+    for (const ev of ['pointerup', 'pointercancel', 'pointermove']) S.el.log.addEventListener(ev, () => clearTimeout(lpT));
+  }
+  function nickMenu(from) {
+    modMenuClose(); nickMenuClose();
+    const l = nickOf(from.dataset.l); if (!l || l === S.me) return;
+    const doc = from.ownerDocument, st = S.pm.frState.get(l), name = from.textContent || l, f = pmFriend(l);
+    const items = [];
+    if (S.flags.dm && st !== 'blocked') items.push(['dm', '✉ Написать лично']);
+    items.push(['reply', '↩ Ответить в этом чате']);
+    if (S.meFriends) {
+      if (st === 'friends') items.push(['', `👥 В друзьях${f && f.on ? ' · ' + (f.on.t || 'в сети') : ''}`, true]);
+      else if (st === 'out') items.push(['', '👥 Заявка отправлена', true]);
+      else if (st === 'in') items.push(['accept', '👥 Принять в друзья']);
+      else if (st !== 'blocked') items.push(['add', '👥 Добавить в друзья']);
+      if (f && f.coin) items.push(['coin', f.coin === 'ok' ? '🪙 Подарить монету дня' : '🪙 ' + (COIN_T[f.coin] || 'Монета дня — сейчас нельзя'), f.coin !== 'ok']);
+      items.push(st === 'blocked' ? ['unblock', '✅ Разблокировать'] : ['block', '🚫 Заблокировать']);
+    }
+    const el = doc.createElement('div'); el.className = 'mm'; el.setAttribute('role', 'menu');
+    el.innerHTML = `<div class="mh">${esc(name)}<small>${st === 'friends' ? 'друг' : st === 'blocked' ? 'заблокирован' : 'игрок'}</small></div>` +
+      items.map(([k, t, off]) => `<button type="button" role="menuitem" data-k="${k}"${off ? ' disabled' : ''}${k === 'block' ? ' class="danger"' : ''}>${esc(t)}</button>`).join('');
+    doc.body.appendChild(el);
+    const r = from.getBoundingClientRect(), vw = doc.defaultView.innerWidth, vh = doc.defaultView.innerHeight, w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.max(8, Math.min(r.left, vw - w - 8)) + 'px';
+    el.style.top = (r.bottom + 4 + h > vh - 8 ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+    el.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-k]'); if (!b || b.disabled) return;
+      const k = b.dataset.k;
+      if (k === 'block' && !b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = 'Точно заблокировать?'; return; }
+      nickMenuClose();
+      if (k === 'dm') return pmOpen(l, name);
+      if (k === 'reply') { S.el.inp.value = `@${l} ` + S.el.inp.value.replace(/^@\S+\s*/, ''); S.el.inp.focus(); return; }
+      if (k === 'coin' && f) return giveCoin(f.id);
+      await friendAct(k, l);
+    });
+    const out = (e) => { if (!el.contains(e.target)) nickMenuClose(); };
+    const key = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nickMenuClose(); } };
+    setTimeout(() => { doc.addEventListener('pointerdown', out, true); doc.addEventListener('keydown', key, true); }, 0);
+    S.nmenu = { el, doc, out, key };
+    const first = el.querySelector('button:not([disabled])'); if (first) first.focus();
+  }
+  function nickMenuClose() {
+    const m = S.nmenu; if (!m) return; S.nmenu = null;
+    m.el.remove(); m.doc.removeEventListener('pointerdown', m.out, true); m.doc.removeEventListener('keydown', m.key, true);
   }
   const FR_DONE = { add: 'заявка в друзья отправлена', accept: 'теперь вы друзья', decline: 'заявка отклонена', cancel: 'заявка отменена', remove: 'удалён из друзей', block: 'заблокирован', unblock: 'разблокирован' };
   async function friendAct(op, l) {
@@ -1711,6 +1842,7 @@ html.pinned.mini #log{padding-bottom:12px}
     const to = msg.k === 'dm' && msg.to ? ` <span class="to" title="Личное">→ <span class="n" data-l="${esc(String(msg.to).toLowerCase())}">${esc(msg.to)}</span></span>` : '';
     li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:hsl(${hue(l)} var(--ns) var(--nl))" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(text)}`;
     const nEl = li.querySelector('.n[data-l]');
+    if (nEl && l && S.pm.frState.get(l) === 'friends') nEl.insertAdjacentHTML('afterend', '<span class="frm" title="Друг">👥</span>');
     if (nEl && S.flags.dm && S.me && l && l !== S.me && S.room !== 'pm' && !S.pm.blocked(l)) {
       const d = document.createElement('button');
       d.type = 'button'; d.className = 'dmb'; d.textContent = '✉'; d.dataset.l = l; d.dataset.n = msg.n || msg.l;
