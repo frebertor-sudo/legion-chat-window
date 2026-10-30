@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.10.1
+// @version      3.10.2
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -2523,7 +2523,7 @@ html.pinned.mini #log{padding-bottom:12px}
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#17130e', panel: '#211b14', me: '#3a2d14', hov: '#2b241b' }, light: { bg: '#fbf7ef', panel: '#f1e9da', me: '#fbe7bd', hov: '#e9dec9' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -2576,6 +2576,8 @@ html.pinned.mini #log{padding-bottom:12px}
     if (CZ.density === 'airy') css += `:is(#log,#pvlog) li{padding-top:6px;padding-bottom:6px}:is(#log,#pvlog) li+li{margin-top:3px}`;
     if (!CZ.time) css += `:is(#log,#pvlog) .t{display:none}`;
     if (!CZ.icons) css += `:is(#log,#pvlog) li>span[title]:not(.aw):not(.n):not(.to):not(.src):not(.frm){display:none}`;
+    // полоса прокрутки: по умолчанию спрятана везде в окне чата (колесо, тач и клавиши листают как раньше)
+    if (!CZ.scrollbar) css += `*{scrollbar-width:none}*::-webkit-scrollbar{display:none;width:0;height:0}`;
     if (!CZ.awards) css += `:is(#log,#pvlog) .aw{display:none}`;
     if (!CZ.nickColor) css += `:is(#log,#pvlog) .n{color:var(--tx)!important}`;
     css += `html:not(.pinned) :is(#log,#pvlog) img.em{height:${Math.max(18, Math.min(56, +CZ.emoteSize || 28))}px}`;
@@ -2688,7 +2690,7 @@ html.pinned.mini #log{padding-bottom:12px}
           <div class="lbl">Плотность</div><div class="seg2">${[['compact', 'Плотно'], ['normal', 'Обычно'], ['airy', 'Свободно']].map(([k, t]) => `<button type="button" data-den="${k}" aria-pressed="${CZ.density === k}">${t}</button>`).join('')}</div>
         </section>
         <section><h4>Сообщения</h4>
-          ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}
+          ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}${tg('scrollbar', 'Полоса прокрутки')}
           ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
         </section>
         <section><h4>Подсветка и фильтр</h4>
