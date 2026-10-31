@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.15.3
+// @version      3.16.0.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -728,6 +728,7 @@ html.pinned.mini #log{padding-bottom:12px}
 #sp .keys{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;margin:0}
 #sp .keys dt{font-family:ui-monospace,monospace;color:var(--acc-tx)}#sp .keys dd{margin:0;color:var(--mut)}
 #sp .ign{display:flex;flex-direction:column;gap:4px}#sp .ign div{display:flex;align-items:center;gap:8px;font-size:13px}#sp .ign div span{flex:1}
+#log .extm,#dmbar .extm{font-size:.78em;margin-left:3px;opacity:.85;cursor:default}
 /* облик как в чате игры: вкладки-«пилюли», полупрозрачные кнопки, поля со скруглением 10px */
 .hb{background:color-mix(in srgb,var(--tx) 9%,transparent);border-color:transparent;border-radius:8px}
 .hb:hover,.hb:focus-visible{border-color:var(--acc);outline:none}
@@ -1107,6 +1108,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     if (r.mod === 'own' || r.mod === 'mod') { S.mod.city = Object.assign(S.mod.city || { bans: [], mods: [] }, { role: r.mod }); modUi(); }
     apply(r, 'city', true);
     updateBar(); inputState(); liveWatch();
+    if (CZ.hist !== false) histMerge('city', S.gen);   // + своя история города из браузера
     if (isMix(S.room) && S.ign.size) renderLog();   // игнор пришёл только сейчас — убрать уже показанное от игнорируемых
     schedule();
   }
@@ -1179,6 +1181,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
         errs.push((r && (ERR[r.error] || r.error)) || 'ошибка');
       }
       if (reset && S.room === 'all') pmFeedFill();
+      if (reset && CZ.hist !== false) for (const [src, r] of res) if (r && r.ok) histMerge(src, gen);   // + своя история из браузера
       if (errs.length) throw new Error(errs.join('; '));
       S.fails = 0; S.el.dot.className = 'ok'; S.el.dot.title = 'На связи';
       if (S.el.err.dataset.net) { S.el.err.textContent = ''; delete S.el.err.dataset.net; }
@@ -1213,6 +1216,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       const key = src + ':' + msg.id;
       if (S.ids.has(key)) continue;
       const m = Object.assign({}, msg, { _src: src, _key: key });
+      if (extHas(m.t)) { extAdd(m.l); m.t = extStrip(m.t); }   // 🧩 метка Чата Легиона — запомнить и убрать из текста
       S.ids.add(key);
       // лента общая для двух источников — держим её по времени
       const last = S.list[S.list.length - 1];
@@ -1233,10 +1237,11 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       S.ids.delete(key); S.list = S.list.filter((x) => x._key !== key);
       const li = S.el.log.querySelector(`li[data-key="${CSS.escape(key)}"]`); if (li) li.remove();
     }
-    while (S.list.length > 500) { const old = S.list.shift(); S.ids.delete(old._key); const li = S.el.log.querySelector(`li[data-key="${CSS.escape(old._key)}"]`); if (li) li.remove(); }
+    while (S.list.length > histMax()) { const old = S.list.shift(); S.ids.delete(old._key); const li = S.el.log.querySelector(`li[data-key="${CSS.escape(old._key)}"]`); if (li) li.remove(); }
     if (d.c != null) { if (src === 'mine') S.mc = Math.max(S.mc, +d.c || 0); else S.cc = Math.max(S.cc, +d.c || 0); }
     if (d.chatMe && 'muted' in d.chatMe && d.chatMe.muted) S.el.err.textContent = 'Модератор запретил тебе писать в этот чат';
     if (beep) czBeepOnce('mention', beep);
+    if (added || (d.chatDel && d.chatDel.length)) histSaveSoon();
     if (resort || (initial && S.room === 'ping')) renderLog();   // в «Пингах» — вместе с сохранёнными раньше
     emptyState();
     if (added) {
@@ -1658,7 +1663,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const P = S.pm;
     const cur = P.conv.get(l) || [], ids = new Set(cur.map((x) => x.id));
     let n = 0;
-    for (const x of list) { const m = x.fl ? x : pmNorm(x); if (ids.has(m.id)) continue; ids.add(m.id); cur.push(m); n++; }
+    for (const x of list) { const m = x.fl ? x : pmNorm(x); if (extHas(m.t)) { extAdd(m.fl); m.t = extStrip(m.t); } if (ids.has(m.id)) continue; ids.add(m.id); cur.push(m); n++; }
     if (!n && P.conv.has(l)) return 0;
     cur.sort((a, b) => a.at - b.at);
     if (cur.length > PM_MAX) cur.splice(0, cur.length - PM_MAX);
@@ -1842,7 +1847,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     }
     const fr = S.meFriends ? (st === 'friends' ? '' : st === 'out' ? '' : st === 'in' ? '<button type="button" data-pa="accept" title="Принять заявку в друзья">👥 Принять</button>' : st === 'blocked' ? '' : '<button type="button" data-pa="add" title="Добавить в друзья">👥＋</button>') : '';
     const blk = S.meFriends ? (st === 'blocked' ? '<button type="button" data-pa="unblock">Разблокировать</button>' : '<button type="button" data-pa="block" title="Заблокировать — не сможет писать тебе">🚫</button>') : '';
-    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:${ncol(l)}">${esc(pmName(l))}${f ? ' <span class="frm" title="Друг">👥</span>' : ''}</b>${status}</span></span><span class="acts">${f ? coinBtn(f) + '<button type="button" data-pa="trade" title="Предложить обмен (окно обмена откроется в игре, в «Городе»)">🔄</button>' : ''}${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
+    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:${ncol(l)}">${esc(pmName(l))}${extBadge(l)}${f ? ' <span class="frm" title="Друг">👥</span>' : ''}</b>${status}</span></span><span class="acts">${f ? coinBtn(f) + '<button type="button" data-pa="trade" title="Предложить обмен (окно обмена откроется в игре, в «Городе»)">🔄</button>' : ''}${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
     bar.onclick = async (e) => {
       const cn = e.target.closest('[data-coin]');
       if (cn) { if (cn.getAttribute('aria-disabled') !== 'true') { cn.setAttribute('aria-disabled', 'true'); giveCoin(cn.dataset.coin); } return; }
@@ -1915,7 +1920,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       for (const l of peers) {
         const x = P.last[l], u = P.un.get(l) || 0, fd = pmFriend(l);
         const prev = x.t ? `${x.mine ? 'Ты: ' : ''}${esc(x.t)}` : (P.drafts[l] ? `Черновик: ${esc(P.drafts[l])}` : 'Нет сообщений — напиши первым');
-        li('conv', `${avIn(l, pmName(l))}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:${ncol(l)}">${esc(pmName(l))}${isFr(l) ? ' <span class="frm" title="Друг">👥</span>' : ''}</b><span>${prev}</span></span>${x.at ? `<span class="ct">${shortTime(x.at)}</span>` : ''}${u ? `<span class="cu">${u > 99 ? '99+' : u}</span>` : ''}`,
+        li('conv', `${avIn(l, pmName(l))}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:${ncol(l)}">${esc(pmName(l))}${extBadge(l)}${isFr(l) ? ' <span class="frm" title="Друг">👥</span>' : ''}</b><span>${prev}</span></span>${x.at ? `<span class="ct">${shortTime(x.at)}</span>` : ''}${u ? `<span class="cu">${u > 99 ? '99+' : u}</span>` : ''}`,
           { tabindex: '0', 'data-peer': l, 'data-n': pmName(l), 'aria-label': `Диалог с ${pmName(l)}${u ? `, непрочитанных: ${u}` : ''}` });
       }
       const friends = view === 'un' ? [] : fl.filter((u) => !P.last[u.l] && match(u.l));
@@ -1980,11 +1985,12 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     if (P.blocked(to)) { S.el.err.textContent = `${pmName(to)} заблокирован — сначала разблокируй`; return; }
     S.el.send.disabled = true;
     let r = null;
-    try { r = await api('/api/dm/say', { to, text }); } catch {}
+    try { r = await api('/api/dm/say', { to, text: markOut(text) }); } catch {}
+    if (CZ.extTell !== false) extAdd(S.me);
     S.el.send.disabled = false;
     if (r && r.ok) {
       S.el.err.textContent = '';
-      const msg = r.msg || { id: 'local:' + Date.now(), fl: S.me, fn: S.me, tl: to, t: text, at: Date.now() };
+      const msg = r.msg ? Object.assign({}, r.msg, { t: extStrip(r.msg.t) }) : { id: 'local:' + Date.now(), fl: S.me, fn: S.me, tl: to, t: text, at: Date.now() };
       pmEvent({ m: msg });
       if (tg === 'pm') {
         S.el.inp.value = ''; delete P.drafts[to]; pmSaveDrafts();
@@ -2432,6 +2438,59 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     try { S.ign = new Set(lsGet('lgmc_ign_' + S.ch, []) || []); } catch {}
   }
 
+
+  // ---------- 🧩 у кого тоже Чат Легиона ----------
+  // Своего сервера нет, поэтому так: в конец своих сообщений (чат и личные) чат добавляет невидимую метку — два невидимых
+  // символа U+2063 U+2064. Игра и люди без расширения её не видят; наш чат у других находит её, убирает из текста и ставит 🧩.
+  // Кого видели с меткой — запоминаем (lgmc_ext). Обе стороны — настройками в ⚙ (показывать и отмечать — по отдельности).
+  const EXT_MARK = '⁣⁤', EXT_KEY = 'lgmc_ext';
+  let EXT = null;
+  const extMap = () => EXT || (EXT = new Map(Object.entries(lsGet(EXT_KEY, {}) || {})));
+  const extHas = (t) => typeof t === 'string' && t.includes(EXT_MARK);
+  const extStrip = (t) => (typeof t === 'string' ? t.split(EXT_MARK).join('') : t);
+  function extAdd(l0) {
+    const l = nickOf(l0); if (!l) return;
+    const m = extMap(), was = m.has(l); m.set(l, Date.now());
+    if (!was || m.size % 10 === 0) { let a = [...m]; if (a.length > 3000) { a.sort((x, y) => y[1] - x[1]); a = a.slice(0, 3000); EXT = new Map(a); } lsSet(EXT_KEY, Object.fromEntries(a)); }
+  }
+  const isExt = (l) => CZ.extShow !== false && !!l && extMap().has(l);
+  const extBadge = (l) => (isExt(l) ? '<span class="extm" title="Тоже с Чатом Легиона">🧩</span>' : '');
+  const markOut = (t) => (CZ.extTell !== false && t && t.length + EXT_MARK.length <= 200 ? t + EXT_MARK : t);
+
+
+  // ---------- длинная лента: своя история в браузере ----------
+  // Игра отдаёт только последние ~120 сообщений города и ~40 шахты (более ранних не даёт). Поэтому чат хранит ленту сам
+  // (IndexedDB «lgmc», по каналу и ленте, до histMax сообщений) и при открытии добавляет к ответу игры более ранние.
+  const histMax = () => Math.max(200, Math.min(3000, +CZ.histMax || 1000));
+  const HDB = { p: null, t: 0 };
+  function hdb() {
+    return HDB.p || (HDB.p = new Promise((res) => {
+      try { const r = indexedDB.open('lgmc', 1); r.onupgradeneeded = () => r.result.createObjectStore('hist'); r.onsuccess = () => res(r.result); r.onerror = () => res(null); } catch { res(null); }
+    }));
+  }
+  async function histGet(k) {
+    const db = await hdb(); if (!db) return [];
+    return new Promise((res) => { try { const q = db.transaction('hist').objectStore('hist').get(k); q.onsuccess = () => res(Array.isArray(q.result) ? q.result : []); q.onerror = () => res([]); } catch { res([]); } });
+  }
+  async function histPut(k, v) { const db = await hdb(); if (!db) return; try { db.transaction('hist', 'readwrite').objectStore('hist').put(v, k); } catch {} }
+  const histKey = (src) => `${S.ch}|${src === 'mine' ? 'mine:' + S.mine : 'city'}`;
+  function histSaveSoon() { if (CZ.hist === false) return; clearTimeout(HDB.t); HDB.t = setTimeout(histSave, 2500); }
+  function histSave() {
+    if (CZ.hist === false) return;
+    for (const src of ['mine', 'city']) {
+      const list = S.list.filter((m) => m._src === src && !m.sys).slice(-histMax());
+      if (!list.length) continue;
+      histPut(histKey(src), list.map((m) => { const o = {}; for (const [k, v] of Object.entries(m)) if (k[0] !== '_') o[k] = v; return o; }));
+    }
+  }
+  async function histMerge(src, gen) {
+    const arr = await histGet(histKey(src));
+    if (gen !== S.gen || !arr.length) return;
+    const keep = S.stick;
+    apply({ chat: arr }, src, true);   // повторы отсеются по id, порядок — по времени
+    renderLog(); if (keep) toBottom();
+  }
+
   // ---------- Куда отправлять (в общей ленте) ----------
   const TGT = { mine: '⛏ Шахта', g: '🏰 Город', tr: '💰 Торговля', dm: '✉ Лично' };
   function renderTargets() {
@@ -2776,6 +2835,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const nEl = li.querySelector('.n[data-l]');
     const isFr = !!l && (msg._fr || S.pm.frState.get(l) === 'friends');
     if (nEl && isFr) nEl.insertAdjacentHTML('afterend', '<span class="frm" title="Друг">👥</span>');
+    if (nEl && isExt(l)) nEl.insertAdjacentHTML('afterend', extBadge(l));
     // выделение: модераторы и админ чата, друзья (цвет и вкл/выкл — в ⚙)
     if (ri) li.classList.add('role', 'r-' + msg.r);
     if (isFr && l !== S.me) li.classList.add('fr');
@@ -2999,7 +3059,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true, scrollbar: false,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -3187,7 +3247,8 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
           <div class="lbl">Плотность</div><div class="seg2">${[['compact', 'Плотно'], ['normal', 'Обычно'], ['airy', 'Свободно']].map(([k, t]) => `<button type="button" data-den="${k}" aria-pressed="${CZ.density === k}">${t}</button>`).join('')}</div>
         </section>
         <section><h4>Сообщения</h4>
-          ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}${tg('scrollbar', 'Полоса прокрутки')}
+          ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}${tg('scrollbar', 'Полоса прокрутки')}${tg('hist', 'Помнить ленту между запусками (игра отдаёт только последние ~120)')}
+          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
           ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
         </section>
         <section><h4>Подсветка и фильтр</h4>
@@ -3264,8 +3325,8 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     sp.onchange = async (e) => {
       const t = e.target;
       if ('cityauto' in t.dataset) { lsSet(CITY_AUTO_KEY, t.checked); updateBar(); if (t.checked && isMix(S.room) && !S.inCity && !S.cityChk) cityEnter(); }
-      if (t.dataset.ck) { czSet({ [t.dataset.ck]: t.checked }, t.dataset.ck === 'emotes'); if (['emotes', 'sound'].includes(t.dataset.ck)) czRender(); if (t.dataset.ck === 'sound' && t.checked) czBeep('mention'); }
-      if (t.dataset.sel) czSet({ [t.dataset.sel]: t.value });
+      if (t.dataset.ck) { czSet({ [t.dataset.ck]: t.checked }, t.dataset.ck === 'emotes' || t.dataset.ck === 'extShow'); if (['emotes', 'sound'].includes(t.dataset.ck)) czRender(); if (t.dataset.ck === 'sound' && t.checked) czBeep('mention'); }
+      if (t.dataset.sel) czSet({ [t.dataset.sel]: t.dataset.sel === 'histMax' ? +t.value : t.value });
       if (t.dataset.cz === 'accent') czRender();
       if (t.dataset.cz === 'bgfile' && t.files && t.files[0]) {
         const url = await czShrink(t.files[0]);
@@ -3308,11 +3369,12 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       path = '/api/city/say'; body = { text: t };
       if (tg === 'tr') body.k = 'tr';
     }
+    if (body && body.text && t[0] !== '/') { body.text = markOut(body.text); if (CZ.extTell !== false) extAdd(S.me); }
     S.el.send.disabled = true;
     try {
       let r = await api(path, body);
       // шахта: если герой сейчас не в шахте (на привале, в городе), пишем через единый чат игры — ему можно откуда угодно
-      if (tg === 'mine' && !(r && r.ok) && S.cityFeed !== false) { const r2 = await api('/api/chat/say', { text: t, room: 'mine' }); if (r2 && (r2.ok || !/not_found|HTTP 404/.test(r2.error || ''))) r = r2; }
+      if (tg === 'mine' && !(r && r.ok) && S.cityFeed !== false) { const r2 = await api('/api/chat/say', { text: body.text, room: 'mine' }); if (r2 && (r2.ok || !/not_found|HTTP 404/.test(r2.error || ''))) r = r2; }
       if (r && r.ok) { S.el.inp.value = ''; S.el.err.textContent = ''; S.lastSent = raw; replyCancel(); acHide(); poll(); }
       else {
         const e = (r && r.error) || 'не отправилось';
