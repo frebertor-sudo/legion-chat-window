@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.14.0
+// @version      3.15.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -701,6 +701,30 @@ html.pinned.mini #log{padding-bottom:12px}
 #livebadge:hover{filter:brightness(1.1)}
 @keyframes lgLive{50%{opacity:.75}}
 @media (prefers-reduced-motion:reduce){#livebadge{animation:none}}
+/* ответ с цитатой, подсказки ников, «пока тебя не было», избранные стикеры */
+#rq{display:flex;gap:8px;align-items:center;margin:0 0 6px;padding:5px 8px;border-left:3px solid var(--acc);background:color-mix(in srgb,var(--acc) 10%,transparent);border-radius:6px;font-size:12px;color:var(--mut)}
+#rq span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#rq b{color:var(--tx)}
+#rq button{background:none;border:0;color:var(--mut);cursor:pointer;font-size:14px;padding:0 4px}
+#ac{list-style:none;margin:0 0 6px;padding:4px;background:var(--pns,var(--panel));border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;gap:1px;max-height:200px;overflow-y:auto}
+#ac li{display:flex;gap:8px;align-items:center;padding:4px 8px;border-radius:7px;cursor:pointer;font-size:13px}
+#ac li[aria-selected="true"],#ac li:hover{background:var(--hov)}
+#ac li small{color:var(--mut);margin-left:auto;font-size:11px}
+#ac .av{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:700 10px var(--ff);color:#fff;flex:none}
+#log .rq{display:block;margin:1px 0 2px;padding:1px 8px;border-left:3px solid color-mix(in srgb,var(--acc) 60%,transparent);color:var(--mut);font-size:.88em;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:0 4px 4px 0;background:color-mix(in srgb,var(--tx) 4%,transparent)}
+#log .rq:hover{color:var(--tx)}
+#log .rpb{position:absolute;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:12px/18px var(--ff);cursor:pointer;opacity:0}
+#log li:hover .rpb,#log .rpb:focus-visible{opacity:1}
+@media (hover:none){#log .rpb{opacity:.6}}
+#log li.flash{animation:lgFlash 1.6s ease-out}
+@keyframes lgFlash{0%,40%{background:color-mix(in srgb,var(--acc) 30%,transparent)}}
+#away{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;background:color-mix(in srgb,var(--acc) 14%,var(--panel));border-bottom:1px solid var(--line);font-size:12px;flex:none}
+#away span{flex:1;min-width:0}
+#away button{background:var(--acc);color:var(--on-acc);border:0;border-radius:999px;padding:2px 10px;font:700 12px var(--ff);cursor:pointer}
+#away button.x{background:none;color:var(--mut);padding:0 4px}
+#eg button.fav{position:relative}#eg button.fav::after{content:"★";position:absolute;right:1px;top:-2px;font-size:10px;color:var(--acc)}
+#sp .keys{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;margin:0}
+#sp .keys dt{font-family:ui-monospace,monospace;color:var(--acc-tx)}#sp .keys dd{margin:0;color:var(--mut)}
+#sp .ign{display:flex;flex-direction:column;gap:4px}#sp .ign div{display:flex;align-items:center;gap:8px;font-size:13px}#sp .ign div span{flex:1}
 /* облик как в чате игры: вкладки-«пилюли», полупрозрачные кнопки, поля со скруглением 10px */
 .hb{background:color-mix(in srgb,var(--tx) 9%,transparent);border-color:transparent;border-radius:8px}
 .hb:hover,.hb:focus-visible{border-color:var(--acc);outline:none}
@@ -723,7 +747,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
-<div id="cbar" hidden></div>
+<div id="cbar" hidden></div><div id="away" role="status" hidden></div>
 <div id="dmbar" hidden></div>
 <div id="pmtoast" role="status" hidden></div>
 <div id="sp" role="dialog" aria-label="Настройки чата" hidden></div>
@@ -734,6 +758,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
 <div id="ep" role="dialog" aria-label="Стикеры"><div id="ep-top"><input id="eq" type="search" placeholder="Найти стикер…" aria-label="Поиск стикера"></div><div id="etabs" role="tablist"></div><div id="eg"></div><div id="eh"></div></div>
 <div id="pp" role="dialog" aria-label="Пасты"><div class="pp-top"><input id="pq" type="search" placeholder="Найти пасту…" aria-label="Поиск пасты"><button type="button" class="pbtn" id="pnew">＋ Новая</button></div><ul id="pl"></ul>
 <div id="pe"><input id="pn" maxlength="40" placeholder="Название (например: «приветствие»)" aria-label="Название пасты"><textarea id="pt" maxlength="500" placeholder="Текст пасты — можно со стикерами" aria-label="Текст пасты"></textarea><div class="pe-b"><small id="pc">0 / 200</small><button type="button" class="pbtn alt" id="pcancel">Отмена</button><button type="button" class="pbtn" id="psave">Сохранить</button></div></div></div>
+<div id="rq" hidden></div><ul id="ac" role="listbox" aria-label="Подсказки ников" hidden></ul>
 <form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><input id="in" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение"><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
 </body>`;
     { const st0 = document.querySelector('head style'); st0.textContent = st0.textContent.replace(/#log\b/g, ':is(#log,#pvlog)'); }   // пример в настройках выглядит как лента
@@ -801,7 +826,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     pickerInit();
     pastesInit();
     modInit();
-    pmInit(); pingInit(); findInit();
+    pmInit(); pingInit(); findInit(); comfyInit();
     czInit();
     start();
     loadChannels();
@@ -892,6 +917,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     pd.body.append(...document.body.childNodes);   // переносим всё вместе с обработчиками
     pd.addEventListener('keydown', S.onEsc);
     if (S.findKeys) pd.addEventListener('keydown', S.findKeys, true);   // Ctrl+F и в окне поверх всех
+    if (S.hotkeys) pd.addEventListener('keydown', S.hotkeys, true);
     pinStyleApply(pd);
     czApply();
     document.body.innerHTML = '<div id="pinned"><b>📌 Чат закреплён поверх окон</b>Это окно можно свернуть, но не закрывай его — иначе плавающий чат тоже закроется.<br><button type="button" id="unpin">Вернуть чат сюда</button></div>';
@@ -1015,6 +1041,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     }
     if (S.room === 'ping') { S.pg.seen = Date.now(); lsSet(PING_SEEN, S.pg.seen); pingBadge(); renderLog(); }
     poll(true);   // шахта, город (если уже на Ярмарке) или всё сразу
+    liveWatch();
     if (S.cityChk) cityAttach(gen).then((ok) => {
       if (gen !== S.gen) return;
       S.cityChk = false;
@@ -1073,10 +1100,10 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
   function cityReady(r) {
     S.el.dot.className = 'ok';
     if (S.room === 'city') clearLog('');
-    if (Array.isArray(r.ign)) S.ign = new Set(r.ign);
+    if (Array.isArray(r.ign)) { S.ign = new Set(r.ign.map((x) => String(x).toLowerCase())); lsSet('lgmc_ign_' + S.ch, [...S.ign]); }
     if (r.mod === 'own' || r.mod === 'mod') { S.mod.city = Object.assign(S.mod.city || { bans: [], mods: [] }, { role: r.mod }); modUi(); }
     apply(r, 'city', true);
-    updateBar(); inputState();
+    updateBar(); inputState(); liveWatch();
     if (isMix(S.room) && S.ign.size) renderLog();   // игнор пришёл только сейчас — убрать уже показанное от игнорируемых
     schedule();
   }
@@ -1119,7 +1146,8 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
   function schedule() {
     clearTimeout(S.timer);
     if (!canPoll()) return;
-    const base = hidden() ? 8000 : 2500;
+    const live = S.watchOn && S.pm.esOk;   // подписка работает — опрос только на всякий случай
+    const base = live ? 15000 : hidden() ? 8000 : 2500;
     S.timer = setTimeout(() => poll(), S.fails ? Math.min(30000, base * 2 ** S.fails) : base);
   }
 
@@ -1276,7 +1304,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     S.pg.list.push(p); S.pg.list.sort((a, b) => (a.at || 0) - (b.at || 0));
     while (S.pg.list.length > 300) S.pg.list.shift();
     if (S.room === 'ping' && !hidden()) S.pg.seen = Math.max(S.pg.seen, p.at), lsSet(PING_SEEN, S.pg.seen);
-    pingSave();
+    pingSave(); awayNote('ping');
     // всплывашка — о пинге, которого нет перед глазами (в т. ч. пришедшем, пока окно было в другой комнате)
     if (S.room !== 'ping' && !visible(m) && p.at > S.pg.seen) pmToast(p.l, `📣 ${p.n || p.l}: ${String(p.t || '').slice(0, 80)}`, 'Пинги', 'ping');
   }
@@ -1568,7 +1596,16 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       }
     };
     es.addEventListener('dm', (e) => { let d = null; try { d = JSON.parse(e.data); } catch {} if (d) pmEvent(d); });
-    es.addEventListener('city', (e) => { let d = null; try { d = JSON.parse(e.data); } catch {} if (d && (d.tr !== undefined || d.trNote || d.trDone)) tradeOn(d.tr, d); });   // обмен: приглашения и итог
+    es.addEventListener('city', (e) => {
+      let d = null; try { d = JSON.parse(e.data); } catch {} if (!d) return;
+      if (d.tr !== undefined || d.trNote || d.trDone) tradeOn(d.tr, d);   // обмен: приглашения и итог
+      // мгновенная лента города (подписка /api/chat/watch): новые сообщения — сразу, без ожидания опроса
+      if ((d.chat || d.chatDel) && usesCity(S.room) && S.cityFeed && S.inCity) { S.liveAt = Date.now(); apply({ chat: d.chat, chatDel: d.chatDel, chatMe: d.chatMe, c: d.c }, 'city'); }
+    });
+    es.addEventListener('mine', (e) => {   // лента шахты — только если шахта одна (какая из нескольких — событие не говорит)
+      let d = null; try { d = JSON.parse(e.data); } catch {} if (!d || d.chatRoom !== 'mine' || !(d.chat || d.chatDel)) return;
+      if (usesMine(S.room) && S.mines.length === 1) { S.liveAt = Date.now(); apply({ chat: d.chat, chatDel: d.chatDel }, 'mine'); }   // номер ленты не берём: у опроса шахты свой
+    });
     es.addEventListener('fr', (e) => {
       let d = null; try { d = JSON.parse(e.data); } catch {}
       friendsLoad();
@@ -1606,7 +1643,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const watching = S.room === 'pm' && P.peer === l && !hidden();
     if (!mine) {
       if (watching) pmMarkRead(l);
-      else { P.un.set(l, (P.un.get(l) || 0) + 1); pmToast(l, `✉ ${pmName(l)}: ${m.t}`, 'Ответить'); pmNotify(l, m); czBeepOnce('dm', 'dm|' + (m.id || m.at)); }
+      else { P.un.set(l, (P.un.get(l) || 0) + 1); awayNote('dm', l); pmToast(l, `✉ ${pmName(l)}: ${m.t}`, 'Ответить'); pmNotify(l, m); czBeepOnce('dm', 'dm|' + (m.id || m.at)); }
     }
     if (S.room === 'all') apply({ chat: [pmToFeed(m)] }, 'pm');
     if (S.room === 'pm') pmRender(P.peer === l);
@@ -1978,7 +2015,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     // друг зашёл в игру (был не в сети) — сказать, если включено
     const online = new Map((r.friends || []).filter((u) => u.on).map((u) => [String(u.login).toLowerCase(), u]));
     if (P.frOnline && P.frAlert) for (const [l, u] of online) if (!P.frOnline.has(l)) {
-      pmToast(l, `🟢 ${u.name || u.login} в сети — ${u.on.t || 'в игре'}`, 'Написать');
+      pmToast(l, `🟢 ${u.name || u.login} в сети — ${u.on.t || 'в игре'}`, 'Написать'); awayNote('fr', l, u.name || u.login);
       if (P.notify && hidden()) try { const n = new Notification(`🟢 ${u.name || u.login} в сети`, { body: u.on.t || '', tag: 'lgmc-on-' + l }); n.onclick = () => { try { window.focus(); } catch {} pmOpen(l); n.close(); }; } catch {}
     }
     P.frOnline = new Set(online.keys());
@@ -2021,6 +2058,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const items = [];
     if (S.flags.dm && st !== 'blocked') items.push(['dm', '✉ Написать лично']);
     items.push(['reply', '↩ Ответить в этом чате']);
+    items.push(S.ign.has(l) ? ['unign', '👁 Снять игнор'] : ['ign', '🙈 Игнорировать в чате']);
     if (S.meFriends) {
       if (st === 'friends') items.push(['', `👥 В друзьях${f && f.on ? ' · ' + (f.on.t || 'в сети') : ''}`, true]);
       else if (st === 'out') items.push(['', '👥 Заявка отправлена', true]);
@@ -2046,6 +2084,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       if (k === 'reply') { S.el.inp.value = `@${l} ` + S.el.inp.value.replace(/^@\S+\s*/, ''); S.el.inp.focus(); return; }
       if (k === 'coin' && f) return giveCoin(f.id);
       if (k === 'trade') return tradeInvite(l);
+      if (k === 'ign' || k === 'unign') return ignSet(l, k === 'ign');
       await friendAct(k, l);
     });
     const out = (e) => { if (!el.contains(e.target)) nickMenuClose(); };
@@ -2222,6 +2261,171 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     }
   }
 
+
+  // ====================== Удобство: ники по Tab, ответ с цитатой, горячие клавиши, «пока тебя не было», игнор ======================
+
+  // ---- @ники: подсказки при наборе «@…», Tab / Enter / клик — подставить ----
+  const ACP = { list: [], i: 0, tok: null };
+  function acTok() {
+    const inp = S.el.inp, v = inp.value, p = inp.selectionStart ?? v.length, pre = v.slice(0, p);
+    const m = /(^|\s)(@?)([a-z0-9_]{0,25})$/i.exec(pre);
+    if (!m || (!m[2] && m[3].length < 2)) return null;
+    return { start: p - m[3].length - m[2].length, end: p, q: m[3].toLowerCase(), at: !!m[2] };
+  }
+  function acCands(q) {
+    const out = new Map(), add = (l0, n, w) => { const l = nickOf(l0); if (!l || l === S.me) return; const nm = n || S.pm.names[l] || l; if (!(l.startsWith(q) || String(nm).toLowerCase().startsWith(q))) return; const o = out.get(l); if (!o || o.w < w) out.set(l, { l, n: nm, w }); };
+    S.list.forEach((m, i) => add(m.l, m.n, 3 + i / 1000));   // кто писал недавно — выше
+    for (const u of (S.pm.fr && S.pm.fr.friends) || []) add(u.login, u.name, 2.5);
+    for (const l of Object.keys(S.pm.last)) add(l, null, 2);
+    for (const [l, [n]] of seenMap()) add(l, n, 1);
+    return [...out.values()].sort((a, b) => b.w - a.w || a.l.localeCompare(b.l)).slice(0, 6);
+  }
+  function acUpdate(force) {
+    const t = acTok();
+    if (!t || (!t.at && !force)) { acHide(); return; }
+    ACP.tok = t; ACP.list = acCands(t.q); ACP.i = 0;
+    if (!ACP.list.length || (ACP.list.length === 1 && ACP.list[0].l === t.q && t.at && !force)) { acHide(); return; }
+    S.el.ac.innerHTML = ACP.list.map((c, i) => `<li role="option" data-l="${esc(c.l)}" aria-selected="${i === ACP.i}">${avIn(c.l, c.n)}</span><b style="color:${ncol(c.l)}">${esc(c.n)}</b>${String(c.n).toLowerCase() !== c.l ? `<small>${esc(c.l)}</small>` : ''}</li>`).join('');
+    S.el.ac.hidden = false;
+  }
+  function acHide() { if (S.el.ac) S.el.ac.hidden = true; ACP.list = []; ACP.tok = null; }
+  function acPick(l) {
+    const t = ACP.tok || acTok(); if (!t) return;
+    const inp = S.el.inp, v = inp.value, ins = '@' + l + ' ';
+    const post = v.slice(t.end).replace(/^\s+/, '');
+    inp.value = (v.slice(0, t.start) + ins + post).slice(0, 200);
+    const pos = Math.min(200, t.start + ins.length); inp.setSelectionRange(pos, pos); inp.focus();
+    acHide();
+  }
+  function acMove(d) { if (!ACP.list.length) return; ACP.i = (ACP.i + d + ACP.list.length) % ACP.list.length; S.el.ac.querySelectorAll('li').forEach((li, i) => li.setAttribute('aria-selected', String(i === ACP.i))); }
+
+  // ---- ответ с цитатой: «@ник «начало сообщения» текст» — видно всем, у нас — цитатой, клик — к оригиналу ----
+  const QUOTE_RE = /^@([a-z0-9_]{1,25}) «([^«»]{1,60})» ?([\s\S]*)$/i;
+  function quoteOf(m) { const t = String(m.t || ''), q = QUOTE_RE.exec(t); return (q ? q[3] : t).replace(/[«»]/g, '"').replace(/\s+/g, ' ').trim(); }
+  function replyStart(m) {
+    const l = nickOf(m.l); if (!l) return;
+    let snip = quoteOf(m); if (snip.length > 32) snip = snip.slice(0, 31).trimEnd() + '…';
+    S.reply = { l, n: m.n || l, snip, key: m._key, src: m._src };
+    if (isMix(S.room)) { const k = kind(m) === 'ev' ? 'g' : kind(m); if ([...S.el.tgt.options].some((o) => o.value === k)) setTarget(k); }
+    replyBar(); S.el.inp.focus();
+  }
+  function replyBar() {
+    const r = S.reply, el = S.el.rq; if (!el) return;
+    el.hidden = !r;
+    if (r) el.innerHTML = `<span>↩ Ответ <b style="color:${ncol(r.l)}">${esc(r.n)}</b>: «${esc(r.snip)}»</span><button type="button" aria-label="Отменить ответ" title="Отменить ответ (Esc)">✕</button>`;
+  }
+  function replyCancel() { S.reply = null; replyBar(); }
+  function replyWrap(t) {   // текст с цитатой — не длиннее 200
+    const r = S.reply; if (!r) return t;
+    let snip = r.snip;
+    while (`@${r.l} «${snip}» ${t}`.length > 200 && snip.length > 6) snip = snip.slice(0, -2).trimEnd() + '…';
+    const out = `@${r.l} «${snip}» ${t}`;
+    return out.length <= 200 ? out : t;
+  }
+  function quoteJump(el) {
+    const l = el.dataset.ql, q = fnorm(String(el.dataset.qt || '').replace(/…$/, ''));
+    const m = [...S.list].reverse().find((x) => String(x.l).toLowerCase() === l && fnorm(quoteOf(x)).startsWith(q.slice(0, 20)) && x._key !== el.closest('li').dataset.key);
+    const li = m && S.el.log.querySelector(`li[data-key="${CSS.escape(m._key)}"]`);
+    if (!li) { okMsg('Это сообщение уже не в ленте'); return; }
+    li.scrollIntoView({ block: 'center' }); li.classList.remove('flash'); void li.offsetWidth; li.classList.add('flash');
+  }
+
+  // ---- горячие клавиши ----
+  const ROOM_KEYS = ['mine', 'city', 'all', 'pm', 'ping'];
+  function hotkeys(e) {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-5]$/.test(e.code)) {
+      const r = ROOM_KEYS[+e.code.slice(5) - 1], b = S.el.room.querySelector(`[data-r="${r}"]`);
+      if (b && !b.disabled) { e.preventDefault(); if (r !== S.room) switchTo(S.ch, r); }
+    }
+  }
+
+  // ---- «пока тебя не было»: окно было скрыто дольше минуты — сводка пингов, личных и друзей в сети ----
+  const AW = { at: 0, pings: 0, dms: new Map(), fr: [] };
+  function awayNote(kind, l, n) {
+    if (!AW.at) return;
+    if (kind === 'ping') AW.pings++;
+    if (kind === 'dm') AW.dms.set(l, (AW.dms.get(l) || 0) + 1);
+    if (kind === 'fr' && !AW.fr.includes(n || l)) AW.fr.push(n || l);
+  }
+  function awayVis() {
+    if (document.hidden) { AW.at = Date.now(); AW.pings = 0; AW.dms = new Map(); AW.fr = []; return; }
+    const long = AW.at && Date.now() - AW.at > 60000, any = AW.pings || AW.dms.size || AW.fr.length;
+    if (long && any) awayShow();
+    AW.at = 0;
+  }
+  function awayShow() {
+    const el = S.el.away, parts = [], nd = [...AW.dms.values()].reduce((a, b) => a + b, 0);
+    const ru = (n, a, b, c) => (n % 10 === 1 && n % 100 !== 11 ? a : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? b : c);
+    if (AW.pings) parts.push(`📣 ${AW.pings} ${ru(AW.pings, 'пинг', 'пинга', 'пингов')}`);
+    if (nd) parts.push(`✉ ${nd} ${ru(nd, 'личное', 'личных', 'личных')} (${[...AW.dms.keys()].slice(0, 3).map((l) => esc(pmName(l))).join(', ')}${AW.dms.size > 3 ? '…' : ''})`);
+    if (AW.fr.length) parts.push(`🟢 в сети: ${AW.fr.slice(0, 3).map(esc).join(', ')}${AW.fr.length > 3 ? '…' : ''}`);
+    el.innerHTML = `<span><b>Пока тебя не было:</b> ${parts.join(' · ')}</span>${AW.pings ? '<button type="button" data-aw="ping">Пинги</button>' : ''}${nd ? '<button type="button" data-aw="pm">Личные</button>' : ''}<button type="button" class="x" data-aw="x" aria-label="Скрыть">✕</button>`;
+    el.hidden = false;
+  }
+
+  // ---- игнор: у игры — POST /api/city/chat/ignore { login, on } → { ign } ----
+  const dispName = (l) => S.pm.names[l] || (seenMap().get(l) || [])[0] || l;   // имя, как в чате (а не логин)
+  async function ignSet(l, on) {
+    let r = null; try { r = await api('/api/city/chat/ignore', { login: l, on }); } catch {}
+    if (!r || !r.ok) { S.el.err.textContent = 'Игнор: ' + ((r && (ERR[r.error] || r.error)) || 'нет связи'); return false; }
+    S.ign = new Set((r.ign || []).map((x) => String(x).toLowerCase())); lsSet('lgmc_ign_' + S.ch, [...S.ign]);
+    okMsg(on ? `${dispName(l)}: в игноре — его сообщений не видно, лично не пишет` : `${dispName(l)}: игнор снят`);
+    if (S.room === 'pm') pmRender(); else { const keep = S.stick; renderLog(); if (keep) toBottom(); }
+    if (S.el.sp && !S.el.sp.hidden) czRender();
+    return true;
+  }
+
+
+  // ---- мгновенная лента: подписка на чаты, как у самой игры (POST /api/chat/watch { on, rooms } раз в минуту) — сообщения
+  // приходят событиями «city» / «mine» того же канала /api/live; опрос остаётся страховкой, но редкий ----
+  function liveWatch() {
+    clearInterval(S.watchT); S.watchOn = false;
+    const rooms = [...(usesCity(S.room) && S.cityFeed && S.inCity ? ['city'] : []), ...(usesMine(S.room) && S.mines.length === 1 && S.cityFeed !== false ? ['mine'] : [])];
+    if (!rooms.length || !S.pm.es) return;
+    const gen = S.gen;
+    const w = async () => {
+      if (gen !== S.gen) { clearInterval(S.watchT); return; }
+      if (hidden()) return;
+      let r = null; try { r = await api('/api/chat/watch', { on: true, rooms }); } catch {}
+      S.watchOn = !!(r && r.ok);
+    };
+    w(); S.watchT = setInterval(w, 45000);
+  }
+
+  function comfyInit() {
+    Object.assign(S.el, { ac: document.getElementById('ac'), rq: document.getElementById('rq'), away: document.getElementById('away') });
+    const inp = S.el.inp;
+    inp.addEventListener('input', () => acUpdate(false));
+    inp.addEventListener('keydown', (e) => {
+      if (!S.el.ac.hidden && ACP.list.length) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); acMove(e.key === 'ArrowDown' ? 1 : -1); return; }
+        if (e.key === 'Tab' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); acPick(ACP.list[ACP.i].l); return; }
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); acHide(); return; }
+      }
+      if (e.key === 'Tab' && !e.shiftKey) { const t = acTok(); if (t) { acUpdate(true); if (ACP.list.length === 1) { e.preventDefault(); acPick(ACP.list[0].l); } else if (ACP.list.length) e.preventDefault(); } return; }
+      if (e.key === 'ArrowUp' && !inp.value && S.lastSent) { e.preventDefault(); inp.value = S.lastSent; inp.setSelectionRange(inp.value.length, inp.value.length); return; }
+      if (e.key === 'Escape' && S.reply) { e.preventDefault(); e.stopPropagation(); replyCancel(); }
+    }, true);
+    inp.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== inp) acHide(); }, 150));
+    S.el.ac.addEventListener('pointerdown', (e) => { const li = e.target.closest('li[data-l]'); if (li) { e.preventDefault(); acPick(li.dataset.l); } });
+    S.el.rq.addEventListener('click', (e) => { if (e.target.closest('button')) replyCancel(); });
+    S.el.log.addEventListener('click', (e) => {
+      const b = e.target.closest('.rpb');
+      if (b) { e.stopPropagation(); const li = b.closest('li'), m = li && (S.list.find((x) => x._key === li.dataset.key) || (S.room === 'ping' && pingView().find((x) => x._key === li.dataset.key))); if (m) replyStart(m); return; }
+      const q = e.target.closest('.rq'); if (q) { e.stopPropagation(); quoteJump(q); }
+    }, true);
+    S.el.away.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-aw]'); if (!b) return;
+      S.el.away.hidden = true;
+      if (b.dataset.aw === 'ping' && S.room !== 'ping') switchTo(S.ch, 'ping');
+      if (b.dataset.aw === 'pm') { S.pm.peer = null; if (S.room !== 'pm') switchTo(S.ch, 'pm'); else pmRender(); }
+    });
+    document.addEventListener('keydown', hotkeys, true);
+    S.hotkeys = hotkeys;
+    document.addEventListener('visibilitychange', awayVis);
+    try { S.ign = new Set(lsGet('lgmc_ign_' + S.ch, []) || []); } catch {}
+  }
+
   // ---------- Куда отправлять (в общей ленте) ----------
   const TGT = { mine: '⛏ Шахта', g: '🏰 Город', tr: '💰 Торговля', dm: '✉ Лично' };
   function renderTargets() {
@@ -2328,6 +2532,9 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
 
   // ---------- Панель выбора стикеров ----------
   S.ptab = 'recent';
+  const EM_FAV = 'lgmc_em_fav';
+  const favs = () => { const r = lsGet(EM_FAV, []); return Array.isArray(r) ? r : []; };
+  function favToggle(n) { const f = favs(), i = f.indexOf(n); if (i >= 0) f.splice(i, 1); else f.unshift(n); lsSet(EM_FAV, f.slice(0, 60)); pickerTabs(); pickerRender(); S.el.eh.textContent = i >= 0 ? `${n} — убран из избранного` : `★ ${n} — в избранном`; }
   const recent = () => { const r = lsGet(EM_RECENT, []); return Array.isArray(r) ? r : []; };
 
   function pickerInit() {
@@ -2343,6 +2550,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     };
     S.el.etabs.onclick = (e) => { const b = e.target.closest('button'); if (!b) return; S.ptab = b.dataset.t; S.el.eq.value = ''; pickerTabs(); pickerRender(); };
     S.el.eg.onclick = (e) => { const b = e.target.closest('button[data-n]'); if (b) insertEmote(b.dataset.n, !e.shiftKey); };
+    S.el.eg.oncontextmenu = (e) => { const b = e.target.closest('button[data-n]'); if (b) { e.preventDefault(); favToggle(b.dataset.n); } };   // правый клик — ★ в избранное
     S.el.eg.onmouseover = (e) => { const b = e.target.closest('button[data-n]'); if (b) { const em = EM.get(b.dataset.n); S.el.eh.textContent = em ? `${em.n} · ${em.src}` : b.dataset.n; } };
     S.onEsc = (e) => {
       if (e.key !== 'Escape') return;
@@ -2363,14 +2571,14 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     if (!on && !S.el.ep.classList.contains('on')) return;
     S.el.ep.classList.toggle('on', on);
     S.el.emb.setAttribute('aria-expanded', String(on));
-    if (on) { if (!recent().length && S.ptab === 'recent' && EM_SETS[0]) S.ptab = EM_SETS[0].id; pickerTabs(); pickerRender(); S.el.eq.focus(); }
+    if (on) { if (S.ptab === 'recent' && favs().length) S.ptab = 'fav'; if (!recent().length && S.ptab === 'recent' && EM_SETS[0]) S.ptab = EM_SETS[0].id; pickerTabs(); pickerRender(); S.el.eq.focus(); }
     else if (!quiet && !S.el.inp.disabled) S.el.inp.focus();
     if (S.stick) toBottom();
   }
 
   function pickerTabs() {
     if (!S.el.etabs) return;
-    const tabs = [{ id: 'recent', name: 'Недавние' }, ...EM_SETS.map((s) => ({ id: s.id, name: `${s.name} ${s.list.length}` }))];
+    const tabs = [{ id: 'fav', name: `★ Избранные${favs().length ? ' ' + favs().length : ''}` }, { id: 'recent', name: 'Недавние' }, ...EM_SETS.map((s) => ({ id: s.id, name: `${s.name} ${s.list.length}` }))];
     S.el.etabs.innerHTML = tabs.map((t) => `<button type="button" role="tab" data-t="${t.id}" aria-selected="${t.id === S.ptab}">${esc(t.name)}</button>`).join('');
   }
 
@@ -2381,15 +2589,17 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     if (q) {   // поиск — по всем наборам; сначала начинающиеся с запроса
       const all = [...EM.keys()].filter((n) => n.toLowerCase().includes(q));
       codes = [...all.filter((n) => n.toLowerCase().startsWith(q)), ...all.filter((n) => !n.toLowerCase().startsWith(q))];
-    } else if (S.ptab === 'recent') codes = recent().filter((n) => EM.has(n));
+    } else if (S.ptab === 'fav') codes = favs().filter((n) => EM.has(n));
+    else if (S.ptab === 'recent') codes = recent().filter((n) => EM.has(n));
     else codes = (EM_SETS.find((s) => s.id === S.ptab) || { list: [] }).list;
     if (!codes.length) {
-      S.el.eg.innerHTML = `<p>${!EM.size ? 'Загружаю стикеры…' : q ? 'Ничего не нашлось' : 'Здесь появятся стикеры, которые ты отправлял'}</p>`;
+      S.el.eg.innerHTML = `<p>${!EM.size ? 'Загружаю стикеры…' : q ? 'Ничего не нашлось' : S.ptab === 'fav' ? 'Нажми на стикер правой кнопкой — он появится здесь ★' : 'Здесь появятся стикеры, которые ты отправлял'}</p>`;
       return;
     }
+    const fv = new Set(favs());
     S.el.eg.innerHTML = codes.map((n) => { const e = EM.get(n);   // картинки грузятся лениво — по мере прокрутки
-      return `<button type="button" data-n="${esc(n)}" title="${esc(n)}"><img src="${esc(e.u2)}" alt="${esc(n)}" loading="lazy" decoding="async"></button>`; }).join('');
-    S.el.eh.textContent = q ? `Найдено: ${codes.length}` : 'Клик — вставить, Shift+клик — вставить и не закрывать';
+      return `<button type="button" data-n="${esc(n)}" title="${esc(n)}"${fv.has(n) ? ' class="fav"' : ''}><img src="${esc(e.u2)}" alt="${esc(n)}" loading="lazy" decoding="async"></button>`; }).join('');
+    S.el.eh.textContent = q ? `Найдено: ${codes.length}` : 'Клик — вставить, Shift+клик — не закрывать, правый клик — ★ в избранное';
   }
 
   function insertEmote(n, close) {
@@ -2552,7 +2762,8 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const ri = ROLE_ICO[msg.r]; const role = ri ? `<span title="${ri[1]}">${ri[0]}</span> ` : '';
     const aw = (msg.aw || []).map((a) => `<span class="aw" title="${esc(a.n)}${a.d ? ' — ' + esc(a.d) : ''}">${esc(a.i || '✦')}</span>`).join('');
     const to = msg.k === 'dm' && msg.to ? ` <span class="to" title="Личное">→ <span class="n" data-l="${esc(String(msg.to).toLowerCase())}">${esc(msg.to)}</span></span>` : '';
-    li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:${ncol(l)}" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(text)}`;
+    const qm = QUOTE_RE.exec(text), qq = qm ? `<span class="rq" data-ql="${esc(qm[1].toLowerCase())}" data-qt="${esc(qm[2])}" title="Перейти к сообщению">↩ <b>${esc(dispName(qm[1].toLowerCase()))}</b>: ${esc(qm[2])}</span>` : '';
+    li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:${ncol(l)}" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${qq}${fmtText(qm ? (qm[1].toLowerCase() === S.me ? '@' + qm[1] + ' ' : '') + qm[3] : text)}`;
     const nEl = li.querySelector('.n[data-l]');
     const isFr = !!l && (msg._fr || S.pm.frState.get(l) === 'friends');
     if (nEl && isFr) nEl.insertAdjacentHTML('afterend', '<span class="frm" title="Друг">👥</span>');
@@ -2564,6 +2775,10 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       d.type = 'button'; d.className = 'dmb'; d.textContent = '✉'; d.dataset.l = l; d.dataset.n = msg.n || msg.l;
       d.title = 'Написать лично'; d.setAttribute('aria-label', `Написать лично: ${msg.n || msg.l}`);
       nEl.after(d);
+    }
+    if (!other && S.room !== 'pm' && msg._src !== 'pm' && msg.k !== 'dm') {   // ↩ ответить с цитатой
+      const rb = document.createElement('button'); rb.type = 'button'; rb.className = 'rpb'; rb.textContent = '↩';
+      rb.title = 'Ответить с цитатой'; rb.setAttribute('aria-label', `Ответить ${msg.n || msg.l} с цитатой`); li.appendChild(rb);
     }
     if (S.room === 'ping') {   // перейти в тот чат, где позвали (тот же канал — шахта или город)
       const go = document.createElement('button');
@@ -2578,6 +2793,9 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       b.title = 'Модерация'; b.setAttribute('aria-label', `Модерация: ${msg.n || msg.l}`); b.setAttribute('aria-haspopup', 'menu');
       li.appendChild(b);
     }
+    // кнопки при наведении — в ряд справа: ↩, ✉, ⋯ (в «Пингах» — левее «→»)
+    let rx = S.room === 'ping' ? 36 : 2;
+    for (const c of ['rpb', 'dmb', 'mb']) { const x = li.querySelector('.' + c); if (x) { x.style.right = rx + 'px'; rx += 32; } }
     return li;
   }
 
@@ -2968,6 +3186,12 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
           <label class="ta">Подсвечивать сообщения со словами <small>через запятую; твой @ник подсвечивается всегда</small><textarea data-ta="hl" rows="2" maxlength="600" placeholder="например: продам, топаз, поход">${esc(CZ.hl)}</textarea></label>
           <label class="ta">Скрывать сообщения со словами <small>свои сообщения не скрываются</small><textarea data-ta="hide" rows="2" maxlength="600" placeholder="например: спам, реклама">${esc(CZ.hide)}</textarea></label>
         </section>
+        <section><h4>Игнор <small>их сообщений не видно, лично тебе не пишут; добавить — правый клик по нику</small></h4>
+          <div class="ign">${S.ign.size ? [...S.ign].sort().map((l) => `<div><span style="color:${ncol(l)}">${esc(dispName(l))}</span><button type="button" class="pbtn alt" data-unign="${esc(l)}">Снять</button></div>`).join('') : '<small style="color:var(--mut)">Никого нет в игноре.</small>'}</div>
+        </section>
+        <section><h4>Горячие клавиши</h4>
+          <dl class="keys"><dt>Alt+1…5</dt><dd>Шахта, Город, Всё, Личные, Пинги</dd><dt>@ник + Tab</dt><dd>дописать ник (↑ ↓ — выбрать)</dd><dt>↑</dt><dd>в пустом поле — последнее твоё сообщение</dd><dt>Ctrl+F</dt><dd>поиск по сообщениям (Enter / Shift+Enter, F3)</dd><dt>Esc</dt><dd>закрыть: ответ, поиск, стикеры, пасты, меню</dd></dl>
+        </section>
         <section><h4>Город</h4>
           <label class="ck"><input type="checkbox" data-cityauto${lsGet(CITY_AUTO_KEY, false) ? ' checked' : ''}> Входить в чат города сразу, не спрашивая <small>герой заходит на Ярмарку, его видят другие</small></label>
         </section>
@@ -2999,6 +3223,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       if ('acc' in b.dataset) { czSet({ accent: b.dataset.acc }); return czRender(); }
       if (b.dataset.den) { czSet({ density: b.dataset.den }); return czRender(); }
       if (b.dataset.cz === 'bgdel') { try { localStorage.removeItem(CZ_BG); } catch {} czApply(); return czRender(); }
+      if (b.dataset.unign) { ignSet(b.dataset.unign, false); return; }
       if (b.dataset.cz === 'test') { const s0 = CZ.sound; CZ.sound = true; czBeep('mention'); setTimeout(() => czBeep('dm'), 450); CZ.sound = s0; return; }
       if (b.dataset.cz === 'export') {
         const io = sp.querySelector('#czio'); io.hidden = false;
@@ -3065,6 +3290,8 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     let path, body;
     const tg = target();
     if (tg === 'pm' || tg === 'dm') { await pmSay(t, tg); return; }
+    const raw = t;
+    if (S.reply && t[0] !== '/') t = replyWrap(t);
     if (t[0] === '/' && canMod(tg === 'mine' ? 'mine' : 'city')) { if (await modCommand(tg === 'mine' ? 'mine' : 'city', t)) S.el.inp.value = ''; return; }
     if (tg === 'mine') { path = `/api/mine/chat/say?c=${encodeURIComponent(S.mine)}`; body = { text: t }; }
     else if (S.cityFeed) { path = '/api/chat/say'; body = { text: t, room: 'city' }; if (tg === 'tr') body.k = 'tr'; }   // откуда угодно — герой не идёт в город
@@ -3077,7 +3304,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       let r = await api(path, body);
       // шахта: если герой сейчас не в шахте (на привале, в городе), пишем через единый чат игры — ему можно откуда угодно
       if (tg === 'mine' && !(r && r.ok) && S.cityFeed !== false) { const r2 = await api('/api/chat/say', { text: t, room: 'mine' }); if (r2 && (r2.ok || !/not_found|HTTP 404/.test(r2.error || ''))) r = r2; }
-      if (r && r.ok) { S.el.inp.value = ''; S.el.err.textContent = ''; poll(); }
+      if (r && r.ok) { S.el.inp.value = ''; S.el.err.textContent = ''; S.lastSent = raw; replyCancel(); acHide(); poll(); }
       else {
         const e = (r && r.error) || 'не отправилось';
         S.el.err.textContent = (ERR[e] || e) + (tg === 'mine' && /шахт/i.test(e) ? ' — чтобы писать, твой герой должен быть в шахте (открой её в игре).' : '');
