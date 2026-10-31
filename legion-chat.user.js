@@ -731,6 +731,10 @@ html.pinned.mini #log{padding-bottom:12px}
 #sp .keys dt{font-family:ui-monospace,monospace;color:var(--acc-tx)}#sp .keys dd{margin:0;color:var(--mut)}
 #sp .ign{display:flex;flex-direction:column;gap:4px}#sp .ign div{display:flex;align-items:center;gap:8px;font-size:13px}#sp .ign div span{flex:1}
 #log .extm,#dmbar .extm{font-size:.78em;margin-left:3px;opacity:.85;cursor:default}
+#log .at[data-at]{cursor:pointer;border-radius:3px}
+#log .at[data-at]:hover,#log .at[data-at]:focus-visible{text-decoration:underline;outline:none}
+#log li.uhl{background:color-mix(in srgb,var(--acc) 13%,transparent);box-shadow:inset 3px 0 0 color-mix(in srgb,var(--acc) 70%,transparent)}
+#log li.uhl1{background:color-mix(in srgb,var(--acc) 22%,transparent);box-shadow:inset 3px 0 0 var(--acc)}
 /* облик как в чате игры: вкладки-«пилюли», полупрозрачные кнопки, поля со скруглением 10px */
 .hb{background:color-mix(in srgb,var(--tx) 9%,transparent);border-color:transparent;border-radius:8px}
 .hb:hover,.hb:focus-visible{border-color:var(--acc);outline:none}
@@ -2405,6 +2409,26 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     w(); S.watchT = setInterval(w, 45000);
   }
 
+
+  // ---------- нажал на @ник в сообщении — подсветить последние сообщения этого игрока ----------
+  const UH = { l: '', t: 0 };
+  function userHl(l) {
+    const log = S.el.log;
+    const clear = () => { for (const x of log.querySelectorAll('li.uhl')) x.classList.remove('uhl', 'uhl1'); UH.l = ''; clearTimeout(UH.t); };
+    if (UH.l === l) { clear(); return; }   // второй раз — убрать
+    clear();
+    const rows = [...log.querySelectorAll(`li .n[data-l="${CSS.escape(l)}"]`)].map((n) => n.closest('li')).filter((x) => x && x.parentElement === log);
+    if (!rows.length) { okMsg(`В ленте нет сообщений @${dispName(l)}`); return; }
+    const last = rows.slice(-10);
+    last.forEach((x) => x.classList.add('uhl'));
+    const top = last[last.length - 1]; top.classList.add('uhl1');
+    top.scrollIntoView({ block: 'center' });
+    S.stick = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    UH.l = l;
+    okMsg(`Последние сообщения ${dispName(l)}: ${last.length}${rows.length > last.length ? ` из ${rows.length}` : ''} — нажми ещё раз или Esc, чтобы убрать`);
+    UH.t = setTimeout(clear, 20000);
+  }
+
   function comfyInit() {
     Object.assign(S.el, { ac: document.getElementById('ac'), rq: document.getElementById('rq'), away: document.getElementById('away') });
     const inp = S.el.inp;
@@ -2425,9 +2449,14 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     S.el.log.addEventListener('click', (e) => {
       const b = e.target.closest('.rpb');
       if (b) { e.stopPropagation(); const li = b.closest('li'), m = li && (S.list.find((x) => x._key === li.dataset.key) || (S.room === 'ping' && pingView().find((x) => x._key === li.dataset.key))); if (m) replyStart(m); return; }
-      const q = e.target.closest('.rq'); if (q) { e.stopPropagation(); quoteJump(q); }
+      const q = e.target.closest('.rq'); if (q) { e.stopPropagation(); quoteJump(q); return; }
+      const at = e.target.closest('.at[data-at]'); if (at) { e.stopPropagation(); userHl(at.dataset.at); }
     }, true);
-    S.el.log.addEventListener('keydown', (e) => { const q = e.target.closest && e.target.closest('.rq'); if (q && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); quoteJump(q); } });
+    S.el.log.addEventListener('keydown', (e) => {
+      const q = e.target.closest && e.target.closest('.rq'); if (q && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); quoteJump(q); return; }
+      const at = e.target.closest && e.target.closest('.at[data-at]'); if (at && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); userHl(at.dataset.at); }
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && UH.l) { for (const x of S.el.log.querySelectorAll('li.uhl')) x.classList.remove('uhl', 'uhl1'); UH.l = ''; } });
     S.el.away.addEventListener('click', (e) => {
       const b = e.target.closest('[data-aw]'); if (!b) return;
       S.el.away.hidden = true;
@@ -2833,7 +2862,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
         out.push(img); continue;
       }
       const m = part.match(/^@([a-z0-9_]{2,25})(.*)$/i);
-      out.push(m ? `<span class="at">@${esc(m[1])}</span>${esc(m[2])}` : esc(part));
+      out.push(m ? `<span class="at" data-at="${esc(m[1].toLowerCase())}" role="button" tabindex="0" title="Показать последние сообщения @${esc(m[1])}">@${esc(m[1])}</span>${esc(m[2])}` : esc(part));
     }
     return out.join('');
   }
