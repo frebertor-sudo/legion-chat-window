@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.17.1
+// @version      3.17.1.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -1041,6 +1041,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const wasCity = usesCity(S.room) && S.inCity;
     const keepCity = wasCity && !chChanged && usesCity(room);   // Город ↔ Всё: герой остаётся на Ярмарке
     if (wasCity && !keepCity) cityLeave();
+    if (S.room === 'ping' || room === 'ping') pingRead();   // вошёл в «Пинги» или ушёл из них — всё, что было, прочитано (сразу, не дожидаясь загрузки)
     S.ch = ch; S.room = room;
     const cur = S.channels.find((c) => c.login.toLowerCase() === ch); S.chName = (cur && cur.name) || ch;
     lsSet(LAST_KEY, { ch, room });
@@ -1099,7 +1100,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       if (lsGet(CITY_AUTO_KEY, false)) cityEnter(); else showGate();
       return;
     }
-    if (S.room === 'ping') { S.pg.seen = Date.now(); lsSet(PING_SEEN, S.pg.seen); pingBadge(); renderLog(); }
+    if (S.room === 'ping') { pingRead(); renderLog(); }
     poll(true);   // шахта, город (если уже на Ярмарке) или всё сразу
     liveWatch();
     if (S.cityChk) cityAttach(gen).then((ok) => {
@@ -1353,13 +1354,24 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     S.pg.seen = +lsGet(PING_SEEN, 0) || 0;
     S.pg.all = lsGet('lgmc_pings_all', true) !== false;
     if (!S.pg.seen) { S.pg.seen = Date.now(); lsSet(PING_SEEN, S.pg.seen); }   // первый запуск: старая история — не «новые»
+    const back = () => { if (S.room === 'ping' && !hidden()) pingRead(); };   // окно было свёрнуто или в фоне — вернулся в «Пинги»: прочитано
+    document.addEventListener('visibilitychange', back); window.addEventListener('focus', back);
     window.addEventListener('storage', (e) => {   // пинг поймало другое окно (или прочитали там)
       if (e.key !== PING_KEY && e.key !== PING_SEEN) return;
       S.pg.list = (lsGet(PING_KEY, []) || []).filter((x) => x && x._key && x._ch); S.pg.seen = +lsGet(PING_SEEN, 0) || 0;
       pingBadge(); if (S.room === 'ping') { const keep = S.stick; renderTabs(); renderLog(); if (keep) toBottom(); }
     });
   }
-  function pingBoot() { pingBadge(); }
+  function pingBoot() {
+    pingBadge(); if (S.room === 'ping') pingRead();
+  }
+  // «прочитал пинги»: отметка — не раньше самого нового пинга (часы сервера могут спешить), сразу во всех окнах
+  function pingRead(quiet) {
+    const top = S.pg.list.reduce((a, x) => Math.max(a, x.at || 0), 0);
+    const v = Math.max(S.pg.seen, Date.now(), top);
+    if (v !== S.pg.seen) { S.pg.seen = v; lsSet(PING_SEEN, v); }
+    if (!quiet) pingBadge();
+  }
   function pingSave() { clearTimeout(S.pg.saveT); S.pg.saveT = setTimeout(() => lsSet(PING_KEY, S.pg.list), 300); pingBadge(); }
   function pingAdd(m) {
     const id = S.ch + '|' + m._key;
@@ -1369,7 +1381,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     if (!p.at) p.at = Date.now();
     S.pg.list.push(p); S.pg.list.sort((a, b) => (a.at || 0) - (b.at || 0));
     while (S.pg.list.length > 300) S.pg.list.shift();
-    if (S.room === 'ping' && !hidden()) S.pg.seen = Math.max(S.pg.seen, p.at), lsSet(PING_SEEN, S.pg.seen);
+    if (S.room === 'ping' && !hidden()) pingRead(true);
     pingSave(); awayNote('ping');
     // всплывашка — о пинге, которого нет перед глазами (в т. ч. пришедшем, пока окно было в другой комнате)
     if (S.room !== 'ping' && !visible(m) && p.at > S.pg.seen) pmToast(p.l, `📣 ${p.n || p.l}: ${String(p.t || '').slice(0, 80)}`, 'Пинги', 'ping');
