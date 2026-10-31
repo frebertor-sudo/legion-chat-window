@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.16.1
+// @version      3.16.2.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -340,7 +340,7 @@
   // На светлой теме те же цвета темнее (--ncm), иначе жёлтый и мятный не читаются.
   const NICK_COLORS = ['#ffc94d', '#ff8a80', '#ffab6e', '#f4ff81', '#b9f6ca', '#69f0ae', '#84ffff', '#80d8ff', '#9fa8ff', '#b388ff', '#ea80fc', '#ff80ab', '#ffd180', '#a7ffeb', '#ccff90', '#ffcdd2'];
   const nickColor = (l) => { let h = 2166136261; const t = String(l || '').toLowerCase(); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return NICK_COLORS[(h >>> 0) % NICK_COLORS.length]; };
-  const ncol = (l) => `color-mix(in srgb, ${nickColor(l)} var(--ncm,100%), #000)`;
+  const ncol = (l) => `color-mix(in oklch, ${nickColor(l)} var(--ncm,100%), var(--ncb,#000))`;
   const hue = (s) => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h % 360; };
   const hhmm = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch { return d; } };
@@ -363,9 +363,9 @@
     if (!document.documentElement) document.appendChild(document.createElement('html'));
     document.documentElement.innerHTML =`<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Чат · ${esc(S.chName)}</title>
 <style>
-:root{color-scheme:dark;--bg:#120e22;--panel:#1b1631;--line:#322b4d;--tx:#f6f1fb;--mut:#a59fba;--acc:#ff9fd0;--acc-tx:#ff9fd0;--on-acc:#15122e;--me:#3b2146;--bad:#ff7b7b;--ok:#6fdc8c;--ns:65%;--nl:68%;--ncm:100%;--hov:#221c3c;--pns:#1b1631;--ff:Nunito,"Segoe UI",system-ui,sans-serif}
-:root[data-theme="light"]{color-scheme:light;--bg:#fbf7fc;--panel:#f2eaf5;--line:#e1d3e7;--tx:#231a2e;--mut:#6e6280;--acc:#f06aae;--acc-tx:#b2367a;--on-acc:#15122e;--me:#fde1f0;--bad:#c23b3b;--ok:#2f8f4a;--ns:75%;--nl:29%;--ncm:52%;--hov:#efe3f2;--pns:#f2eaf5}
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#fbf7fc;--panel:#f2eaf5;--line:#e1d3e7;--tx:#231a2e;--mut:#6e6280;--acc:#f06aae;--acc-tx:#b2367a;--on-acc:#15122e;--me:#fde1f0;--bad:#c23b3b;--ok:#2f8f4a;--ns:75%;--nl:29%;--ncm:52%;--hov:#efe3f2;--pns:#f2eaf5}}
+:root{color-scheme:dark;--bg:#120e22;--panel:#1b1631;--line:#322b4d;--tx:#f6f1fb;--mut:#a59fba;--acc:#ff9fd0;--acc-tx:#ff9fd0;--on-acc:#15122e;--me:#3b2146;--bad:#ff7b7b;--ok:#6fdc8c;--ns:65%;--nl:68%;--ncm:100%;--hov:#221c3c;--pns:#1b1631;--field:rgba(255,255,255,.07);--fieldb:rgba(255,255,255,.22);--btn:rgba(255,255,255,.09);--sh:none;--hdr:var(--panel);--ncb:#000;--avm:62%;--avb:#000;--ff:Nunito,"Segoe UI",system-ui,sans-serif}
+:root[data-theme="light"]{color-scheme:light;--bg:#fdfbff;--panel:#f6f0fb;--line:#e9dff1;--tx:#2a2238;--mut:#7a6f8c;--acc:#ec5fa3;--acc-tx:#c2347d;--on-acc:#2a1530;--me:#ffe7f3;--bad:#d13d4a;--ok:#239a55;--ns:75%;--nl:29%;--ncm:52%;--hov:#f3ecf9;--pns:#ffffff;--field:#ffffff;--fieldb:#e2d5ec;--btn:#ffffff;--sh:0 1px 2px rgba(70,40,110,.08),0 1px 0 rgba(255,255,255,.6) inset;--hdr:linear-gradient(180deg,#fefcff,#f5eefb);--ncb:#2b1840;--avm:64%;--avb:#3a2350}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#fdfbff;--panel:#f6f0fb;--line:#e9dff1;--tx:#2a2238;--mut:#7a6f8c;--acc:#ec5fa3;--acc-tx:#c2347d;--on-acc:#2a1530;--me:#ffe7f3;--bad:#d13d4a;--ok:#239a55;--ns:75%;--nl:29%;--ncm:52%;--hov:#f3ecf9;--pns:#ffffff;--field:#ffffff;--fieldb:#e2d5ec;--btn:#ffffff;--sh:0 1px 2px rgba(70,40,110,.08),0 1px 0 rgba(255,255,255,.6) inset;--hdr:linear-gradient(180deg,#fefcff,#f5eefb);--ncb:#2b1840;--avm:64%;--avb:#3a2350}}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--tx);font:14px/1.4 var(--ff);display:flex;flex-direction:column;position:relative}
@@ -376,7 +376,7 @@ body{background:var(--bg);color:var(--tx);font:14px/1.4 var(--ff);display:flex;f
 #pinned{margin:auto;text-align:center;color:var(--mut);padding:24px;max-width:320px}
 #pinned b{display:block;color:var(--tx);font-size:16px;margin-bottom:6px}
 #pinned button{margin-top:14px;background:var(--acc);color:var(--on-acc);border:0;border-radius:8px;padding:8px 14px;font:600 13px var(--ff);cursor:pointer}
-header{background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+header{background:var(--hdr,var(--panel));border-bottom:1px solid var(--line);flex:none}
 .hr{display:flex;align-items:center;gap:6px;padding:7px 10px}
 .hr+.hr{padding-top:0}
 #dot{width:9px;height:9px;border-radius:50%;background:var(--mut);flex:none}
@@ -414,8 +414,8 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #log.pm{display:flex;flex-direction:column;gap:3px;padding:8px 10px 12px}
 #log.pm li+li{margin-top:0}
 #log li.sec{font:700 11px var(--ff);letter-spacing:.06em;text-transform:uppercase;color:var(--mut);padding:10px 4px 2px}
-#log .av,#dmbar .av{background:color-mix(in srgb,var(--avc,#8a7a60) 62%,#000)}
-#log .av.cl,#dmbar .av.cl{background:color-mix(in srgb,var(--avc) 22%,var(--panel));box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--avc) var(--ncm,100%),#000);font-weight:400}
+#log .av,#dmbar .av{background:color-mix(in oklch,var(--avc,#8a7a60) var(--avm,62%),var(--avb,#000))}
+#log .av.cl,#dmbar .av.cl{background:color-mix(in srgb,var(--avc) 22%,var(--panel));box-shadow:inset 0 0 0 2px color-mix(in oklch,var(--avc) var(--ncm,100%),var(--ncb,#000));font-weight:400}
 #log li.conv .av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:700 14px var(--ff);color:#fff;position:relative}
 #log li.conv .av .on{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;background:var(--ok);border:2px solid var(--bg)}
 #log li.conv .cv span.st{color:var(--ok)}
@@ -476,7 +476,7 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #sp h4 small,#sp .ta small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--mut);font-size:11px}
 #sp .lbl{font-size:12px;color:var(--mut)}
 #sp .sws{display:flex;gap:6px;flex-wrap:wrap}
-#sp .sw{display:flex;align-items:center;gap:6px;background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:4px 9px 4px 5px;font:600 12px var(--ff);cursor:pointer}
+#sp .sw{display:flex;align-items:center;gap:6px;background:var(--btn,var(--panel));box-shadow:var(--sh);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:4px 9px 4px 5px;font:600 12px var(--ff);cursor:pointer}
 #sp .sw i{width:18px;height:18px;border-radius:5px;border:3px solid}
 #sp .sw.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
 #sp .dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);cursor:pointer;display:grid;place-items:center;font-size:13px;padding:0}
@@ -487,7 +487,10 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #sp .bgp{width:56px;height:34px;border-radius:6px;background:center/cover;border:1px solid var(--line)}
 #sp .fl{cursor:pointer}
 #sp label.rng,#sp label.sel{display:flex;align-items:center;gap:8px;font-size:13px}
-#sp label.rng input{flex:1;accent-color:var(--acc)}
+#sp label.rng input{flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:99px;margin:8px 0;cursor:pointer;background:linear-gradient(var(--acc),var(--acc)) 0 0/var(--p,50%) 100% no-repeat,color-mix(in srgb,var(--tx) 14%,transparent)}
+#sp label.rng input::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--acc);box-shadow:0 1px 3px rgba(40,20,60,.3)}
+#sp label.rng input::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--acc);box-shadow:0 1px 3px rgba(40,20,60,.3)}
+#sp label.rng input:focus-visible{outline:2px solid color-mix(in srgb,var(--acc) 50%,transparent);outline-offset:4px}
 #sp label.rng output{min-width:42px;text-align:right;color:var(--mut);font-variant-numeric:tabular-nums;font-size:12px}
 #sp select,#sp textarea,#sp #czio{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font:inherit;font-size:13px}
 #sp textarea{width:100%;resize:vertical}
@@ -548,7 +551,7 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #gate .go:disabled{opacity:.6;cursor:default}
 #gate label{display:flex;gap:6px;justify-content:center;align-items:center;font-size:12px;cursor:pointer}
 #more{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;background:var(--acc);color:var(--on-acc);border:0;border-radius:14px;padding:4px 12px;font:600 12px var(--ff);cursor:pointer;display:none}
-footer{flex:none;border-top:1px solid var(--line);background:var(--panel);padding:8px 10px}
+footer{flex:none;border-top:1px solid var(--line);background:var(--hdr,var(--panel));padding:8px 10px}
 #err{color:var(--bad);font-size:12px;margin:0 0 6px}#err:empty{display:none}
 #okm{color:var(--ok);font-size:12px;margin:0 0 6px}#okm:empty{display:none}
 #log li{position:relative}
@@ -743,9 +746,9 @@ html.pinned.mini #log{padding-bottom:12px}
 #log li.b .cpb{top:-9px;right:-6px;padding:0 5px;font-size:11px;line-height:16px;border-radius:6px}
 #log li.b.me .cpb{right:auto;left:-6px}
 /* облик как в чате игры: вкладки-«пилюли», полупрозрачные кнопки, поля со скруглением 10px */
-.hb{background:color-mix(in srgb,var(--tx) 9%,transparent);border-color:transparent;border-radius:8px}
+.hb{background:var(--btn);border-color:transparent;border-radius:8px;box-shadow:var(--sh)}
 .hb:hover,.hb:focus-visible{border-color:var(--acc);outline:none}
-header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-color:color-mix(in srgb,var(--tx) 18%,transparent);border-radius:8px}
+header select{background:var(--field);border-color:var(--fieldb);border-radius:8px;box-shadow:var(--sh)}
 #chan{font-family:Comfortaa,var(--ff);font-weight:700}
 .seg{border:0;gap:3px;border-radius:999px;overflow:visible}
 .seg button{background:transparent;border-radius:999px;padding:3px 10px;font-weight:700}
@@ -753,7 +756,8 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
 .seg button:not([aria-pressed="true"]):not(:disabled):hover{background:color-mix(in srgb,var(--tx) 9%,transparent);color:var(--tx)}
 #ctabs button{border-radius:999px}
 #ctabs button[aria-pressed="true"],#ctabs button[aria-selected="true"]{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
-#in,#dmbar input{background:color-mix(in srgb,var(--tx) 7%,transparent);border-color:color-mix(in srgb,var(--tx) 22%,transparent);border-radius:10px}
+#in,#dmbar input,#fq{background:var(--field);border-color:var(--fieldb);border-radius:10px;box-shadow:var(--sh)}
+#pb,#emb,#dmbar button,#log li.conv .acts button,#log li.pmmore button{background:var(--btn);box-shadow:var(--sh)}
 #send,#pb,#emb{border-radius:10px}
 #dmbar button,#log li.conv .acts button,#log li.pmmore button,#log li.pm0 button{border-radius:8px}
 #log li.sec{font-family:Comfortaa,var(--ff)}
@@ -3385,6 +3389,9 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
           <p class="note" id="czmsg" role="status"></p>
         </section>
       </div>`;
+    const fill = (r) => r.style.setProperty('--p', ((r.value - r.min) / ((r.max - r.min) || 1) * 100) + '%');   // заливка ползунка
+    sp.querySelectorAll('input[type="range"]').forEach(fill);
+    sp.addEventListener('input', (e) => { if (e.target.type === 'range') fill(e.target); });
     czPreview();
     let taT = 0;
     const note = (t) => { const n = sp.querySelector('#czmsg'); if (n) n.textContent = t; };
