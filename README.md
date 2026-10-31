@@ -32,34 +32,58 @@
 - **Поиск по сообщениям** — Ctrl+F (⌘F): подсветка, ↑ ↓ / Enter / Shift+Enter по совпадениям, «Только найденные»; ищет и в новых сообщениях, и в личных.
 - **Темы** — по умолчанию тёмная, как игра; можно светлую (белые поля и кнопки, ники в чистых цветах) или как в системе.
 
-## Установка: расширение
+## Как установить
 
-**Chrome, Яндекс Браузер, Opera, Edge:** [поставить из Chrome Web Store](https://chromewebstore.google.com/detail/mcckpblgeccjicmolkaablkcbdaedcma) — одна кнопка, обновления приходят сами.
+Выбери **один** способ. Проще всего — первый.
 
-Или вручную из zip:
+### Способ 1. Из магазина Chrome (советую)
 
-Готовые пакеты — в папке [`dist`](dist):
+Подходит для **Google Chrome, Яндекс Браузера, Opera и Microsoft Edge**.
 
-| Браузер | Файл |
-|---|---|
-| Chrome, Edge, Opera, Яндекс Браузер | [legion-chat-chrome.zip](https://github.com/frebertor-sudo/legion-chat-window/raw/main/dist/legion-chat-chrome.zip) |
-| Firefox 121+ | [legion-chat-firefox.zip](https://github.com/frebertor-sudo/legion-chat-window/raw/main/dist/legion-chat-firefox.zip) |
+1. Открой игру и браузер, в котором в неё играешь.
+2. Нажми на эту ссылку: **[👉 Чат Легиона в магазине Chrome](https://chromewebstore.google.com/detail/mcckpblgeccjicmolkaablkcbdaedcma)**
+3. Нажми синюю кнопку **«Установить»** (в Яндекс Браузере и Opera она может называться **«Добавить в …»**).
+4. Браузер спросит «Установить расширение?» — нажми **«Установить расширение»**.
+5. Готово. Зайди в игру [play.multidonate.ru](https://play.multidonate.ru) (если она уже была открыта — обнови страницу клавишей **F5**).
 
-**Chrome / Edge / Opera / Яндекс:** распакуй zip в папку → открой `chrome://extensions` (в Edge — `edge://extensions`) → включи «Режим разработчика» → «Загрузить распакованное» → выбери папку. Папку потом не удаляй.
+Обновления приходят сами, делать ничего не нужно.
 
-**Firefox:** без подписи Mozilla расширение ставится только до перезапуска браузера: `about:debugging` → «Этот Firefox» → «Загрузить временное дополнение» → выбери zip. Постоянная установка — после публикации в каталоге Firefox.
+### Способ 2. Через Tampermonkey (если магазин не открывается или у тебя Firefox)
 
-Расширение, поставленное из zip, само не обновляется: новую версию нужно поставить так же заново. Из Chrome Web Store обновления приходят сами.
+1. Поставь расширение **Tampermonkey**: [для Chrome / Яндекса / Opera / Edge](https://chromewebstore.google.com/detail/dhdgffkkebhmkfjojejmpbldmpobfkfo) · [для Firefox](https://addons.mozilla.org/firefox/addon/tampermonkey/). Нажми там «Установить» / «Добавить».
+2. **Только для Chrome:** вставь в адресную строку `chrome://extensions` и нажми Enter. Найди плитку **Tampermonkey** → нажми **«Сведения»** → включи переключатель **«Разрешить пользовательские скрипты»** (Allow User Scripts). Если такого переключателя нет — пропусти этот шаг.
+3. Нажми на эту ссылку: **[👉 установить Чат Легиона](https://raw.githubusercontent.com/frebertor-sudo/legion-chat-window/main/legion-chat.user.js)**
+4. Откроется страница Tampermonkey с кнопкой **«Установить»** — нажми её.
+5. Готово. Зайди в игру (или обнови её страницу клавишей **F5**).
 
-## Установка: userscript (обновляется сам)
+Обновления тоже приходят сами (Tampermonkey проверяет раз в сутки).
 
-1. Поставь [Tampermonkey](https://www.tampermonkey.net/) или [Violentmonkey](https://violentmonkey.github.io/).
-2. **Chrome 138 и новее:** `chrome://extensions` → Tampermonkey → «Сведения» → включи **Allow User Scripts** («Разрешить пользовательские скрипты»).
-3. Открой ссылку и подтверди: **[установить legion-chat.user.js](https://raw.githubusercontent.com/frebertor-sudo/legion-chat-window/main/legion-chat.user.js)**
+> ⚠️ **Не ставь оба способа сразу** — будет два чата и две кнопки. Если поставил оба, убери один.
 
-Обновления приходят сами: Tampermonkey проверяет новую версию раз в сутки.
+### Как понять, что всё работает
 
-Не ставь расширение и userscript одновременно — будут две кнопки и два чата.
+Открой в игре чат города или шахты (кнопка **«💬 Чат»** внизу слева). Рядом с ней появятся кнопки **«Чат Легиона»** и **«⧉»**:
+
+- **«Чат Легиона»** — открыть чат панелью прямо в игре;
+- **«⧉»** — открыть чат отдельным окном.
+
+### Что-то не так?
+
+- **Кнопок нет** — обнови страницу игры (**F5**). Не помогло — закрой браузер полностью и открой снова.
+- **Видно старую версию** — в способе 1 открой `chrome://extensions`, включи справа вверху «Режим разработчика» и нажми **«Обновить»**; в способе 2 нажми на значок Tampermonkey справа вверху → «Проверить наличие обновлений».
+- **Два чата / две кнопки** — стоят оба способа сразу, убери один.
+- **Как удалить** — `chrome://extensions` → «Чат Легиона» → «Удалить» (или в Tampermonkey → «Панель управления» → корзина у «Чат Легиона»).
+
+<details>
+<summary>Для продвинутых: установка из zip-файла</summary>
+
+Готовые пакеты: [для Chrome / Edge / Opera / Яндекса](https://github.com/frebertor-sudo/legion-chat-window/raw/main/dist/legion-chat-chrome.zip) · [для Firefox 121+](https://github.com/frebertor-sudo/legion-chat-window/raw/main/dist/legion-chat-firefox.zip).
+
+**Chrome / Edge / Opera / Яндекс:** распакуй zip в папку → открой `chrome://extensions` (в Edge — `edge://extensions`) → включи «Режим разработчика» → «Загрузить распакованное» → выбери папку. Папку потом не удаляй. Такое расширение само не обновляется — новую версию ставь так же заново.
+
+**Firefox:** без подписи Mozilla расширение из zip живёт только до перезапуска браузера: `about:debugging` → «Этот Firefox» → «Загрузить временное дополнение» → выбери zip. Для постоянной установки используй способ 2.
+
+</details>
 
 ## Куда ходит
 
