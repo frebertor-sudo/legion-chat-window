@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.11.2
+// @version      3.12.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -41,6 +41,8 @@
   • Личные (с 29.10 — своя система игры): GET /api/dm?with=, POST /api/dm/say, /api/dm/report; новые — событием «dm» канала /api/live.
     Друзья и блок — /api/friends. Вкладки собеседников общие с личкой игры (lgDm:<канал>:<ник>).
   • Если город уже открыт в игре (GET /api/city/state отвечает), чат не входит повторно и не выводит героя.
+  • С 29.10 у игры единый чат: город читается GET /api/chat/feed?room=city[&c=], пишется POST /api/chat/say { text, room: 'city' [, k: 'tr'] }
+    откуда угодно (герой не идёт на Ярмарку); шахта — { room: 'mine' }, если герой не в шахте. Старый путь — запасной.
   • Модерация (только у админа и модераторов чата): GET/POST <чат>/mod — удалить, мут, бан, снять, назначить модератора.
 */
 
@@ -1041,7 +1043,13 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
   // Если герой уже на Ярмарке этого канала (город открыт в игре), повторный вход переставил бы его к воротам.
   // Поэтому сначала спрашиваем ленту (только чтение): ответила — значит, мы уже в городе, входить не надо.
   async function cityAttach(gen) {
-    let r = null; try { r = await api('/api/city/state?c=0'); } catch {}
+    // 29.10: у игры единый чат — ленту города можно читать откуда угодно (GET /api/chat/feed?room=city), герой остаётся,
+    // где был (на привале, в шахте…). Входить на Ярмарку не нужно. Если сервер так не умеет — по-старому (герой уже в городе?).
+    let r = null; try { r = await api('/api/chat/feed?room=city'); } catch {}
+    if (gen !== S.gen || !usesCity(S.room) || S.inCity) return false;
+    if (r && r.ok) { S.cityFeed = true; S.inCity = true; S.cityByGame = true; S.cityCh = S.ch; cityReady(r); return true; }
+    S.cityFeed = false;
+    r = null; try { r = await api('/api/city/state?c=0'); } catch {}
     if (gen !== S.gen || !usesCity(S.room) || S.inCity || !r || !r.ok) return false;
     S.inCity = true; S.cityByGame = true; S.cityCh = S.ch;
     cityReady(r);
@@ -1109,7 +1117,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     try {
       const jobs = [];
       if (usesMine(S.room) && S.mines.length) jobs.push(api(`/api/mine/state?c=${encodeURIComponent(S.mine)}&mc=${S.mc || 0}`).then((r) => ['mine', r]));
-      if (usesCity(S.room) && S.inCity) jobs.push(api(`/api/city/state?c=${S.cc || 0}`).then((r) => ['city', r]));
+      if (usesCity(S.room) && S.inCity) jobs.push(api(S.cityFeed ? `/api/chat/feed?room=city${S.cc ? '&c=' + S.cc : ''}` : `/api/city/state?c=${S.cc || 0}`).then((r) => ['city', r]));
       const res = await Promise.all(jobs);
       if (gen !== S.gen) return;
       if (reset) { S.list = []; S.ids.clear(); S.el.log.innerHTML = ''; }
@@ -1624,7 +1632,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     if (!S.me || Date.now() - (S.lcT || 0) < 300000) return;
     S.lcT = Date.now();
     const jobs = S.mines.map((m) => api(`/api/mine/state?c=${encodeURIComponent(m.id)}&mc=0`));
-    if (!S.hero || S.flags.cc) jobs.push(api('/api/city/state?c=0'));
+    if (!S.hero || S.flags.cc) jobs.push(api('/api/chat/feed?room=city').then((r) => (r && r.ok ? r : api('/api/city/state?c=0'))));
     const rs = await Promise.allSettled(jobs);
     let n = 0;
     for (const x of rs) {
@@ -2948,18 +2956,21 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     if (tg === 'pm' || tg === 'dm') { await pmSay(t, tg); return; }
     if (t[0] === '/' && canMod(tg === 'mine' ? 'mine' : 'city')) { if (await modCommand(tg === 'mine' ? 'mine' : 'city', t)) S.el.inp.value = ''; return; }
     if (tg === 'mine') { path = `/api/mine/chat/say?c=${encodeURIComponent(S.mine)}`; body = { text: t }; }
+    else if (S.cityFeed) { path = '/api/chat/say'; body = { text: t, room: 'city' }; if (tg === 'tr') body.k = 'tr'; }   // откуда угодно — герой не идёт в город
     else {
       path = '/api/city/say'; body = { text: t };
       if (tg === 'tr') body.k = 'tr';
     }
     S.el.send.disabled = true;
     try {
-      const r = await api(path, body);
+      let r = await api(path, body);
+      // шахта: если герой сейчас не в шахте (на привале, в городе), пишем через единый чат игры — ему можно откуда угодно
+      if (tg === 'mine' && !(r && r.ok) && S.cityFeed !== false) { const r2 = await api('/api/chat/say', { text: t, room: 'mine' }); if (r2 && (r2.ok || !/not_found|HTTP 404/.test(r2.error || ''))) r = r2; }
       if (r && r.ok) { S.el.inp.value = ''; S.el.err.textContent = ''; poll(); }
       else {
         const e = (r && r.error) || 'не отправилось';
         S.el.err.textContent = (ERR[e] || e) + (tg === 'mine' && /шахт/i.test(e) ? ' — чтобы писать, твой герой должен быть в шахте (открой её в игре).' : '');
-        if (tg !== 'mine' && /не в городе/.test(e)) { S.inCity = false; cityEnter(); }
+        if (tg !== 'mine' && !S.cityFeed && /не в городе/.test(e)) { S.inCity = false; cityEnter(); }
       }
     } catch { S.el.err.textContent = 'Нет связи — сообщение не ушло'; }
     finally { inputState(); if (!S.el.inp.disabled) S.el.inp.focus(); }
