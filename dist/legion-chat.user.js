@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.12.0
+// @version      3.13.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -297,6 +297,13 @@
     window.addEventListener('message', (e) => {
       if (e.origin !== location.origin || !e.data || typeof e.data.lgmc !== 'string') return;
       if (e.data.lgmc === 'close' || e.data.lgmc === 'popped') setOpen(false);
+      // «📍 встать в город» из панели: игра помнит город во вкладке и открывает «Город» по #city — перезагружаем страницу игры
+      if (e.data.lgmc === 'town' && typeof e.data.id === 'string' && /^[a-z0-9_-]{1,32}$/i.test(e.data.id)) {
+        const id = e.data.id, ch = String(e.data.ch || CH).toLowerCase();
+        try { if (id === 'fair') sessionStorage.removeItem('lgCityTown'); else sessionStorage.setItem('lgCityTown', id); } catch {}
+        if (ch !== CH) { window.open(`/c/${encodeURIComponent(ch)}/#city`, '_blank'); return; }
+        location.hash = '#city'; location.reload();
+      }
     });
     if (document.body) addUi(); else document.addEventListener('DOMContentLoaded', addUi);
     return;
@@ -549,6 +556,10 @@ footer{flex:none;border-top:1px solid var(--line);background:var(--panel);paddin
 #log .pgo{float:right;margin-left:6px;background:var(--panel);color:var(--acc-tx);border:1px solid var(--line);border-radius:5px;padding:0 7px;font:700 12px/18px var(--ff);cursor:pointer}
 #log .pgo:hover,#log .pgo:focus-visible{border-color:var(--acc);outline:none}
 #ctabs .pgc{margin-left:auto;opacity:1;color:var(--bad)}
+#ctabs .town{margin-left:auto;opacity:1;color:var(--acc-tx);border-color:color-mix(in srgb,var(--acc) 45%,transparent)}
+.mm [data-tid]{text-align:left}
+.mm.tm{width:min(300px,calc(100vw - 16px))}
+.mm.tm .mh small,.mm.tm small{white-space:normal;overflow:visible;text-overflow:clip}
 #log li:has(.pgo) .dmb,#log li:has(.pgo) .mb{right:36px}
 .mm{position:fixed;z-index:50;min-width:210px;max-width:min(300px,calc(100vw - 16px));background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 10px 28px -10px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:4px;font:13px/1.35 var(--ff),sans-serif}
 .mm .mh{font-weight:700;padding:2px 6px 4px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -765,6 +776,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     S.el.room.onclick = (e) => { const b = e.target.closest('[data-r]'); if (b && !b.disabled && b.dataset.r !== S.room) switchTo(S.ch, b.dataset.r); };
     S.el.ctabs.onclick = (e) => {
       const b = e.target.closest('[data-tab]'); if (b) { tabTo(b.dataset.tab); return; }
+      const tw = e.target.closest('[data-town]'); if (tw) { townMenu(tw); return; }
       const pg = e.target.closest('[data-pg]');
       if (pg) {
         const a = pg.dataset.pg;
@@ -988,6 +1000,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     S.el.mine.hidden = !usesMine(S.room) || S.mines.length < 2;
     renderTabs(); renderTargets(); updateBar(); pmBar();
     modLoad(gen);
+    if (hasCity) townsLoad();   // 📍 где отряд и куда можно встать
     document.title = title(); if (S.pip) S.pip.document.title = title();
     inputState();
     if (S.room === 'pm') { clearLog(''); pmEnter(); return; }
@@ -1365,6 +1378,56 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
   }
   function findStep(d) { if (FD.hits.length) findGo(FD.i + d, true); else if (S.el.fq.value) findRun(true); }
 
+
+  // ---------- 📍 Город, где стоит герой (Рябиново, Кошачий привал, Ярмарка…) ----------
+  // Чат города у канала один на все города — писать можно откуда угодно. Но облачко над героем видно только там, где он стоит.
+  // Встать в город — через саму игру: она помнит город во вкладке (sessionStorage lgCityTown) и открывает «Город» по #city,
+  // сама ставит героя у ворот (раскладка города и проверка шагов — её). Список городов — GET /api/city/towns.
+  const BIO_ICO = { meadow: '🌾', forest: '🌳', taiga: '🌲', ice: '❄️', mount: '⛰️', swamp: '🪷', ash: '🌋', desert: '🏜️', coast: '🌊', blight: '☠️', ruin: '🏚️' };
+  async function townsLoad() {
+    if (!S.me || (S.hero && !S.flags.cc)) { S.towns = null; return; }
+    let r = null; try { r = await api('/api/city/towns'); } catch {}
+    S.towns = r && r.ok ? { list: (r.list || []).filter((t) => t && t.id), here: r.here || '', fair: !!r.fair, quest: !!r.quest } : null;
+    if (S.room === 'city' || isMix(S.room)) renderTabs();
+  }
+  const townName = (t) => (t.id === 'fair' ? 'Ярмарка' : t.id === 'camp' ? 'Кошачий привал' : t.town || t.name || t.id);
+  function townChip() {
+    const T = S.towns; if (!T || (!T.list.length && !T.fair)) return '';
+    const here = T.list.find((t) => t.id === T.here) || T.list[0];
+    return `<button type="button" class="town" data-town aria-haspopup="menu" title="Где стоит твой герой в Городе — облачко с сообщением видно там">📍 ${esc(here ? townName(here) : 'Ярмарка')}</button>`;
+  }
+  function townMenu(from) {
+    modMenuClose(); nickMenuClose();
+    const T = S.towns; if (!T) return;
+    const doc = from.ownerDocument, items = [];
+    for (const t of T.list) items.push([t.id, `${BIO_ICO[t.biome] || '🏘'} ${townName(t)}`, `${t.name && t.name !== townName(t) ? t.name : ''}${t.id === T.here ? (T.quest ? ' · здесь отряд похода' : ' · ты здесь') : ''}`]);
+    if (T.fair && !T.list.some((t) => t.id === 'fair')) items.push(['fair', '🎪 Ярмарка', '']);
+    const el = doc.createElement('div'); el.className = 'mm tm'; el.setAttribute('role', 'menu');
+    el.innerHTML = `<div class="mh">Встать в город<small>игра откроет «Город» там — герой встанет у ворот, его увидят другие, а твои сообщения появятся облачком над ним</small></div>` +
+      items.map(([id, t, sub]) => `<button type="button" role="menuitem" data-tid="${esc(id)}">${esc(t)}${sub ? `<small style="display:block;color:var(--mut);font-weight:400">${esc(sub.replace(/^ · /, ''))}</small>` : ''}</button>`).join('') +
+      `<div class="mh" style="border:0;padding-top:4px"><small>Писать в чат города можно и не вставая — его читают во всех городах канала.</small></div>`;
+    doc.body.appendChild(el);
+    const r = from.getBoundingClientRect(), vw = doc.defaultView.innerWidth, vh = doc.defaultView.innerHeight, w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.max(8, Math.min(r.left, vw - w - 8)) + 'px';
+    el.style.top = (r.bottom + 4 + h > vh - 8 ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+    el.addEventListener('click', (e) => { const b = e.target.closest('[data-tid]'); if (!b) return; nickMenuClose(); townGo(b.dataset.tid); });
+    const out = (e) => { if (!el.contains(e.target)) nickMenuClose(); };
+    const key = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nickMenuClose(); } };
+    setTimeout(() => { doc.addEventListener('pointerdown', out, true); doc.addEventListener('keydown', key, true); }, 0);
+    S.nmenu = { el, doc, out, key };
+    const first = el.querySelector('button'); if (first) first.focus();
+  }
+  function townGo(id) {
+    const t = S.towns && S.towns.list.find((x) => x.id === id), name = t ? townName(t) : 'Ярмарка';
+    if (EMBED && window.parent !== window) {   // панель в игре: страница игры сама перейдёт в «Город» этого города
+      try { window.parent.postMessage({ lgmc: 'town', id, ch: S.ch }, location.origin); okMsg(`Открываю «Город» в игре: ${name}`); return; } catch {}
+    }
+    // отдельное окно: новая вкладка игры получает копию sessionStorage этого окна — с выбранным городом
+    try { if (id === 'fair') sessionStorage.removeItem('lgCityTown'); else sessionStorage.setItem('lgCityTown', id); } catch {}
+    const w = window.open(`${ORIGIN}/c/${encodeURIComponent(S.ch)}/#city`, '_blank');
+    okMsg(w ? `Открыл игру: «Город» — ${name}` : 'Браузер не дал открыть вкладку — разреши всплывающие окна для play.multidonate.ru');
+  }
+
   // ---------- Вкладки города / фильтры общей ленты ----------
   const cityTabs = () => ['g', ...(S.flags.tr ? ['tr', 'ev'] : [])];
   const mixKinds = () => [...(S.mines.length ? ['mine'] : []), ...((!S.hero || S.flags.cc) ? cityTabs() : []), ...(S.flags.dm && S.me ? ['dm'] : [])];
@@ -1385,7 +1448,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     S.el.ctabs.setAttribute('role', 'tablist'); S.el.ctabs.removeAttribute('aria-label');
     const tabs = cityTabs();
     if (!tabs.includes(S.tab)) S.tab = 'g';
-    S.el.ctabs.innerHTML = tabs.map((t) => `<button type="button" role="tab" data-tab="${t}" aria-selected="${t === S.tab}">${TABS[t]}${S.un[t] && t !== S.tab ? `<b>${S.un[t] > 99 ? '99+' : S.un[t]}</b>` : ''}</button>`).join('');
+    S.el.ctabs.innerHTML = tabs.map((t) => `<button type="button" role="tab" data-tab="${t}" aria-selected="${t === S.tab}">${TABS[t]}${S.un[t] && t !== S.tab ? `<b>${S.un[t] > 99 ? '99+' : S.un[t]}</b>` : ''}</button>`).join('') + townChip();
   }
   function tabTo(t) {
     if (t === S.tab) return;
