@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.15.2
+// @version      3.15.3
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -2034,7 +2034,8 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     else if (sig0 !== sig1 && S.list.length) { const keep = S.stick; renderLog(); if (keep) toBottom(); }   // список друзей изменился — отметки 👥 у ников
   }
   const COIN_T = { given: 'Сегодня уже подарил — завтра снова', young: 'Дружбе меньше суток — завтра можно', dead: 'Герой друга пал — монета только живым', nohero: 'У друга нет героя на этом канале' };
-  const coinBtn = (u) => { const ok = u.coin === 'ok', t = ok ? `Монета дня: подарить ${u.name || u.login} 1 бронзовую` : COIN_T[u.coin] || 'Сейчас нельзя'; return `<button type="button" class="coin" data-coin="${esc(u.id)}"${ok ? '' : ' aria-disabled="true"'} title="${esc(t)}" aria-label="${esc(t)}">🪙</button>`; };
+  // монета дня: уже подарил сегодня — кнопки нет (вернётся завтра сама); нельзя по другой причине — серая с объяснением
+  const coinBtn = (u) => { if (!u || !u.coin || u.coin === 'given') return ''; const ok = u.coin === 'ok', t = ok ? `Монета дня: подарить ${u.name || u.login} 1 бронзовую` : COIN_T[u.coin] || 'Сейчас нельзя'; return `<button type="button" class="coin" data-coin="${esc(u.id)}"${ok ? '' : ' aria-disabled="true"'} title="${esc(t)}" aria-label="${esc(t)}">🪙</button>`; };
   async function giveCoin(id) {
     const P = S.pm, rid = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     let r = null; try { r = await api('/api/friends/coin', id ? { to: id, rid } : { all: 1, rid }); } catch {}
@@ -2068,7 +2069,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       else if (st === 'in') items.push(['accept', '👥 Принять в друзья']);
       else if (st !== 'blocked') items.push(['add', '👥 Добавить в друзья']);
       if (st === 'friends') items.push(['trade', '🔄 Предложить обмен']);
-      if (f && f.coin) items.push(['coin', f.coin === 'ok' ? '🪙 Подарить монету дня' : '🪙 ' + (COIN_T[f.coin] || 'Монета дня — сейчас нельзя'), f.coin !== 'ok']);
+      if (f && f.coin && f.coin !== 'given') items.push(['coin', f.coin === 'ok' ? '🪙 Подарить монету дня' : '🪙 ' + (COIN_T[f.coin] || 'Монета дня — сейчас нельзя'), f.coin !== 'ok']);
       items.push(st === 'blocked' ? ['unblock', '✅ Разблокировать'] : ['block', '🚫 Заблокировать']);
     }
     const el = doc.createElement('div'); el.className = 'mm'; el.setAttribute('role', 'menu');
