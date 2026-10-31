@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.13.0
+// @version      3.14.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -297,6 +297,8 @@
     window.addEventListener('message', (e) => {
       if (e.origin !== location.origin || !e.data || typeof e.data.lgmc !== 'string') return;
       if (e.data.lgmc === 'close' || e.data.lgmc === 'popped') setOpen(false);
+      // окно обмена — в «Городе» игры: открыть эту вкладку
+      if (e.data.lgmc === 'citytab') { const b = document.querySelector('nav [data-tab="city"], [data-tab="city"]'); if (b) b.click(); else { location.hash = '#city'; location.reload(); } return; }
       // «📍 встать в город» из панели: игра помнит город во вкладке и открывает «Город» по #city — перезагружаем страницу игры
       if (e.data.lgmc === 'town' && typeof e.data.id === 'string' && /^[a-z0-9_-]{1,32}$/i.test(e.data.id)) {
         const id = e.data.id, ch = String(e.data.ch || CH).toLowerCase();
@@ -1505,6 +1507,8 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       const p = S.el.pmtoast.dataset.peer, w = S.el.pmtoast.dataset.where; S.el.pmtoast.hidden = true;
       if (e.target.closest('.x')) return;
       if (w === 'ping') { if (S.room !== 'ping') switchTo(S.ch, 'ping'); return; }
+      if (w === 'tracc') { tradeAccept(p); return; }
+      if (w === 'game') { tradeShowGame(); return; }
       if (w === 'list') { S.pm.peer = null; if (S.room !== 'pm') switchTo(S.ch, 'pm'); else pmRender(); return; }
       if (p) pmOpen(p);
     });
@@ -1564,6 +1568,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       }
     };
     es.addEventListener('dm', (e) => { let d = null; try { d = JSON.parse(e.data); } catch {} if (d) pmEvent(d); });
+    es.addEventListener('city', (e) => { let d = null; try { d = JSON.parse(e.data); } catch {} if (d && (d.tr !== undefined || d.trNote || d.trDone)) tradeOn(d.tr, d); });   // обмен: приглашения и итог
     es.addEventListener('fr', (e) => {
       let d = null; try { d = JSON.parse(e.data); } catch {}
       friendsLoad();
@@ -1675,7 +1680,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
   function pmToast(l, text, btn, where) {
     if (!l || !S.el.pmtoast) return;
     const t = S.el.pmtoast;
-    t.dataset.peer = where === 'list' ? '' : l; t.dataset.where = where || '';
+    t.dataset.peer = where === 'list' ? '' : l; t.dataset.where = where || '';   // tracc — ник того, кто зовёт меняться
     t.innerHTML = `<span>${esc(text)}</span><button type="button">${esc(btn || 'Открыть')}</button><button type="button" class="x" aria-label="Скрыть">✕</button>`;
     t.hidden = false;
     clearTimeout(S.pm.toastT); S.pm.toastT = setTimeout(() => { t.hidden = true; }, 8000);
@@ -1797,7 +1802,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     }
     const fr = S.meFriends ? (st === 'friends' ? '' : st === 'out' ? '' : st === 'in' ? '<button type="button" data-pa="accept" title="Принять заявку в друзья">👥 Принять</button>' : st === 'blocked' ? '' : '<button type="button" data-pa="add" title="Добавить в друзья">👥＋</button>') : '';
     const blk = S.meFriends ? (st === 'blocked' ? '<button type="button" data-pa="unblock">Разблокировать</button>' : '<button type="button" data-pa="block" title="Заблокировать — не сможет писать тебе">🚫</button>') : '';
-    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:${ncol(l)}">${esc(pmName(l))}${f ? ' <span class="frm" title="Друг">👥</span>' : ''}</b>${status}</span></span><span class="acts">${f ? coinBtn(f) : ''}${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
+    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:${ncol(l)}">${esc(pmName(l))}${f ? ' <span class="frm" title="Друг">👥</span>' : ''}</b>${status}</span></span><span class="acts">${f ? coinBtn(f) + '<button type="button" data-pa="trade" title="Предложить обмен (окно обмена откроется в игре, в «Городе»)">🔄</button>' : ''}${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
     bar.onclick = async (e) => {
       const cn = e.target.closest('[data-coin]');
       if (cn) { if (cn.getAttribute('aria-disabled') !== 'true') { cn.setAttribute('aria-disabled', 'true'); giveCoin(cn.dataset.coin); } return; }
@@ -1806,6 +1811,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       if (a === 'back') return pmBack();
       if (a === 'go') { if (S.pm.peer) { S.pm.drafts[S.pm.peer] = S.el.inp.value; pmSaveDrafts(); } return switchTo(b.dataset.ch, b.dataset.room); }
       if (a === 'report') { P.rep = true; return pmBar(); }
+      if (a === 'trade') return tradeInvite(l);
       if (a === 'block' && !b.classList.contains('sure')) {   // блок — в два нажатия
         b.classList.add('sure'); b.textContent = 'Точно заблокировать?';
         clearTimeout(P.sureT); P.sureT = setTimeout(() => { if (b.isConnected) { b.classList.remove('sure'); b.textContent = '🚫'; } }, 4000);
@@ -2020,6 +2026,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       else if (st === 'out') items.push(['', '👥 Заявка отправлена', true]);
       else if (st === 'in') items.push(['accept', '👥 Принять в друзья']);
       else if (st !== 'blocked') items.push(['add', '👥 Добавить в друзья']);
+      if (st === 'friends') items.push(['trade', '🔄 Предложить обмен']);
       if (f && f.coin) items.push(['coin', f.coin === 'ok' ? '🪙 Подарить монету дня' : '🪙 ' + (COIN_T[f.coin] || 'Монета дня — сейчас нельзя'), f.coin !== 'ok']);
       items.push(st === 'blocked' ? ['unblock', '✅ Разблокировать'] : ['block', '🚫 Заблокировать']);
     }
@@ -2038,6 +2045,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       if (k === 'dm') return pmOpen(l, name);
       if (k === 'reply') { S.el.inp.value = `@${l} ` + S.el.inp.value.replace(/^@\S+\s*/, ''); S.el.inp.focus(); return; }
       if (k === 'coin' && f) return giveCoin(f.id);
+      if (k === 'trade') return tradeInvite(l);
       await friendAct(k, l);
     });
     const out = (e) => { if (!el.contains(e.target)) nickMenuClose(); };
@@ -2172,6 +2180,46 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const a = document.activeElement, had = a && a.id === 'pmq', pos = had ? a.selectionStart : 0;
     pmRender();
     if (had) { const i = S.el.dmbar.querySelector('#pmq'); if (i) { i.focus(); i.setSelectionRange(pos, pos); } }
+  }
+
+
+  // ---------- 🔄 Обмен с друзьями ----------
+  // Обмен в игре — лицом к лицу в «Городе» (site/trade.js): приглашение POST /api/city/trade { op: 'invite', to } (60 с на ответ),
+  // принять — { op: 'accept', from }. Само окно обмена (вещи, монеты, «Готово», подтверждение) — игры, во вкладке «Город»:
+  // туда и переводим. Входящие приглашения — событие «city» канала /api/live (tr.inv: [{ l, n, lv, left }]).
+  const TR = { seen: new Set() };
+  const trErr = (e) => 'Обмен: ' + e + (/город|town|рядом|далеко|не в/i.test(e) ? ' — обмен идёт лицом к лицу: встаньте оба в один город (📍 в комнате «Город»)' : '');
+  async function tradeInvite(l) {
+    let r = null; try { r = await api('/api/city/trade', { op: 'invite', to: l }); } catch {}
+    if (r && r.ok !== false) {
+      if (r.tr !== undefined) tradeOn(r.tr);
+      okMsg(`🔄 ${pmName(l)}: приглашение к обмену отправлено — 60 с на ответ`);
+      pmToast(l, `🔄 Ждём ответа ${pmName(l)}. Окно обмена откроется в игре, во вкладке «Город»`, EMBED ? 'Показать «Город»' : 'Открыть игру', 'game');
+      return;
+    }
+    S.el.err.textContent = trErr((r && (ERR[r.error] || r.error)) || 'нет связи');
+  }
+  async function tradeAccept(l) {
+    let r = null; try { r = await api('/api/city/trade', { op: 'accept', from: l }); } catch {}
+    if (r && r.ok !== false) { okMsg(`🔄 Обмен с ${pmName(l)} — окно в игре, во вкладке «Город»`); tradeShowGame(); return; }
+    S.el.err.textContent = trErr((r && (ERR[r.error] || r.error)) || 'нет связи');
+  }
+  function tradeShowGame() {   // окно обмена — в «Городе» игры
+    if (EMBED && window.parent !== window) { try { window.parent.postMessage({ lgmc: 'citytab' }, location.origin); return; } catch {} }
+    window.open(`${ORIGIN}/c/${encodeURIComponent(S.ch)}/#city`, '_blank');
+  }
+  function tradeOn(tr, d) {
+    if (d && d.trDone && d.trDone.ok) okMsg(`🔄 Обмен с ${d.trDone.with} проведён — вещи и монеты уже у вас`);
+    if (!tr || !Array.isArray(tr.inv)) return;
+    for (const x of tr.inv) {
+      const l = nickOf(x && x.l); if (!l) continue;
+      const key = l + ':' + Math.round((Date.now() + (+x.left || 0)) / 5000);
+      if (TR.seen.has(l)) continue;
+      TR.seen.add(l); setTimeout(() => TR.seen.delete(l), Math.max(5000, +x.left || 60000));
+      if (x.n) S.pm.names[l] = S.pm.names[l] || x.n;
+      pmToast(l, `🔄 ${x.n || l}${x.lv ? ` (ур. ${+x.lv})` : ''} предлагает обмен`, 'Принять', 'tracc');
+      czBeepOnce('dm', 'tr|' + key);
+    }
   }
 
   // ---------- Куда отправлять (в общей ленте) ----------
