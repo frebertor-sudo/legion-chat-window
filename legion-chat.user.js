@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.15.0
+// @version      3.15.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -702,16 +702,25 @@ html.pinned.mini #log{padding-bottom:12px}
 @keyframes lgLive{50%{opacity:.75}}
 @media (prefers-reduced-motion:reduce){#livebadge{animation:none}}
 /* ответ с цитатой, подсказки ников, «пока тебя не было», избранные стикеры */
-#rq{display:flex;gap:8px;align-items:center;margin:0 0 6px;padding:5px 8px;border-left:3px solid var(--acc);background:color-mix(in srgb,var(--acc) 10%,transparent);border-radius:6px;font-size:12px;color:var(--mut)}
-#rq span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#rq b{color:var(--tx)}
-#rq button{background:none;border:0;color:var(--mut);cursor:pointer;font-size:14px;padding:0 4px}
+#rq{display:flex;gap:10px;align-items:center;margin:0 0 6px;padding:6px 6px 6px 10px;border-radius:10px;background:color-mix(in srgb,var(--qc,var(--acc)) 10%,var(--panel));box-shadow:inset 3px 0 0 var(--qc,var(--acc))}
+#rq .ri{color:var(--qc,var(--acc));font-size:18px;line-height:1;flex:none}
+#rq .rb{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+#rq .rb b{color:var(--qc,var(--acc));font-size:12px;font-weight:800}
+#rq .rb i{font-style:normal;color:var(--mut);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rq button{flex:none;width:26px;height:26px;border:0;border-radius:8px;background:color-mix(in srgb,var(--tx) 8%,transparent);color:var(--mut);cursor:pointer;font-size:13px}
+#rq button:hover{color:var(--tx)}
 #ac{list-style:none;margin:0 0 6px;padding:4px;background:var(--pns,var(--panel));border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;gap:1px;max-height:200px;overflow-y:auto}
 #ac li{display:flex;gap:8px;align-items:center;padding:4px 8px;border-radius:7px;cursor:pointer;font-size:13px}
 #ac li[aria-selected="true"],#ac li:hover{background:var(--hov)}
 #ac li small{color:var(--mut);margin-left:auto;font-size:11px}
 #ac .av{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:700 10px var(--ff);color:#fff;flex:none}
-#log .rq{display:block;margin:1px 0 2px;padding:1px 8px;border-left:3px solid color-mix(in srgb,var(--acc) 60%,transparent);color:var(--mut);font-size:.88em;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:0 4px 4px 0;background:color-mix(in srgb,var(--tx) 4%,transparent)}
-#log .rq:hover{color:var(--tx)}
+#log .rq{display:flex;flex-direction:column;gap:0;width:fit-content;max-width:min(100%,340px);margin:3px 0 3px;padding:3px 10px 4px 9px;border-radius:8px;cursor:pointer;background:color-mix(in srgb,var(--qc) 11%,transparent);box-shadow:inset 3px 0 0 var(--qc);font-size:.86em;line-height:1.3;transition:background .15s}
+#log .rq:hover,#log .rq:focus-visible{background:color-mix(in srgb,var(--qc) 20%,transparent);outline:none}
+#log .rq b{color:var(--qc);font-weight:800;font-size:.95em}
+#log .rq i{font-style:normal;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#log .rq.me{--qc:var(--acc)}
+#log .qtx{display:block}
+#log li.hasq>.rq,#log li.hasq>.qtx{margin-left:var(--qi,39px)}
 #log .rpb{position:absolute;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:12px/18px var(--ff);cursor:pointer;opacity:0}
 #log li:hover .rpb,#log .rpb:focus-visible{opacity:1}
 @media (hover:none){#log .rpb{opacity:.6}}
@@ -2312,7 +2321,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
   function replyBar() {
     const r = S.reply, el = S.el.rq; if (!el) return;
     el.hidden = !r;
-    if (r) el.innerHTML = `<span>↩ Ответ <b style="color:${ncol(r.l)}">${esc(r.n)}</b>: «${esc(r.snip)}»</span><button type="button" aria-label="Отменить ответ" title="Отменить ответ (Esc)">✕</button>`;
+    if (r) { el.style.setProperty('--qc', ncol(r.l)); el.innerHTML = `<span class="ri" aria-hidden="true">↩</span><span class="rb"><b>Ответ ${esc(r.n)}</b><i>${esc(r.snip)}</i></span><button type="button" aria-label="Отменить ответ" title="Отменить ответ (Esc)">✕</button>`; }
   }
   function replyCancel() { S.reply = null; replyBar(); }
   function replyWrap(t) {   // текст с цитатой — не длиннее 200
@@ -2414,6 +2423,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       if (b) { e.stopPropagation(); const li = b.closest('li'), m = li && (S.list.find((x) => x._key === li.dataset.key) || (S.room === 'ping' && pingView().find((x) => x._key === li.dataset.key))); if (m) replyStart(m); return; }
       const q = e.target.closest('.rq'); if (q) { e.stopPropagation(); quoteJump(q); }
     }, true);
+    S.el.log.addEventListener('keydown', (e) => { const q = e.target.closest && e.target.closest('.rq'); if (q && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); quoteJump(q); } });
     S.el.away.addEventListener('click', (e) => {
       const b = e.target.closest('[data-aw]'); if (!b) return;
       S.el.away.hidden = true;
@@ -2762,8 +2772,11 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const ri = ROLE_ICO[msg.r]; const role = ri ? `<span title="${ri[1]}">${ri[0]}</span> ` : '';
     const aw = (msg.aw || []).map((a) => `<span class="aw" title="${esc(a.n)}${a.d ? ' — ' + esc(a.d) : ''}">${esc(a.i || '✦')}</span>`).join('');
     const to = msg.k === 'dm' && msg.to ? ` <span class="to" title="Личное">→ <span class="n" data-l="${esc(String(msg.to).toLowerCase())}">${esc(msg.to)}</span></span>` : '';
-    const qm = QUOTE_RE.exec(text), qq = qm ? `<span class="rq" data-ql="${esc(qm[1].toLowerCase())}" data-qt="${esc(qm[2])}" title="Перейти к сообщению">↩ <b>${esc(dispName(qm[1].toLowerCase()))}</b>: ${esc(qm[2])}</span>` : '';
-    li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:${ncol(l)}" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${qq}${fmtText(qm ? (qm[1].toLowerCase() === S.me ? '@' + qm[1] + ' ' : '') + qm[3] : text)}`;
+    // ответ с цитатой: под ником — карточка (полоса и имя цвета того, кому отвечают), ниже — сам ответ
+    const qm = QUOTE_RE.exec(text), ql = qm ? qm[1].toLowerCase() : '', toMe = !!qm && ql === S.me;
+    const qq = qm ? `<span class="rq${toMe ? ' me' : ''}" style="--qc:${ncol(ql)}" data-ql="${esc(ql)}" data-qt="${esc(qm[2])}" title="Перейти к сообщению" role="link" tabindex="0"><b>${toMe ? 'Ответ тебе' : esc(dispName(ql))}</b><i>${esc(qm[2])}</i></span>` : '';
+    li.innerHTML = `<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:${ncol(l)}" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}${qm ? `${qq}<span class="qtx">${fmtText(qm[3])}</span>` : ': ' + fmtText(text)}`;
+    if (qm) li.classList.add('hasq');
     const nEl = li.querySelector('.n[data-l]');
     const isFr = !!l && (msg._fr || S.pm.frState.get(l) === 'friends');
     if (nEl && isFr) nEl.insertAdjacentHTML('afterend', '<span class="frm" title="Друг">👥</span>');
@@ -3047,7 +3060,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     css += `html:not(.pinned) :is(#log,#pvlog){font-size:${Math.max(11, Math.min(22, +CZ.size || 14))}px}`;
     if (CZ.density === 'compact') css += `:is(#log,#pvlog) li{padding-top:1px;padding-bottom:1px}:is(#log,#pvlog) li+li{margin-top:0}`;
     if (CZ.density === 'airy') css += `:is(#log,#pvlog) li{padding-top:6px;padding-bottom:6px}:is(#log,#pvlog) li+li{margin-top:3px}`;
-    if (!CZ.time) css += `:is(#log,#pvlog) .t{display:none}`;
+    if (!CZ.time) css += `:is(#log,#pvlog) .t{display:none}:root{--qi:0px}`;
     if (!CZ.icons) css += `:is(#log,#pvlog) li>span[title]:not(.aw):not(.n):not(.to):not(.src):not(.frm){display:none}`;
     // полоса прокрутки: по умолчанию спрятана везде в окне чата (колесо, тач и клавиши листают как раньше)
     if (!CZ.scrollbar) css += `*{scrollbar-width:none}*::-webkit-scrollbar{display:none;width:0;height:0}`;
