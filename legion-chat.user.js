@@ -494,7 +494,7 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #sp textarea[data-ta="css"],#sp #czio{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:12px}
 #sp label.ta{display:flex;flex-direction:column;gap:3px;font-size:13px}
 #sp label.ck{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
-#sp label.ck input{accent-color:var(--acc);width:16px;height:16px}
+#sp label.ck input{accent-color:var(--acc);width:16px;height:16px;flex:none}
 #sp .hlr{display:flex;align-items:center;justify-content:space-between;gap:8px}
 #sp .hlr .dot.pick{flex:none;font-size:0}
 #sp .seg2{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;align-self:flex-start}
