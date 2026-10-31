@@ -3120,6 +3120,12 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     if (!CZ.icons) css += `:is(#log,#pvlog) li>span[title]:not(.aw):not(.n):not(.to):not(.src):not(.frm){display:none}`;
     // полоса прокрутки: по умолчанию спрятана везде в окне чата (колесо, тач и клавиши листают как раньше)
     if (!CZ.scrollbar) css += `*{scrollbar-width:none}*::-webkit-scrollbar{display:none;width:0;height:0}`;
+    // включена — своя: тонкая, скруглённая, в цвет акцента; пока мышь не над областью — еле видна (Chrome/Edge/Opera — ::-webkit-scrollbar, Firefox — scrollbar-color)
+    else css += `@supports selector(::-webkit-scrollbar){*::-webkit-scrollbar{width:10px;height:10px;background:transparent}*::-webkit-scrollbar-track,*::-webkit-scrollbar-corner{background:transparent}`
+      + `*::-webkit-scrollbar-thumb{background-color:color-mix(in srgb,var(--acc) 62%,transparent);background-clip:padding-box;border:3px solid transparent;border-radius:99px;min-height:36px}`
+      + `*:not(:hover)::-webkit-scrollbar-thumb{background-color:color-mix(in srgb,var(--acc) 24%,transparent)}`
+      + `*::-webkit-scrollbar-thumb:hover{background-color:color-mix(in srgb,var(--acc) 85%,transparent);border-width:2px}*::-webkit-scrollbar-thumb:active{background-color:var(--acc)}*::-webkit-scrollbar-button{display:none;height:0;width:0}}`
+      + `@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--acc) 50%,transparent) transparent}}`;
     if (!CZ.awards) css += `:is(#log,#pvlog) .aw{display:none}`;
     if (!CZ.nickColor) css += `:is(#log,#pvlog) .n{color:var(--tx)!important}`;
     css += `html:not(.pinned) :is(#log,#pvlog) img.em{height:${Math.max(18, Math.min(56, +CZ.emoteSize || 28))}px}`;
