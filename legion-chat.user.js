@@ -593,7 +593,9 @@ footer{flex:none;border-top:1px solid var(--line);background:var(--panel);paddin
 #mp p{margin:0;color:var(--mut);font-size:12px}
 #modb[hidden]{display:none}
 form{display:flex;gap:6px;margin:0}
-#in{flex:1;min-width:0;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
+#in{flex:1;min-width:0;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;line-height:1.4;resize:none;overflow-y:hidden;display:block;height:38px;max-height:calc(6 * 1.4em + 18px)}
+#f{align-items:flex-end}#f>button,#f>select{min-height:38px;align-self:flex-end}
+html.pinned #f>button,html.pinned #f>select{min-height:0;align-self:stretch}
 #in:focus{outline:none;border-color:var(--acc)}
 #in:disabled{opacity:.6}
 #send{background:var(--acc);color:var(--on-acc);border:0;border-radius:8px;padding:0 14px;font-size:16px;cursor:pointer}
@@ -763,7 +765,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
 <div id="pp" role="dialog" aria-label="Пасты"><div class="pp-top"><input id="pq" type="search" placeholder="Найти пасту…" aria-label="Поиск пасты"><button type="button" class="pbtn" id="pnew">＋ Новая</button></div><ul id="pl"></ul>
 <div id="pe"><input id="pn" maxlength="40" placeholder="Название (например: «приветствие»)" aria-label="Название пасты"><textarea id="pt" maxlength="500" placeholder="Текст пасты — можно со стикерами" aria-label="Текст пасты"></textarea><div class="pe-b"><small id="pc">0 / 200</small><button type="button" class="pbtn alt" id="pcancel">Отмена</button><button type="button" class="pbtn" id="psave">Сохранить</button></div></div></div>
 <div id="rq" hidden></div><ul id="ac" role="listbox" aria-label="Подсказки ников" hidden></ul>
-<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><input id="in" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение"><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
+<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><textarea id="in" rows="1" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение" spellcheck="true"></textarea><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
 </body>`;
     { const st0 = document.querySelector('head style'); st0.textContent = st0.textContent.replace(/#log\b/g, ':is(#log,#pvlog)'); }   // пример в настройках выглядит как лента
     const $ = (id) => document.getElementById(id);
@@ -830,7 +832,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     pickerInit();
     pastesInit();
     modInit();
-    pmInit(); pingInit(); findInit(); comfyInit();
+    pmInit(); pingInit(); findInit(); comfyInit(); growInit();
     czInit();
     start();
     loadChannels();
@@ -2489,6 +2491,34 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const keep = S.stick;
     apply({ chat: arr }, src, true);   // повторы отсеются по id, порядок — по времени
     renderLog(); if (keep) toBottom();
+  }
+
+
+  // ---------- поле ввода растёт вместе с текстом (до ~6 строк, дальше — прокрутка) ----------
+  // Это <textarea>: Enter — отправить (переносов в сообщениях игры нет — вставленные переносы становятся пробелами).
+  function growInit() {
+    const inp = S.el.inp;
+    const grow = () => {
+      const w = inp.ownerDocument.defaultView, cs = w.getComputedStyle(inp), max = parseFloat(cs.maxHeight) || 140;
+      inp.style.height = 'auto';
+      const h = Math.min(max, inp.scrollHeight + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0));
+      inp.style.height = Math.ceil(h) + 'px';
+      inp.style.overflowY = inp.scrollHeight + 2 > max ? 'auto' : 'hidden';
+      if (S.stick) toBottom();
+    };
+    S.grow = grow;
+    // текст ставят и кодом (ответ, стикер, паста, ↑, очистка после отправки) — растём и тогда
+    const d = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+    try { Object.defineProperty(inp, 'value', { configurable: true, get() { return d.get.call(this); }, set(v) { d.set.call(this, v); grow(); } }); } catch {}
+    inp.addEventListener('input', () => {
+      if (/[\r\n]/.test(inp.value)) { const p = inp.selectionStart; inp.value = inp.value.replace(/\r?\n/g, ' '); inp.setSelectionRange(p, p); }
+      grow();
+    });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing && !e.defaultPrevented) { e.preventDefault(); if (!S.el.send.disabled) S.el.f.requestSubmit(); }
+    });
+    window.addEventListener('resize', grow);
+    grow();
   }
 
   // ---------- Куда отправлять (в общей ленте) ----------
