@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.11.0
+// @version      3.11.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -1157,7 +1157,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       if (visible(m)) { if (!resort) S.el.log.appendChild(row(m)); added++; }
       else if (S.room === 'city' && !initial && !mine && k !== 'ev' && k !== 'mine') { S.un[k] = (S.un[k] || 0) + 1; renderTabs(); }
       if (!initial && hidden() && !mine && visible(m)) document.title = `(${++S.unseenTitle}) ${title()}`;
-      if (!initial && !mine && visible(m) && isMention(String(m.t || ''), String(m.l || '').toLowerCase())) beep = true;
+      if (!initial && !mine && visible(m) && isMention(String(m.t || ''), String(m.l || '').toLowerCase())) beep = S.ch + '|' + key;
     }
     for (const id of d.chatDel || []) {   // удалённые модератором
       const key = src + ':' + id;
@@ -1168,7 +1168,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     while (S.list.length > 500) { const old = S.list.shift(); S.ids.delete(old._key); const li = S.el.log.querySelector(`li[data-key="${CSS.escape(old._key)}"]`); if (li) li.remove(); }
     if (d.c != null) { if (src === 'mine') S.mc = Math.max(S.mc, +d.c || 0); else S.cc = Math.max(S.cc, +d.c || 0); }
     if (d.chatMe && 'muted' in d.chatMe && d.chatMe.muted) S.el.err.textContent = 'Модератор запретил тебе писать в этот чат';
-    if (beep) czBeep('mention');
+    if (beep) czBeepOnce('mention', beep);
     if (resort || (initial && S.room === 'ping')) renderLog();   // в «Пингах» — вместе с сохранёнными раньше
     emptyState();
     if (added) {
@@ -1516,7 +1516,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const watching = S.room === 'pm' && P.peer === l && !hidden();
     if (!mine) {
       if (watching) pmMarkRead(l);
-      else { P.un.set(l, (P.un.get(l) || 0) + 1); pmToast(l, `✉ ${pmName(l)}: ${m.t}`, 'Ответить'); pmNotify(l, m); czBeep('dm'); }
+      else { P.un.set(l, (P.un.get(l) || 0) + 1); pmToast(l, `✉ ${pmName(l)}: ${m.t}`, 'Ответить'); pmNotify(l, m); czBeepOnce('dm', 'dm|' + (m.id || m.at)); }
     }
     if (S.room === 'all') apply({ chat: [pmToFeed(m)] }, 'pm');
     if (S.room === 'pm') pmRender(P.peer === l);
@@ -2745,6 +2745,19 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
 
   // ---- звук: короткий сигнал без файлов ----
   let AC = null;
+  // Чат может быть открыт сразу в нескольких местах (панель в игре, отдельное окно, другая вкладка игры) —
+  // каждое сообщение звучит один раз: кто первым отметил его в общем localStorage, тот и играет звук.
+  function czBeepOnce(kind, id) {
+    if (!CZ.sound) return;
+    setTimeout(() => {   // небольшой разброс: окна, получившие сообщение в одну и ту же миллисекунду, не сыграют вдвоём
+      try {
+        const k = 'lgmc_beep', now = Date.now(), done = (JSON.parse(localStorage.getItem(k) || '[]') || []).filter((x) => now - x[1] < 15000);
+        if (done.some((x) => x[0] === id)) return;
+        done.push([id, now]); localStorage.setItem(k, JSON.stringify(done.slice(-30)));
+      } catch {}
+      czBeep(kind);
+    }, Math.floor(Math.random() * 180));
+  }
   function czBeep(kind) {
     if (!CZ.sound) return;
     try {
