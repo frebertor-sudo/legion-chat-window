@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.16.0
+// @version      3.16.1.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -735,6 +735,13 @@ html.pinned.mini #log{padding-bottom:12px}
 #log .at[data-at]:hover,#log .at[data-at]:focus-visible{text-decoration:underline;outline:none}
 #log li.uhl{background:color-mix(in srgb,var(--acc) 13%,transparent);box-shadow:inset 3px 0 0 color-mix(in srgb,var(--acc) 70%,transparent)}
 #log li.uhl1{background:color-mix(in srgb,var(--acc) 22%,transparent);box-shadow:inset 3px 0 0 var(--acc)}
+#log .cpb{position:absolute;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:12px/18px var(--ff);cursor:pointer;opacity:0}
+#log li:hover .cpb,#log .cpb:focus-visible{opacity:1}
+#log .cpb.ok{color:var(--ok);border-color:var(--ok);opacity:1}
+@media (hover:none){#log .cpb{opacity:.6}}
+#log li.b{position:relative}
+#log li.b .cpb{top:-9px;right:-6px;padding:0 5px;font-size:11px;line-height:16px;border-radius:6px}
+#log li.b.me .cpb{right:auto;left:-6px}
 /* облик как в чате игры: вкладки-«пилюли», полупрозрачные кнопки, поля со скруглением 10px */
 .hb{background:color-mix(in srgb,var(--tx) 9%,transparent);border-color:transparent;border-radius:8px}
 .hb:hover,.hb:focus-visible{border-color:var(--acc);outline:none}
@@ -1971,7 +1978,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       for (const m of L) {
         if (!prev || !sameDay(prev.at, m.at)) li('day', dayName(m.at));
         const me = m.fl === S.me, cont = prev && prev.fl === m.fl && sameDay(prev.at, m.at) && m.at - prev.at < 5 * 60000;
-        li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}`, `${fmtText(m.t)}<span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}">${hhmm(m.at)}</span>`, { 'data-id': m.id });
+        li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}`, `${fmtText(m.t)}<span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}">${hhmm(m.at)}</span><button type="button" class="cpb" title="Скопировать сообщение" aria-label="Скопировать сообщение">⧉</button>`, { 'data-id': m.id });
         prev = m;
       }
       if (!L.length && !P.blocked(l)) li('pm0', P.loaded.has(l) ? `<b>Здесь пока пусто</b>Напиши первым — читаете только вы двое.` : 'Загружаю переписку…');
@@ -2429,6 +2436,31 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     UH.t = setTimeout(clear, 20000);
   }
 
+
+  // ---------- ⧉ скопировать сообщение ----------
+  async function copyText(t, btn) {
+    let ok = false;
+    try { await navigator.clipboard.writeText(t); ok = true; } catch {}
+    if (!ok) {   // запасной путь — через скрытое поле
+      const d = btn.ownerDocument, ta = d.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+      d.body.appendChild(ta); ta.select(); try { ok = d.execCommand('copy'); } catch {} ta.remove();
+    }
+    if (ok) { btn.textContent = '✓'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = '⧉'; btn.classList.remove('ok'); }, 1200); okMsg('Скопировано'); }
+    else S.el.err.textContent = 'Не получилось скопировать — выдели текст и нажми Ctrl+C';
+  }
+  function copyMsg(btn) {
+    const li = btn.closest('li'); if (!li) return;
+    if (li.classList.contains('b')) {   // пузырь в личных
+      const m = (S.pm.conv.get(S.pm.peer) || []).find((x) => String(x.id) === li.dataset.id);
+      if (m) copyText(extStrip(String(m.t || '')), btn);
+      return;
+    }
+    const m = S.list.find((x) => x._key === li.dataset.key) || (S.room === 'ping' && pingView().find((x) => x._key === li.dataset.key));
+    if (!m) return;
+    const t = String(m.t || ''), q = QUOTE_RE.exec(t);
+    copyText(extStrip(q ? q[3] : t).trim(), btn);   // только сам текст, без цитаты и невидимой метки
+  }
+
   function comfyInit() {
     Object.assign(S.el, { ac: document.getElementById('ac'), rq: document.getElementById('rq'), away: document.getElementById('away') });
     const inp = S.el.inp;
@@ -2447,6 +2479,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     S.el.ac.addEventListener('pointerdown', (e) => { const li = e.target.closest('li[data-l]'); if (li) { e.preventDefault(); acPick(li.dataset.l); } });
     S.el.rq.addEventListener('click', (e) => { if (e.target.closest('button')) replyCancel(); });
     S.el.log.addEventListener('click', (e) => {
+      const cpy = e.target.closest('.cpb'); if (cpy) { e.stopPropagation(); copyMsg(cpy); return; }
       const b = e.target.closest('.rpb');
       if (b) { e.stopPropagation(); const li = b.closest('li'), m = li && (S.list.find((x) => x._key === li.dataset.key) || (S.room === 'ping' && pingView().find((x) => x._key === li.dataset.key))); if (m) replyStart(m); return; }
       const q = e.target.closest('.rq'); if (q) { e.stopPropagation(); quoteJump(q); return; }
@@ -2908,6 +2941,10 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
       const rb = document.createElement('button'); rb.type = 'button'; rb.className = 'rpb'; rb.textContent = '↩';
       rb.title = 'Ответить с цитатой'; rb.setAttribute('aria-label', `Ответить ${msg.n || msg.l} с цитатой`); li.appendChild(rb);
     }
+    {   // ⧉ скопировать текст сообщения
+      const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'cpb'; cb.textContent = '⧉';
+      cb.title = 'Скопировать сообщение'; cb.setAttribute('aria-label', `Скопировать сообщение ${msg.n || msg.l}`); li.appendChild(cb);
+    }
     if (S.room === 'ping') {   // перейти в тот чат, где позвали (тот же канал — шахта или город)
       const go = document.createElement('button');
       go.type = 'button'; go.className = 'pgo'; go.textContent = '→'; go.dataset.ch = msg._ch || S.ch; go.dataset.room = msg._src === 'mine' ? 'mine' : 'city';
@@ -2923,7 +2960,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     }
     // кнопки при наведении — в ряд справа: ↩, ✉, ⋯ (в «Пингах» — левее «→»)
     let rx = S.room === 'ping' ? 36 : 2;
-    for (const c of ['rpb', 'dmb', 'mb']) { const x = li.querySelector('.' + c); if (x) { x.style.right = rx + 'px'; rx += 32; } }
+    for (const c of ['cpb', 'rpb', 'dmb', 'mb']) { const x = li.querySelector('.' + c); if (x) { x.style.right = rx + 'px'; rx += 32; } }
     return li;
   }
 
