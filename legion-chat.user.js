@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.16.1.1
+// @version      3.16.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
