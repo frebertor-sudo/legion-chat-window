@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.17.0
+// @version      3.17.0.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -2483,7 +2483,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     top.scrollIntoView({ block: 'center' });
     S.stick = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     UH.l = l;
-    okMsg(`Последние сообщения ${dispName(l)}: ${last.length}${rows.length > last.length ? ` из ${rows.length}` : ''} — нажми ещё раз или Esc, чтобы убрать`);
+    okTip(`Последние сообщения ${dispName(l)}: ${last.length}${rows.length > last.length ? ` из ${rows.length}` : ''} — нажми ещё раз или Esc, чтобы убрать`);
     UH.t = setTimeout(clear, 20000);
   }
 
@@ -2496,7 +2496,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       const d = btn.ownerDocument, ta = d.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0';
       d.body.appendChild(ta); ta.select(); try { ok = d.execCommand('copy'); } catch {} ta.remove();
     }
-    if (ok) { btn.textContent = '✓'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = '⧉'; btn.classList.remove('ok'); }, 1200); okMsg('Скопировано'); }
+    if (ok) { btn.textContent = '✓'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = '⧉'; btn.classList.remove('ok'); }, 1200); okTip('Скопировано'); }
     else S.el.err.textContent = 'Не получилось скопировать — выдели текст и нажми Ctrl+C';
   }
   function copyMsg(btn) {
@@ -2578,10 +2578,10 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   const bmHas = (id) => bms().some((x) => x.id === id);
   function bmToggle(m, btn) {
     const id = S.ch + '|' + m._key, list = bms(), i = list.findIndex((x) => x.id === id);
-    if (i >= 0) { list.splice(i, 1); okMsg('Убрано из закладок'); }
+    if (i >= 0) { list.splice(i, 1); okTip('Убрано из закладок'); }
     else {
       list.unshift({ id, ch: S.ch, chn: S.chName, src: m._src, key: m._key, l: String(m.l || '').toLowerCase(), n: m.n || m.l, t: extStrip(String(m.t || '')), at: m.at || Date.now(), saved: Date.now() });
-      okMsg('⭐ В закладках — открыть: ⭐ вверху');
+      okTip('⭐ В закладках — открыть: ⭐ вверху');
     }
     lsSet(BM_KEY, list.slice(0, 300));
     const on = i < 0, li = btn.closest('li');
@@ -3151,6 +3151,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   const canMod = (src) => !!(S.mod[src] && S.mod[src].role);
   const leftT = (ms) => { const m = Math.max(1, Math.ceil(ms / 60000)); return m < 60 ? `${m} мин` : m < 1440 ? `${Math.ceil(m / 60)} ч` : `${Math.ceil(m / 1440)} дн`; };
   const muteName = (min) => (MUTES.find((x) => x[0] === min) || [0, leftT(min * 60000)])[1];
+  // короткие подтверждения («Скопировано», «В закладках»…) — их можно выключить в ⚙
+  function okTip(t) { if (CZ.tips !== false) okMsg(t); }
   function okMsg(t) {
     S.el.okm.textContent = t; S.el.err.textContent = '';
     clearTimeout(S.okT); S.okT = setTimeout(() => { S.el.okm.textContent = ''; }, 5000);
@@ -3329,7 +3331,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -3524,7 +3526,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
         </section>
         <section><h4>Сообщения</h4>
           ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}${tg('scrollbar', 'Полоса прокрутки')}${tg('hist', 'Помнить ленту между запусками (игра отдаёт только последние ~120)')}
-          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
+          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('tips', 'Подсказки над полем ввода: «Скопировано», «В закладках»…')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
           ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
         </section>
         <section><h4>Подсветка и фильтр</h4>
