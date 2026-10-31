@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.16.2
+// @version      3.17.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -340,7 +340,12 @@
   // На светлой теме те же цвета темнее (--ncm), иначе жёлтый и мятный не читаются.
   const NICK_COLORS = ['#ffc94d', '#ff8a80', '#ffab6e', '#f4ff81', '#b9f6ca', '#69f0ae', '#84ffff', '#80d8ff', '#9fa8ff', '#b388ff', '#ea80fc', '#ff80ab', '#ffd180', '#a7ffeb', '#ccff90', '#ffcdd2'];
   const nickColor = (l) => { let h = 2166136261; const t = String(l || '').toLowerCase(); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return NICK_COLORS[(h >>> 0) % NICK_COLORS.length]; };
-  const ncol = (l) => `color-mix(in oklch, ${nickColor(l)} var(--ncm,100%), var(--ncb,#000))`;
+  // свои цвет и прозвище для ников (lgmc_nick: { ник: { c: '#цвет', a: 'прозвище' } }) — видны только тебе
+  const NK_KEY = 'lgmc_nick';
+  let NK = (() => { try { return JSON.parse(localStorage.getItem(NK_KEY) || '{}') || {}; } catch { return {}; } })();
+  const nkColor = (l) => (NK[l] && /^#[0-9a-f]{6}$/i.test(NK[l].c || '') ? NK[l].c : nickColor(l));
+  const aliasOf = (l) => (NK[l] && NK[l].a) || '';
+  const ncol = (l) => `color-mix(in oklch, ${nkColor(l)} var(--ncm,100%), var(--ncb,#000))`;
   const hue = (s) => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h % 360; };
   const hhmm = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch { return d; } };
@@ -467,8 +472,8 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #log .frm,#log li.conv .cv b .frm{display:inline;font-size:11px;margin-left:2px;opacity:.8;color:inherit}
 #dmbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:2px 8px;font:600 11px var(--ff);cursor:pointer;margin-left:6px}
 #sp{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column}
-#sp .sp-h{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
-#sp .sp-h b{flex:1;font-size:14px}
+:is(#sp,#bmp) .sp-h{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+:is(#sp,#bmp) .sp-h b{flex:1;font-size:14px}
 #sp .sp-b{flex:1;overflow-y:auto;padding:4px 12px 20px}
 #sp section{padding:10px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:7px}
 #sp section:last-child{border-bottom:0}
@@ -745,6 +750,36 @@ html.pinned.mini #log{padding-bottom:12px}
 #log li.b{position:relative}
 #log li.b .cpb{top:-9px;right:-6px;padding:0 5px;font-size:11px;line-height:16px;border-radius:6px}
 #log li.b.me .cpb{right:auto;left:-6px}
+#log .bmb{position:absolute;top:1px;background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;font:12px/18px var(--ff);cursor:pointer;opacity:0}
+#log li:hover .bmb,#log .bmb:focus-visible,#log .bmb.on{opacity:1}
+#log .bmb.on{color:#f5b400;border-color:color-mix(in srgb,#f5b400 50%,var(--line))}
+#log li.bmk{box-shadow:inset -3px 0 0 #f5b400}
+#onlyb{display:flex;gap:8px;align-items:center;padding:6px 10px;background:color-mix(in srgb,var(--acc) 12%,var(--panel));border-bottom:1px solid var(--line);font-size:12px;flex:none}
+#onlyb span{flex:1;min-width:0}
+#onlyb button{background:var(--acc);color:var(--on-acc);border:0;border-radius:999px;padding:2px 10px;font:700 12px var(--ff);cursor:pointer}
+#bmp{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column}
+#bmp .bm-b{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+#bmp .bmq{background:var(--field);color:var(--tx);border:1px solid var(--fieldb);border-radius:10px;padding:6px 10px;font:inherit;font-size:13px}
+#bmp .bml{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+#bmp .bml li{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+#bmp .bmh{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}#bmp .bmh small{color:var(--mut);font-size:11px}
+#bmp .bmt{overflow-wrap:anywhere;line-height:1.4}
+#bmp .bma{display:flex;gap:6px}
+#bmp .bma button{background:var(--btn,var(--panel));color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:2px 9px;font:600 12px var(--ff);cursor:pointer}
+#bmp .bma button:hover{border-color:var(--acc)}
+#bmp .bm0{color:var(--mut);text-align:center;margin:24px 8px}
+#bmk[aria-pressed="true"]{background:var(--acc);color:var(--on-acc)}
+.mm.nke{width:min(280px,calc(100vw - 16px));gap:8px}
+.mm.nke .nka{background:var(--field,var(--bg));color:var(--tx);border:1px solid var(--fieldb,var(--line));border-radius:8px;padding:6px 8px;font:inherit;font-size:13px}
+.mm.nke .nkc{display:flex;flex-wrap:wrap;gap:5px}
+.mm.nke .dot{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;position:relative;overflow:hidden}
+.mm.nke .dot[aria-pressed="true"]{border-color:var(--tx)}
+.mm.nke .dot.pick input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.mm.nke .nkp{font-size:12px;color:var(--mut)}.mm.nke .nkp b{font-size:14px}
+.mm.nke .nkb{display:flex;gap:6px;flex-wrap:wrap}
+.mm.nke .nkb button{flex:1;background:var(--btn,var(--panel));color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:4px 8px;font:600 12px var(--ff);cursor:pointer}
+.mm.nke .nkb button.ok{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
+#sp .ign div small{margin-right:auto}
 /* облик как в чате игры: вкладки-«пилюли», полупрозрачные кнопки, поля со скруглением 10px */
 .hb{background:var(--btn);border-color:transparent;border-radius:8px;box-shadow:var(--sh)}
 .hb:hover,.hb:focus-visible{border-color:var(--acc);outline:none}
@@ -764,11 +799,11 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 </style></head>
 <body>
 <header>
-  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
+  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
-<div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
-<div id="cbar" hidden></div><div id="away" role="status" hidden></div>
+<div id="bmp" role="dialog" aria-label="Закладки" hidden></div><div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
+<div id="cbar" hidden></div><div id="away" role="status" hidden></div><div id="onlyb" role="status" hidden></div>
 <div id="dmbar" hidden></div>
 <div id="pmtoast" role="status" hidden></div>
 <div id="sp" role="dialog" aria-label="Настройки чата" hidden></div>
@@ -977,6 +1012,10 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       if (r && r.ok && Array.isArray(r.channels)) S.channels = r.channels.filter((c) => okLogin(c.login));
     } catch {}
     if (!S.channels.some((c) => c.login.toLowerCase() === S.ch)) S.channels.unshift({ login: S.ch, name: S.chName, live: false });
+    // 🔴 кто-то из стримеров игры начал эфир (был не в эфире при прошлой проверке) — сказать
+    const nowLive = new Set(S.channels.filter((c) => c.live).map((c) => c.login.toLowerCase()));
+    if (S.liveSet && CZ.liveAlert !== false) for (const c of S.channels) { const l = c.login.toLowerCase(); if (nowLive.has(l) && !S.liveSet.has(l)) liveAlert(c); }
+    S.liveSet = nowLive;
     renderChannels();
     clearTimeout(S.chanT); S.chanT = setTimeout(loadChannels, hidden() ? 300000 : 120000);   // эфиры начинаются и заканчиваются — раз в 2 минуты
   }
@@ -1219,6 +1258,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   const kind = (m) => (m._src === 'mine' ? 'mine' : m._src === 'pm' ? 'dm' : m.tb || (m.ev ? 'ev' : m.k === 'tr' ? 'tr' : m.k === 'dm' ? 'dm' : 'g'));
   const visible = (m) => {
     if (S.ign.has(m.l) || czHidden(m)) return false;
+    if (S.only && String(m.l || '').toLowerCase() !== S.only) return false;   // 👁 только этот игрок
     const k = kind(m);
     if (S.room === 'pm') return false;
     if (S.room === 'ping') return isPing(m);
@@ -1288,6 +1328,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     if (S.room === 'pm') { S.el.empty.hidden = true; return; }
     const has = !!S.el.log.firstElementChild;
     S.el.empty.hidden = has;
+    if (!has && S.only) { S.el.empty.textContent = `В ленте нет сообщений ${dispName(S.only)}`; return; }
     if (has) return;
     if (S.room === 'ping') {
       S.el.empty.textContent = S.pg.all ? 'Пингов пока нет. Когда кто-то напишет @' + (S.me || 'твой_ник') + ' в шахте или городе, сообщение появится здесь.'
@@ -1342,7 +1383,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const out = new Map();
     for (const p of S.pg.list) if (S.pg.all || p._ch === S.ch) out.set(p._ch + '|' + p._key, p);
     for (const m of S.list) if (isPing(m)) out.set(S.ch + '|' + m._key, Object.assign({ _ch: S.ch }, m));
-    return [...out.values()].filter((m) => !S.ign.has(m.l) && !czHidden(m)).sort((a, b) => (a.at || 0) - (b.at || 0));
+    return [...out.values()].filter((m) => !S.ign.has(m.l) && !czHidden(m) && (!S.only || String(m.l || '').toLowerCase() === S.only)).sort((a, b) => (a.at || 0) - (b.at || 0));
   }
 
 
@@ -1525,13 +1566,13 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   const PM_MAX = 300, MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   const pmKey = (k) => `lgmc_pm${k}_${S.ch}_${S.me}`;
   const nickOf = (x) => { const l = String(x ?? '').toLowerCase().replace(/^@/, '').trim(); return /^[a-z0-9_]{1,25}$/.test(l) ? l : null; };
-  const pmName = (l) => S.pm.names[l] || l;
+  const pmName = (l) => aliasOf(l) || S.pm.names[l] || l;
   // аватарка: значок класса героя (класс узнаём из сообщений чата — сайт отдаёт его вместе с ником), иначе — первая буква
   const clsOf = (l) => (l === S.me && S.myCls ? [S.myCls, S.myClsN] : ((seenMap().get(l) || [])[2] ? [seenMap().get(l)[2], seenMap().get(l)[3]] : null));
   function avIn(l, nm, cls = 'av') {
     const c = clsOf(l), name = nm != null ? String(nm) : pmName(l);
-    return c && CLS_ICO[c[0]] ? `<span class="${cls} cl" style="--avc:${nickColor(l)}" title="${esc(c[1] || c[0])}" aria-hidden="true">${CLS_ICO[c[0]]}`
-      : `<span class="${cls}" style="--avc:${nickColor(l)}" aria-hidden="true">${esc((name[0] || '?').toUpperCase())}`;
+    return c && CLS_ICO[c[0]] ? `<span class="${cls} cl" style="--avc:${nkColor(l)}" title="${esc(c[1] || c[0])}" aria-hidden="true">${CLS_ICO[c[0]]}`
+      : `<span class="${cls}" style="--avc:${nkColor(l)}" aria-hidden="true">${esc((name[0] || '?').toUpperCase())}`;
   }
   const avatar = (l, cls = 'av') => avIn(l, null, cls) + '</span>';
   const sameDay = (a, b) => { const x = new Date(a), y = new Date(b); return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate(); };
@@ -1560,6 +1601,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       const p = S.el.pmtoast.dataset.peer, w = S.el.pmtoast.dataset.where; S.el.pmtoast.hidden = true;
       if (e.target.closest('.x')) return;
       if (w === 'ping') { if (S.room !== 'ping') switchTo(S.ch, 'ping'); return; }
+      if (w === 'live') { try { window.open('https://www.twitch.tv/' + encodeURIComponent(p), '_blank'); } catch {} return; }
       if (w === 'tracc') { tradeAccept(p); return; }
       if (w === 'game') { tradeShowGame(); return; }
       if (w === 'list') { S.pm.peer = null; if (S.room !== 'pm') switchTo(S.ch, 'pm'); else pmRender(); return; }
@@ -2085,6 +2127,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const items = [];
     if (S.flags.dm && st !== 'blocked') items.push(['dm', '✉ Написать лично']);
     items.push(['reply', '↩ Ответить в этом чате']);
+    if (S.room !== 'pm') items.push(S.only === l ? ['onlyoff', '👁 Показать всех'] : ['only', '👁 Только его сообщения']);
+    items.push(['nick', NK[l] ? '🎨 Свой цвет и прозвище ✓' : '🎨 Свой цвет и прозвище']);
     items.push(S.ign.has(l) ? ['unign', '👁 Снять игнор'] : ['ign', '🙈 Игнорировать в чате']);
     if (S.meFriends) {
       if (st === 'friends') items.push(['', `👥 В друзьях${f && f.on ? ' · ' + (f.on.t || 'в сети') : ''}`, true]);
@@ -2106,12 +2150,15 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       const b = e.target.closest('[data-k]'); if (!b || b.disabled) return;
       const k = b.dataset.k;
       if (k === 'block' && !b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = 'Точно заблокировать?'; return; }
+      if (k === 'nick') { nickEdit(l, from); return; }
       nickMenuClose();
       if (k === 'dm') return pmOpen(l, name);
       if (k === 'reply') { S.el.inp.value = `@${l} ` + S.el.inp.value.replace(/^@\S+\s*/, ''); S.el.inp.focus(); return; }
       if (k === 'coin' && f) return giveCoin(f.id);
       if (k === 'trade') return tradeInvite(l);
       if (k === 'ign' || k === 'unign') return ignSet(l, k === 'ign');
+      if (k === 'only') return onlySet(l);
+      if (k === 'onlyoff') return onlySet('');
       await friendAct(k, l);
     });
     const out = (e) => { if (!el.contains(e.target)) nickMenuClose(); };
@@ -2392,7 +2439,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   }
 
   // ---- игнор: у игры — POST /api/city/chat/ignore { login, on } → { ign } ----
-  const dispName = (l) => S.pm.names[l] || (seenMap().get(l) || [])[0] || l;   // имя, как в чате (а не логин)
+  const dispName = (l) => aliasOf(l) || S.pm.names[l] || (seenMap().get(l) || [])[0] || l;   // имя, как в чате (а не логин)
   async function ignSet(l, on) {
     let r = null; try { r = await api('/api/city/chat/ignore', { login: l, on }); } catch {}
     if (!r || !r.ok) { S.el.err.textContent = 'Игнор: ' + ((r && (ERR[r.error] || r.error)) || 'нет связи'); return false; }
@@ -2465,8 +2512,125 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     copyText(extStrip(q ? q[3] : t).trim(), btn);   // только сам текст, без цитаты и невидимой метки
   }
 
+
+  // ---------- 🔴 стример начал эфир ----------
+  function liveAlert(c) {
+    const l = c.login.toLowerCase(), name = c.name || c.login;
+    pmToast(l, `🔴 ${name} начал эфир`, 'Смотреть', 'live');
+    czBeepOnce('dm', 'live|' + l + '|' + new Date().toISOString().slice(0, 13));
+    if (S.pm.notify && hidden()) try { const n = new Notification(`🔴 ${name} начал эфир`, { body: 'Легион — открыть стрим', tag: 'lgmc-live-' + l }); n.onclick = () => { try { window.open('https://www.twitch.tv/' + encodeURIComponent(l), '_blank'); } catch {} n.close(); }; } catch {}
+  }
+
+  // ---------- 👁 только сообщения одного игрока ----------
+  function onlySet(l) {
+    S.only = l || '';
+    const b = S.el.onlyb;
+    if (b) { b.hidden = !S.only; if (S.only) b.innerHTML = `<span>👁 Только сообщения <b style="color:${ncol(S.only)}">${esc(dispName(S.only))}</b></span><button type="button" data-ob="all">Показать всех</button>`; }
+    if (S.room === 'pm') return;
+    renderLog(); toBottom();
+  }
+
+  // ---------- 🎨 свой цвет и прозвище для ника ----------
+  const NK_COLORS = ['#ff6b6b', '#ff9f43', '#feca57', '#7bed9f', '#2ed573', '#1dd1a1', '#48dbfb', '#54a0ff', '#5f27cd', '#a29bfe', '#f368e0', '#ff9ff3'];
+  function nkSave(l, v) {
+    if (v && (v.a || v.c)) NK[l] = v; else delete NK[l];
+    lsSet(NK_KEY, NK);
+    if (S.room === 'pm') pmRender(); else { const keep = S.stick; renderLog(); if (keep) toBottom(); }
+    if (S.el.sp && !S.el.sp.hidden) czRender();
+  }
+  function nickEdit(l, from) {
+    nickMenuClose(); modMenuClose();
+    const doc = from.ownerDocument, cur = NK[l] || {}, real = (seenMap().get(l) || [])[0] || S.pm.names[l] || l;
+    let pick = cur.c || '';
+    const el = doc.createElement('div'); el.className = 'mm nke'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Свой цвет и прозвище');
+    el.innerHTML = `<div class="mh">🎨 ${esc(real)}<small>цвет и прозвище видишь только ты</small></div>
+      <input class="nka" maxlength="24" placeholder="Прозвище (пусто — как в игре)" value="${esc(cur.a || '')}" aria-label="Прозвище">
+      <div class="nkc">${NK_COLORS.map((c) => `<button type="button" class="dot" data-c="${c}" style="background:${c}" aria-label="Цвет ${c}" aria-pressed="${pick === c}"></button>`).join('')}<label class="dot pick" title="Свой цвет" style="background:${esc(pick || nickColor(l))}"><input type="color" value="${esc(pick || nickColor(l))}" aria-label="Свой цвет"></label></div>
+      <div class="nkp">Так будет: <b class="nkv">${esc(cur.a || real)}</b></div>
+      <div class="nkb"><button type="button" data-nk="save" class="ok">Сохранить</button>${NK[l] ? '<button type="button" data-nk="reset">Как в игре</button>' : ''}<button type="button" data-nk="x">Отмена</button></div>`;
+    doc.body.appendChild(el);
+    const r = from.getBoundingClientRect(), vw = doc.defaultView.innerWidth, vh = doc.defaultView.innerHeight, w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.max(8, Math.min(r.left, vw - w - 8)) + 'px';
+    el.style.top = (r.bottom + 4 + h > vh - 8 ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+    const inp = el.querySelector('.nka'), pv = el.querySelector('.nkv');
+    const paint = () => { pv.textContent = inp.value.trim() || real; pv.style.color = `color-mix(in oklch, ${pick || nickColor(l)} var(--ncm,100%), var(--ncb,#000))`; el.querySelectorAll('[data-c]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.c === pick))); };
+    paint();
+    inp.addEventListener('input', paint);
+    el.querySelector('input[type="color"]').addEventListener('input', (e) => { pick = e.target.value; e.target.parentElement.style.background = pick; paint(); });
+    el.addEventListener('click', (e) => {
+      const c = e.target.closest('[data-c]'); if (c) { pick = c.dataset.c; paint(); return; }
+      const b = e.target.closest('[data-nk]'); if (!b) return;
+      const k = b.dataset.nk; nickMenuClose();
+      if (k === 'save') nkSave(l, { a: inp.value.trim().slice(0, 24), c: pick });
+      if (k === 'reset') nkSave(l, null);
+    });
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); el.querySelector('[data-nk="save"]').click(); } });
+    const out = (e) => { if (!el.contains(e.target)) nickMenuClose(); };
+    const key = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nickMenuClose(); } };
+    setTimeout(() => { doc.addEventListener('pointerdown', out, true); doc.addEventListener('keydown', key, true); }, 0);
+    S.nmenu = { el, doc, out, key };
+    inp.focus(); inp.select();
+  }
+
+  // ---------- ⭐ закладки ----------
+  const BM_KEY = 'lgmc_bm';
+  const bms = () => { const v = lsGet(BM_KEY, []); return Array.isArray(v) ? v.filter((x) => x && x.id) : []; };
+  const bmHas = (id) => bms().some((x) => x.id === id);
+  function bmToggle(m, btn) {
+    const id = S.ch + '|' + m._key, list = bms(), i = list.findIndex((x) => x.id === id);
+    if (i >= 0) { list.splice(i, 1); okMsg('Убрано из закладок'); }
+    else {
+      list.unshift({ id, ch: S.ch, chn: S.chName, src: m._src, key: m._key, l: String(m.l || '').toLowerCase(), n: m.n || m.l, t: extStrip(String(m.t || '')), at: m.at || Date.now(), saved: Date.now() });
+      okMsg('⭐ В закладках — открыть: ⭐ вверху');
+    }
+    lsSet(BM_KEY, list.slice(0, 300));
+    const on = i < 0, li = btn.closest('li');
+    btn.classList.toggle('on', on); btn.textContent = on ? '★' : '☆'; btn.title = on ? 'Убрать из закладок' : 'В закладки';
+    if (li) li.classList.toggle('bmk', on);
+    if (!S.el.bmp.hidden) bmRender();
+  }
+  function bmOpen(on) {
+    S.el.bmp.hidden = !on; S.el.bmk.setAttribute('aria-pressed', String(on));
+    if (on) { czOpen(false); bmRender(); const f = S.el.bmp.querySelector('input,button'); if (f) f.focus(); } else S.el.bmk.focus();
+  }
+  function bmRender() {
+    const list = bms(), q = fnorm((S.bmq || '').trim());
+    const shown = q ? list.filter((x) => fnorm(x.t).includes(q) || fnorm(x.n || '').includes(q)) : list;
+    const dt = (t) => { const d = new Date(t); return sameDay(t, Date.now()) ? hhmm(t) : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} ${hhmm(t)}`; };
+    S.el.bmp.innerHTML = `<div class="sp-h"><b>⭐ Закладки${list.length ? ` · ${list.length}` : ''}</b><button type="button" class="hb" data-bm="close" aria-label="Закрыть закладки">✕</button></div>
+      <div class="bm-b">${list.length > 5 ? `<input class="bmq" type="search" placeholder="Найти в закладках" aria-label="Найти в закладках" value="${esc(S.bmq || '')}">` : ''}
+      ${shown.length ? `<ul class="bml">${shown.map((x) => `<li data-id="${esc(x.id)}"><div class="bmh"><b style="color:${ncol(x.l)}">${esc(dispName(x.l) || x.n)}</b><small>${esc(x.chn || x.ch)} · ${x.src === 'mine' ? '⛏ шахта' : '🏰 город'} · ${dt(x.at)}</small></div><div class="bmt">${fmtText(x.t)}</div><div class="bma"><button type="button" data-bm="go" title="Открыть этот чат и найти сообщение">→ К сообщению</button><button type="button" data-bm="copy" title="Скопировать текст">⧉</button><button type="button" data-bm="del" title="Убрать из закладок">✕</button></div></li>`).join('')}</ul>`
+        : `<p class="bm0">${list.length ? 'Ничего не нашлось.' : 'Пока пусто. Наведи на сообщение и нажми ☆ — оно сохранится здесь.'}</p>`}</div>`;
+    const qi = S.el.bmp.querySelector('.bmq');
+    if (qi) qi.oninput = () => { S.bmq = qi.value; const p = qi.selectionStart; bmRender(); const n = S.el.bmp.querySelector('.bmq'); if (n) { n.focus(); n.setSelectionRange(p, p); } };
+  }
+  async function bmClick(e) {
+    const b = e.target.closest('[data-bm]'); if (!b) return;
+    const a = b.dataset.bm; if (a === 'close') { bmOpen(false); return; }
+    const li = b.closest('li[data-id]'), x = li && bms().find((y) => y.id === li.dataset.id); if (!x) return;
+    if (a === 'del') { lsSet(BM_KEY, bms().filter((y) => y.id !== x.id)); bmRender(); if (S.room !== 'pm') renderLog(); return; }
+    if (a === 'copy') { copyText(x.t, b); return; }
+    if (a === 'go') {
+      bmOpen(false);
+      const room = x.src === 'mine' ? 'mine' : 'city';
+      const find = () => { const el = S.el.log.querySelector(`li[data-key="${CSS.escape(x.key)}"]`); if (el) { el.scrollIntoView({ block: 'center' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); return true; } return false; };
+      if (x.ch === S.ch && (S.room === room || isMix(S.room)) && find()) return;
+      await switchTo(x.ch, room);
+      let n = 0; const t = setInterval(() => { if (find() || ++n > 12) { clearInterval(t); if (n > 12) okMsg('Это сообщение уже не в ленте — но в закладках оно осталось'); } }, 400);
+    }
+  }
+
   function comfyInit() {
-    Object.assign(S.el, { ac: document.getElementById('ac'), rq: document.getElementById('rq'), away: document.getElementById('away') });
+    Object.assign(S.el, { ac: document.getElementById('ac'), rq: document.getElementById('rq'), away: document.getElementById('away'), onlyb: document.getElementById('onlyb'), bmp: document.getElementById('bmp'), bmk: document.getElementById('bmk') });
+    S.el.bmk.onclick = () => bmOpen(S.el.bmp.hidden);
+    S.el.bmp.addEventListener('click', bmClick);
+    S.el.onlyb.addEventListener('click', (e) => { if (e.target.closest('[data-ob]')) onlySet(''); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (!S.el.bmp.hidden) { e.preventDefault(); bmOpen(false); return; }
+      if (S.only && !S.nmenu) onlySet('');
+    });
+    window.addEventListener('storage', (e) => { if (e.key === NK_KEY) { try { NK = JSON.parse(e.newValue || '{}') || {}; } catch { NK = {}; } if (S.room === 'pm') pmRender(); else renderLog(); } });
     const inp = S.el.inp;
     inp.addEventListener('input', () => acUpdate(false));
     inp.addEventListener('keydown', (e) => {
@@ -2484,6 +2648,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     S.el.rq.addEventListener('click', (e) => { if (e.target.closest('button')) replyCancel(); });
     S.el.log.addEventListener('click', (e) => {
       const cpy = e.target.closest('.cpb'); if (cpy) { e.stopPropagation(); copyMsg(cpy); return; }
+      const bmb = e.target.closest('.bmb'); if (bmb) { e.stopPropagation(); const li = bmb.closest('li'), m = li && S.list.find((x) => x._key === li.dataset.key) || (S.room === 'ping' && pingView().find((x) => x._key === li.dataset.key)); if (m) bmToggle(m, bmb); return; }
       const b = e.target.closest('.rpb');
       if (b) { e.stopPropagation(); const li = b.closest('li'), m = li && (S.list.find((x) => x._key === li.dataset.key) || (S.room === 'ping' && pingView().find((x) => x._key === li.dataset.key))); if (m) replyStart(m); return; }
       const q = e.target.closest('.rq'); if (q) { e.stopPropagation(); quoteJump(q); return; }
@@ -2926,7 +3091,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     // ответ с цитатой — как на Twitch: над сообщением серая строка «💬 Ответ @ник: начало его сообщения», ниже — обычная строка
     const qm = QUOTE_RE.exec(text), ql = qm ? qm[1].toLowerCase() : '', toMe = !!qm && ql === S.me;
     const qq = qm ? `<span class="rq${toMe ? ' me' : ''}" data-ql="${esc(ql)}" data-qt="${esc(qm[2])}" title="Перейти к сообщению" role="link" tabindex="0">${RQ_ICO}${toMe ? 'Ответ тебе' : `Ответ @${esc(dispName(ql))}`}: ${esc(qm[2])}</span>` : '';
-    li.innerHTML = `${qq}<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:${ncol(l)}" title="Ответить @${esc(l)}">${esc(msg.n || msg.l)}</span>${aw}${to}: ${fmtText(qm ? qm[3] : text)}`;
+    li.innerHTML = `${qq}<span class="t">${msg.at ? hhmm(msg.at) : ''}</span>${chip}${role}${ico}<span class="n" data-l="${esc(l)}" style="color:${ncol(l)}" title="${aliasOf(l) ? `${esc(msg.n || msg.l)} (твоё прозвище) — ` : ''}Ответить @${esc(l)}">${esc(aliasOf(l) || msg.n || msg.l)}</span>${aw}${to}: ${fmtText(qm ? qm[3] : text)}`;
     if (qm) li.classList.add('hasq');
     const nEl = li.querySelector('.n[data-l]');
     const isFr = !!l && (msg._fr || S.pm.frState.get(l) === 'friends');
@@ -2944,6 +3109,11 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     if (!other && S.room !== 'pm' && msg._src !== 'pm' && msg.k !== 'dm') {   // ↩ ответить с цитатой
       const rb = document.createElement('button'); rb.type = 'button'; rb.className = 'rpb'; rb.textContent = '↩';
       rb.title = 'Ответить с цитатой'; rb.setAttribute('aria-label', `Ответить ${msg.n || msg.l} с цитатой`); li.appendChild(rb);
+    }
+    if (!other) {   // ☆ в закладки
+      const on = bmHas(S.ch + '|' + msg._key), bb = document.createElement('button'); bb.type = 'button'; bb.className = 'bmb' + (on ? ' on' : ''); bb.textContent = on ? '★' : '☆';
+      bb.title = on ? 'Убрать из закладок' : 'В закладки'; bb.setAttribute('aria-label', bb.title); li.appendChild(bb);
+      if (on) li.classList.add('bmk');
     }
     {   // ⧉ скопировать текст сообщения
       const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'cpb'; cb.textContent = '⧉';
@@ -2964,7 +3134,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     }
     // кнопки при наведении — в ряд справа: ↩, ✉, ⋯ (в «Пингах» — левее «→»)
     let rx = S.room === 'ping' ? 36 : 2;
-    for (const c of ['cpb', 'rpb', 'dmb', 'mb']) { const x = li.querySelector('.' + c); if (x) { x.style.right = rx + 'px'; rx += 32; } }
+    for (const c of ['cpb', 'bmb', 'rpb', 'dmb', 'mb']) { const x = li.querySelector('.' + c); if (x) { x.style.right = rx + 'px'; rx += 32; } }
     return li;
   }
 
@@ -3159,7 +3329,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -3354,7 +3524,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
         </section>
         <section><h4>Сообщения</h4>
           ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}${tg('scrollbar', 'Полоса прокрутки')}${tg('hist', 'Помнить ленту между запусками (игра отдаёт только последние ~120)')}
-          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
+          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
           ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
         </section>
         <section><h4>Подсветка и фильтр</h4>
@@ -3364,6 +3534,9 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
         </section>
         <section><h4>Игнор <small>их сообщений не видно, лично тебе не пишут; добавить — правый клик по нику</small></h4>
           <div class="ign">${S.ign.size ? [...S.ign].sort().map((l) => `<div><span style="color:${ncol(l)}">${esc(dispName(l))}</span><button type="button" class="pbtn alt" data-unign="${esc(l)}">Снять</button></div>`).join('') : '<small style="color:var(--mut)">Никого нет в игноре.</small>'}</div>
+        </section>
+        <section><h4>Свои цвета и прозвища <small>видишь только ты; задать — правый клик по нику → 🎨</small></h4>
+          <div class="ign">${Object.keys(NK).length ? Object.keys(NK).sort().map((l) => `<div><span style="color:${ncol(l)}">${esc(aliasOf(l) || dispName(l))}</span><small style="color:var(--mut)">${esc(l)}</small><button type="button" class="pbtn alt" data-nkreset="${esc(l)}">Как в игре</button></div>`).join('') : '<small style="color:var(--mut)">Пока никого.</small>'}</div>
         </section>
         <section><h4>Горячие клавиши</h4>
           <dl class="keys"><dt>Alt+1…5</dt><dd>Шахта, Город, Всё, Личные, Пинги</dd><dt>@ник + Tab</dt><dd>дописать ник (↑ ↓ — выбрать)</dd><dt>↑</dt><dd>в пустом поле — последнее твоё сообщение</dd><dt>Ctrl+F</dt><dd>поиск по сообщениям (Enter / Shift+Enter, F3)</dd><dt>Esc</dt><dd>закрыть: ответ, поиск, стикеры, пасты, меню</dd></dl>
@@ -3403,6 +3576,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       if (b.dataset.den) { czSet({ density: b.dataset.den }); return czRender(); }
       if (b.dataset.cz === 'bgdel') { try { localStorage.removeItem(CZ_BG); } catch {} czApply(); return czRender(); }
       if (b.dataset.unign) { ignSet(b.dataset.unign, false); return; }
+      if (b.dataset.nkreset) { nkSave(b.dataset.nkreset, null); return; }
       if (b.dataset.cz === 'test') { const s0 = CZ.sound; CZ.sound = true; czBeep('mention'); setTimeout(() => czBeep('dm'), 450); CZ.sound = s0; return; }
       if (b.dataset.cz === 'export') {
         const io = sp.querySelector('#czio'); io.hidden = false;
