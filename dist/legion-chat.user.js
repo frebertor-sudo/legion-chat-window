@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.11.1
+// @version      3.11.2
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -352,9 +352,9 @@
     if (!document.documentElement) document.appendChild(document.createElement('html'));
     document.documentElement.innerHTML =`<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Чат · ${esc(S.chName)}</title>
 <style>
-:root{color-scheme:dark;--bg:#120e22;--panel:#1b1631;--line:#322b4d;--tx:#f6f1fb;--mut:#a59fba;--acc:#ff9fd0;--acc-tx:#ff9fd0;--on-acc:#15122e;--me:#3b2146;--bad:#ff7b7b;--ok:#6fdc8c;--ns:65%;--nl:68%;--ncm:100%;--hov:#221c3c;--ff:Nunito,"Segoe UI",system-ui,sans-serif}
-:root[data-theme="light"]{color-scheme:light;--bg:#fbf7fc;--panel:#f2eaf5;--line:#e1d3e7;--tx:#231a2e;--mut:#6e6280;--acc:#f06aae;--acc-tx:#b2367a;--on-acc:#15122e;--me:#fde1f0;--bad:#c23b3b;--ok:#2f8f4a;--ns:75%;--nl:29%;--ncm:52%;--hov:#efe3f2}
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#fbf7fc;--panel:#f2eaf5;--line:#e1d3e7;--tx:#231a2e;--mut:#6e6280;--acc:#f06aae;--acc-tx:#b2367a;--on-acc:#15122e;--me:#fde1f0;--bad:#c23b3b;--ok:#2f8f4a;--ns:75%;--nl:29%;--ncm:52%;--hov:#efe3f2}}
+:root{color-scheme:dark;--bg:#120e22;--panel:#1b1631;--line:#322b4d;--tx:#f6f1fb;--mut:#a59fba;--acc:#ff9fd0;--acc-tx:#ff9fd0;--on-acc:#15122e;--me:#3b2146;--bad:#ff7b7b;--ok:#6fdc8c;--ns:65%;--nl:68%;--ncm:100%;--hov:#221c3c;--pns:#1b1631;--ff:Nunito,"Segoe UI",system-ui,sans-serif}
+:root[data-theme="light"]{color-scheme:light;--bg:#fbf7fc;--panel:#f2eaf5;--line:#e1d3e7;--tx:#231a2e;--mut:#6e6280;--acc:#f06aae;--acc-tx:#b2367a;--on-acc:#15122e;--me:#fde1f0;--bad:#c23b3b;--ok:#2f8f4a;--ns:75%;--nl:29%;--ncm:52%;--hov:#efe3f2;--pns:#f2eaf5}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#fbf7fc;--panel:#f2eaf5;--line:#e1d3e7;--tx:#231a2e;--mut:#6e6280;--acc:#f06aae;--acc-tx:#b2367a;--on-acc:#15122e;--me:#fde1f0;--bad:#c23b3b;--ok:#2f8f4a;--ns:75%;--nl:29%;--ncm:52%;--hov:#efe3f2;--pns:#f2eaf5}}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--tx);font:14px/1.4 var(--ff);display:flex;flex-direction:column;position:relative}
@@ -679,6 +679,13 @@ html.pinned.mini #log{padding-bottom:12px}
 #log mark.fm{background:color-mix(in srgb,var(--acc) 38%,transparent);color:inherit;border-radius:3px;padding:0 1px}
 #log mark.fm.cur{background:var(--acc);color:var(--on-acc);box-shadow:0 0 0 2px var(--acc)}
 #log.fonly>li:not(.fhit){display:none}
+#chan option{background-color:var(--pns,#1b1631);color:var(--tx)}
+#chan option.off{color:var(--mut)}
+#chan option.live{font-weight:700}
+#livebadge{flex:none;background:#e5484d;color:#fff;border-radius:999px;padding:2px 8px;font:800 10px/16px var(--ff);letter-spacing:.04em;text-decoration:none;white-space:nowrap;animation:lgLive 2s ease-in-out infinite}
+#livebadge:hover{filter:brightness(1.1)}
+@keyframes lgLive{50%{opacity:.75}}
+@media (prefers-reduced-motion:reduce){#livebadge{animation:none}}
 /* облик как в чате игры: вкладки-«пилюли», полупрозрачные кнопки, поля со скруглением 10px */
 .hb{background:color-mix(in srgb,var(--tx) 9%,transparent);border-color:transparent;border-radius:8px}
 .hb:hover,.hb:focus-visible{border-color:var(--acc);outline:none}
@@ -697,7 +704,7 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
 </style></head>
 <body>
 <header>
-  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
+  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
@@ -908,13 +915,20 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     } catch {}
     if (!S.channels.some((c) => c.login.toLowerCase() === S.ch)) S.channels.unshift({ login: S.ch, name: S.chName, live: false });
     renderChannels();
+    clearTimeout(S.chanT); S.chanT = setTimeout(loadChannels, hidden() ? 300000 : 120000);   // эфиры начинаются и заканчиваются — раз в 2 минуты
   }
+  // список стримеров: кто в эфире — сверху и с пометкой; у текущего, если он в эфире, — «В ЭФИРЕ» рядом (ссылка на Twitch)
   function renderChannels() {
-    S.el.chan.innerHTML = S.channels.map((c) => `<option value="${esc(c.login.toLowerCase())}">${esc(c.name || c.login)}${c.live ? ' 🔴' : ''}</option>`).join('');
+    const list = S.channels.map((c, i) => [c, i]).sort((a, b) => (b[0].live ? 1 : 0) - (a[0].live ? 1 : 0) || a[1] - b[1]).map((x) => x[0]);
+    S.el.chan.innerHTML = list.map((c) => `<option value="${esc(c.login.toLowerCase())}" class="${c.live ? 'live' : 'off'}">${c.live ? '🔴' : '⚪'} ${esc(c.name || c.login)} — ${c.live ? 'в эфире' : 'не в эфире'}</option>`).join('');
     S.el.chan.value = S.ch;
     const cur = S.channels.find((c) => c.login.toLowerCase() === S.ch);
     if (cur && cur.name) S.chName = cur.name;
-    S.el.chan.title = cur && cur.live ? `${S.chName} — сейчас в эфире` : S.chName;
+    const live = !!(cur && cur.live);
+    S.el.chan.title = live ? `${S.chName} — сейчас в эфире` : `${S.chName} — сейчас не в эфире`;
+    S.el.chan.classList.toggle('live', live);
+    const lb = document.getElementById('livebadge');
+    if (lb) { lb.hidden = !live; lb.href = `https://www.twitch.tv/${encodeURIComponent(S.ch)}`; lb.title = `${S.chName} в эфире — открыть стрим на Twitch`; }
     document.title = title();
   }
 
@@ -2683,8 +2697,8 @@ header select{background:color-mix(in srgb,var(--tx) 8%,transparent);border-colo
     const d = SCHEMES[CZ.dark] && SCHEMES[CZ.dark].v, li = SCHEMES[CZ.light] && SCHEMES[CZ.light].v;
     const LIGHT = ':root[data-theme="light"]', LIGHT_AUTO = '@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){%}}';
     let css = '';
-    if (d) css += `:root{${vars(d)}}`;
-    if (li) css += `${LIGHT}{${vars(li)}}` + LIGHT_AUTO.replace('%', vars(li));
+    if (d) css += `:root{${vars(d)};--pns:${d.panel}}`;
+    if (li) css += `${LIGHT}{${vars(li)};--pns:${li.panel}}` + LIGHT_AUTO.replace('%', `${vars(li)};--pns:${li.panel}`);
     const rgb = hex2rgb(CZ.accent);
     if (rgb) {   // свой акцент: текстом — темнее на светлом фоне; надпись на акценте — чёрная или белая по контрасту
       const on = lum(rgb) > 0.36 ? '#1a1206' : '#ffffff';
