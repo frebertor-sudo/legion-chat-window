@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.0
+// @version      3.18.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -603,6 +603,7 @@ footer{flex:none;border-top:1px solid var(--line);background:var(--hdr,var(--pan
 #mp p{margin:0;color:var(--mut);font-size:12px}
 #modb[hidden]{display:none}
 form{display:flex;gap:6px;margin:0}
+#in::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #in{flex:1;min-width:0;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;line-height:1.4;resize:none;overflow-y:hidden;display:block;height:38px;max-height:calc(6 * 1.4em + 18px)}
 #f{align-items:flex-end}#f>button,#f>select{min-height:38px;align-self:flex-end}
 html.pinned #f>button,html.pinned #f>select{min-height:0;align-self:stretch}
@@ -2776,6 +2777,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const inp = S.el.inp;
     const grow = () => {
       const w = inp.ownerDocument.defaultView, cs = w.getComputedStyle(inp), max = parseFloat(cs.maxHeight) || 140;
+      if (!inp.value) { inp.style.height = ''; inp.style.overflowY = 'hidden'; return; }   // пусто — одна строка, длинная подсказка не раздувает поле
       inp.style.height = 'auto';
       const h = Math.min(max, inp.scrollHeight + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0));
       inp.style.height = Math.ceil(h) + 'px';
@@ -2822,7 +2824,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       : gate ? (S.room === 'all' ? 'Чтобы писать в город, войди в город' : 'Сначала войди в город')
       : ro ? 'Здесь только события игры'
       : banned ? 'Модератор закрыл тебе личку'
-      : t === 'guild' ? (!gdg || GD.view === 'home' ? 'Выбери гильдию или создай свою' : gdg.wait ? 'Ждём, пока глава подтвердит…' : gdg.gone ? 'Гильдия недоступна' : `В «${gdName(gdg)}» — прочитают только свои…`)
+      : t === 'guild' ? (!gdg || GD.view === 'home' ? 'Выбери гильдию или создай свою' : gdg.wait ? 'Ждём, пока глава подтвердит…' : gdg.gone ? 'Гильдия недоступна' : `Написать в «${gdName(gdg)}»…`)
       : t === 'pm' ? (S.pm.peer ? `Лично для ${pmName(S.pm.peer)}…` : '@ник сообщение — новый диалог')
       : t === 'mine' ? 'Написать в чат шахты…'
       : t === 'tr' ? 'Куплю / продам / меняю…'
