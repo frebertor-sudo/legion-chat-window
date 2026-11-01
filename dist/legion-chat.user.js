@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.2.4
+// @version      3.18.2.6
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -66,7 +66,7 @@
     const ls = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
     const roomFor = () => { const last = lg('lgmc_last', null); return last && last.ch === CH ? last.room : null; };
     const minW = 280, maxW = () => Math.max(minW, Math.min(900, window.innerWidth - 120));
-    let dock = null, frame = null, btn = null;
+    let dock = null, frame = null, btn = null, dockFromFrame = null;
     // где панель: справа / слева (во всю высоту, ширина тянется) или плавающее окно (место и размер — свои)
     const L = Object.assign({ mode: 'r', w: lg('lgmc_dock_w', 380), x: 0, y: 0, fw: 400, fh: 620, side: 'r' }, lg('lgmc_dock_pos', {}) || {});
     const saveL = () => ls('lgmc_dock_pos', L);
@@ -92,6 +92,7 @@
         #lgmc-dock.m-r{top:0;right:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-left:1px solid #322b4d}
         #lgmc-dock.m-l{top:0;left:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-right:1px solid #322b4d;box-shadow:12px 0 30px -18px rgba(0,0,0,.7)}
         #lgmc-dock.m-f{left:var(--fx,40px);top:var(--fy,40px);width:var(--fw,400px);height:var(--fh,620px);border:1px solid #4a4068;border-radius:14px;overflow:hidden;box-shadow:0 22px 60px -14px rgba(0,0,0,.75)}
+        #lgmc-dock .lgmc-bar.off{display:none}
         #lgmc-dock .lgmc-bar{flex:none;height:24px;display:flex;align-items:center;gap:2px;padding:0 4px 0 8px;background:#1b1631;color:#a59fba;font:700 11px/1 Nunito,"Segoe UI",system-ui,sans-serif;cursor:grab;user-select:none;touch-action:none;border-bottom:1px solid #322b4d}
         #lgmc-dock.drag-move .lgmc-bar{cursor:grabbing}
         #lgmc-dock .lgmc-t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -178,6 +179,27 @@
           apply();
         }, () => { snap.hidden = true; if (started && edge) { L.mode = edge; L.side = edge; apply(); } }, true);
       });
+      // перенос, начатый в самом чате (⠿ или пустое место шапки): рамка присылает координаты указателя
+      let rm = null;
+      dockFromFrame = (d) => {
+        if (!frame) return;
+        const fr = frame.getBoundingClientRect(), px = fr.left + (+d.x || 0), py = fr.top + (+d.y || 0);
+        if (d.ph === 'start') { const r = dock.getBoundingClientRect(); rm = { offX: px - r.left, offY: py - r.top, sx: px, sy: py, r, started: false, edge: null }; return; }
+        if (!rm) return;
+        if (d.ph === 'move') {
+          if (!rm.started) {
+            if (Math.abs(px - rm.sx) + Math.abs(py - rm.sy) < 6) return;
+            rm.started = true; dock.classList.add('drag-move');
+            if (L.mode !== 'f') { L.side = L.mode; L.mode = 'f'; rm.offX = Math.round(Math.min(L.fw - 60, rm.offX * L.fw / Math.max(1, rm.r.width))); rm.offY = Math.min(rm.offY, 40); }
+          }
+          L.x = px - rm.offX; L.y = py - rm.offY;
+          rm.edge = px <= 18 ? 'l' : px >= vw() - 18 ? 'r' : null;
+          snap.hidden = !rm.edge;
+          if (rm.edge) { snap.style.left = rm.edge === 'l' ? '0' : 'auto'; snap.style.right = rm.edge === 'r' ? '0' : 'auto'; snap.style.width = clampW(L.w) + 'px'; }
+          apply(); return;
+        }
+        if (d.ph === 'end') { dock.classList.remove('drag-move'); snap.hidden = true; if (rm.started && rm.edge) { L.mode = rm.edge; L.side = rm.edge; apply(); } rm = null; saveL(); }
+      };
       bar.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) setMode(L.mode === 'f' ? L.side || 'r' : 'f'); });
       bar.addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) setMode(b.dataset.m); });
       // размер плавающего окна — за любой край или угол; противоположный край стоит на месте
@@ -319,7 +341,9 @@
     window.addEventListener('message', (e) => {
       if (e.origin !== location.origin || !e.data || typeof e.data.lgmc !== 'string') return;
       if (e.data.lgmc === 'close' || e.data.lgmc === 'popped') setOpen(false);
-      if (e.data.lgmc === 'ready' && frame && e.source === frame.contentWindow) { frame.lgReady = true; try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode }, location.origin); } catch {} return; }
+      if (frame && e.source === frame.contentWindow && e.data.lgmc === 'drag' && dockFromFrame) { dockFromFrame(e.data); return; }
+      if (frame && e.source === frame.contentWindow && e.data.lgmc === 'mode') { if (/^[lrf]$/.test(e.data.m)) setMode(e.data.m); else if (e.data.m === 'toggle') setMode(L.mode === 'f' ? L.side || 'r' : 'f'); return; }
+      if (e.data.lgmc === 'ready' && frame && e.source === frame.contentWindow) { frame.lgReady = true; if (e.data.ctl) { const b = dock.querySelector('.lgmc-bar'); if (b) b.classList.add('off'); } try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode }, location.origin); } catch {} return; }
       // окно обмена — в «Городе» игры: открыть эту вкладку
       if (e.data.lgmc === 'citytab') { const b = document.querySelector('nav [data-tab="city"], [data-tab="city"]'); if (b) b.click(); else { location.hash = '#city'; location.reload(); } return; }
       // «📍 встать в город» из панели: игра помнит город во вкладке и открывает «Город» по #city — перезагружаем страницу игры
@@ -824,6 +848,16 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #room button[hidden]{display:none}
 #rail{position:fixed;top:0;bottom:0;left:0;width:64px;z-index:4;box-sizing:border-box;background:var(--hdr,var(--panel));border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:6px 0 10px}
 #rail::-webkit-scrollbar{display:none}
+#dctl{display:flex;align-items:center;gap:2px;flex:none}
+#dctl button{border:0;background:none;color:var(--mut);border-radius:6px;padding:0 4px;font:14px/24px system-ui,sans-serif;cursor:pointer}
+#dctl button:hover{color:var(--tx);background:color-mix(in srgb,var(--tx) 8%,transparent)}
+#dctl button[aria-pressed="true"]{color:var(--acc-tx);background:color-mix(in srgb,var(--acc) 20%,transparent)}
+#dctl #dgrip{cursor:grab;touch-action:none;font-size:16px;letter-spacing:-1px}
+#dctl #dgrip:active{cursor:grabbing}
+header .hr{touch-action:none}
+#rail #dctl{flex-direction:column;margin-top:auto;padding-top:8px;gap:3px}
+#rail #dctl button{width:44px;line-height:26px}
+#rail #dctl #dgrip{order:-1}
 #rail[hidden]{display:none}
 html.rail body{padding-left:64px}
 html.rail-r #rail{left:auto;right:0;border-right:0;border-left:1px solid var(--line)}
@@ -839,16 +873,16 @@ html.rail-r #rail #room button[aria-pressed="true"]::before{left:auto;right:-5px
 html.rail #rail #room .rb{position:absolute;top:1px;right:5px;margin:0;min-width:15px;padding:0 4px;font-size:10px;line-height:15px}
 html.rail #rail #room button[aria-pressed="true"] .rb{background:var(--bad);color:#fff}
 html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
-#chname{display:none}
-html.rail.rch-on #chan{display:none}
-html.rail.rch-on #chname{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 14px/1.2 var(--ff);color:var(--tx)}
 #rchans{display:flex;flex-direction:column;align-items:center;gap:9px;margin:8px 0 0;padding-top:10px;border-top:1px solid var(--line)}
 #rchans:empty{display:none}
-#rchans .rch{position:relative;flex:none;width:40px;height:40px;border-radius:50%;border:2px solid transparent;background:color-mix(in oklch,var(--c) 70%,#000);color:#fff;font:800 16px/36px var(--ff);cursor:pointer;padding:0;text-align:center}
-#rchans .rch:hover{border-color:color-mix(in srgb,var(--acc) 50%,transparent)}
-#rchans .rch[aria-pressed="true"]{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 30%,transparent)}
-#rchans .rch .lv{position:absolute;right:-3px;bottom:-3px;min-width:10px;height:10px;border-radius:999px;background:#e53935;border:2px solid var(--hdr,var(--panel))}
-#rchans .rch.off{opacity:.62}#rchans .rch.off:hover,#rchans .rch[aria-pressed="true"]{opacity:1}
+#rchans .rpe{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;width:56px;padding:4px 0;border:0;border-radius:12px;background:none;color:var(--mut);cursor:pointer;font:600 9.5px/1.1 var(--ff)}
+#rchans .rpe:hover{background:color-mix(in srgb,var(--tx) 8%,transparent);color:var(--tx)}
+#rchans .rpe[aria-pressed="true"]{background:color-mix(in srgb,var(--acc) 20%,transparent);color:var(--acc-tx)}
+#rchans .rpe .av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:700 15px var(--ff);color:#fff;background:color-mix(in oklch,var(--avc,#8a7a60) var(--avm,62%),var(--avb,#000))}
+#rchans .rpe .av.cl{background:color-mix(in srgb,var(--avc) 22%,var(--panel));box-shadow:inset 0 0 0 2px color-mix(in oklch,var(--avc) var(--ncm,100%),var(--ncb,#000));font-weight:400;font-size:17px}
+#rchans .rpe small{max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#rchans .rpe .on{position:absolute;left:34px;top:30px;width:10px;height:10px;border-radius:50%;background:var(--ok);border:2px solid var(--hdr,var(--panel))}
+#rchans .rpe .un{position:absolute;right:6px;top:1px;min-width:15px;padding:0 4px;border-radius:8px;background:var(--bad);color:#fff;font:700 10px/15px var(--ff);text-align:center}
 #log li.gdf{align-self:stretch;padding:2px 2px 6px}
 #log li.gdf form{display:flex;gap:6px}
 #log li.gdf input{flex:1;min-width:0;background:var(--field);color:var(--tx);border:1px solid var(--fieldb);border-radius:8px;padding:5px 8px;font:inherit;font-size:13px}
@@ -925,9 +959,9 @@ html.rail.rch-on #chname{display:block;flex:1;min-width:0;overflow:hidden;text-o
 #log li.conv.gdlk .acts{flex-wrap:wrap;justify-content:flex-end}
 </style></head>
 <body>
-<nav id="rail" aria-label="Чаты и стримеры" hidden><div id="rchans" role="group" aria-label="Стримеры"></div></nav>
+<nav id="rail" aria-label="Чаты и последние собеседники" hidden><div id="rchans" role="group" aria-label="Последние собеседники"></div></nav>
 <header>
-  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><b id="chname"></b><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
+  <div class="hr">${EMBED ? '<span id="dctl"><button id="dgrip" type="button" title="Потяни, чтобы перенести панель; двойной щелчок — окном или прикрепить" aria-label="Перенести панель">⠿</button><button type="button" data-dm="l" title="Прикрепить слева" aria-label="Прикрепить слева">◧</button><button type="button" data-dm="f" title="Плавающее окно — двигать и менять размер" aria-label="Плавающее окно">❐</button><button type="button" data-dm="r" title="Прикрепить справа" aria-label="Прикрепить справа">◨</button></span>' : ''}<span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button><button type="button" data-r="guild" title="Гильдия — закрытый чат для своих" hidden>${rlab('guild')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="bmp" role="dialog" aria-label="Закладки" hidden></div><div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
@@ -1161,21 +1195,60 @@ html.rail.rch-on #chname{display:block;flex:1;min-width:0;overflow:hidden;text-o
     if (on && S.el.room.parentElement !== rail) rail.insertBefore(S.el.room, rail.firstChild);
     if (!on && S.el.room.parentElement !== r2) r2.insertBefore(S.el.room, r2.firstChild);
     rail.hidden = !on;
+    const ctl = document.getElementById('dctl');
+    if (ctl) {   // ⠿ и «слева / окном / справа»: в колонке — внизу, без колонки — в начале шапки
+      const hr = document.querySelector('header .hr');
+      if (on && ctl.parentElement !== rail) rail.appendChild(ctl);
+      if (!on && ctl.parentElement !== hr) hr.insertBefore(ctl, hr.firstChild);
+      for (const b of ctl.querySelectorAll('[data-dm]')) b.setAttribute('aria-pressed', String(b.dataset.dm === S.dockSide));
+    }
     railChans();
   }
+  // панель в игре: перенос за ⠿ или пустое место шапки — указатель пересылаем игре, она двигает панель
+  if (EMBED) {
+    const post = (d) => { try { window.parent.postMessage(d, location.origin); } catch {} };
+    const dragFrom = (e, el) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      try { el.setPointerCapture(e.pointerId); } catch {}
+      post({ lgmc: 'drag', ph: 'start', x: e.clientX, y: e.clientY });
+      const mv = (ev) => post({ lgmc: 'drag', ph: 'move', x: ev.clientX, y: ev.clientY });
+      const up = (ev) => { post({ lgmc: 'drag', ph: 'end', x: ev.clientX, y: ev.clientY }); el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+      el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    };
+    const emptyHead = (t) => t.closest && t.closest('header .hr') && !t.closest('button,select,a,input,#room,#ctabs,#mine');
+    document.addEventListener('pointerdown', (e) => {
+      const g = e.target.closest && e.target.closest('#dgrip');
+      if (g) return dragFrom(e, g);
+      if (emptyHead(e.target)) dragFrom(e, e.target.closest('header .hr'));
+    });
+    document.addEventListener('dblclick', (e) => { if ((e.target.closest && e.target.closest('#dgrip')) || emptyHead(e.target)) post({ lgmc: 'mode', m: 'toggle' }); });
+    document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#dctl [data-dm]'); if (b) post({ lgmc: 'mode', m: b.dataset.dm }); });
+  }
+  // в колонке под комнатами — последние, с кем переписывался: значок класса, непрочитанные, «в сети»
   function railChans() {
-    const box = document.getElementById('rchans'); if (!box) return;
-    const list = S.channels.map((c, i) => [c, i]).sort((a, b) => (b[0].live ? 1 : 0) - (a[0].live ? 1 : 0) || a[1] - b[1]).map((x) => x[0]);
-    for (const d of docs()) d.documentElement.classList.toggle('rch-on', list.length > 1);
-    const cn = document.getElementById('chname'); if (cn) { cn.textContent = S.chName; cn.title = S.chName; }
-    box.innerHTML = list.length > 1 ? list.map((c) => { const l = c.login.toLowerCase(), n = c.name || c.login; return `<button type="button" class="rch${c.live ? '' : ' off'}" data-rch="${esc(l)}" style="--c:${nkColor(l)}" aria-pressed="${l === S.ch}" title="${esc(n)} — ${c.live ? 'в эфире' : 'не в эфире'}" aria-label="${esc(n)}${c.live ? ', в эфире' : ''}">${esc(n.slice(0, 1).toUpperCase())}${c.live ? '<span class="lv" aria-hidden="true"></span>' : ''}</button>`; }).join('') : '';
+    const box = document.getElementById('rchans'); if (!box || !S.el || !S.el.rail || S.el.rail.hidden) { if (box) box.innerHTML = ''; return; }
+    const P = S.pm;
+    if (!S.me || !S.flags.dm || !P || !P.last) { box.innerHTML = ''; return; }
+    const max = Math.max(3, Math.min(12, Math.floor((window.innerHeight - 330) / 50)));
+    const peers = Object.keys(P.last).filter((l) => nickOf(l) && l !== S.me && !S.ign.has(l) && (P.last[l].at || P.un.get(l))).sort((a, b) => (P.last[b].at || 0) - (P.last[a].at || 0)).slice(0, max);
+    box.innerHTML = peers.map((l) => {
+      const n = P.un.get(l) || 0, f = pmFriend(l), on = !!(f && f.on), last = P.last[l] || {};
+      const cur = S.room === 'pm' && P.peer === l;
+      return `<button type="button" class="rpe" data-rpeer="${esc(l)}" aria-pressed="${cur}" title="${esc(dispName(l))}${on ? ' · ' + esc(f.on.t || 'в сети') : ''}${last.t ? '\n' + esc((last.mine ? 'Ты: ' : '') + last.t.slice(0, 60)) : ''}" aria-label="${esc(dispName(l))}${n ? ', непрочитанных: ' + n : ''}">${avIn(l, null, 'av')}</span>${on ? '<span class="on" aria-hidden="true"></span>' : ''}${n ? `<b class="un">${n > 99 ? '99+' : n}</b>` : ''}<small>${esc(dispName(l))}</small></button>`;
+    }).join('');
   }
   window.addEventListener('message', (e) => {
     if (e.source !== window.parent || e.origin !== location.origin || !e.data || e.data.lgmc !== 'side' || !/^[lrf]$/.test(e.data.side)) return;
     if (S.dockSide !== e.data.side) { S.dockSide = e.data.side; railApply(); }
   });
-  if (EMBED) try { window.parent.postMessage({ lgmc: 'ready' }, location.origin); } catch {}   // панель в игре: «готов» — пришли, с какой ты стороны
-  document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#rchans [data-rch]'); if (b && b.dataset.rch !== S.ch) switchTo(b.dataset.rch, S.room); });
+  if (EMBED) try { window.parent.postMessage({ lgmc: 'ready', ctl: 1 }, location.origin); } catch {}   // панель в игре: «готов» — пришли, с какой ты стороны
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest && e.target.closest('#rchans [data-rpeer]'); if (!b) return;
+    const l = b.dataset.rpeer;
+    if (S.room !== 'pm') await switchTo(S.ch, 'pm');
+    pmOpen(l);
+  });
   function renderChannels() {
     const list = S.channels.map((c, i) => [c, i]).sort((a, b) => (b[0].live ? 1 : 0) - (a[0].live ? 1 : 0) || a[1] - b[1]).map((x) => x[0]);
     S.el.chan.innerHTML = list.map((c) => `<option value="${esc(c.login.toLowerCase())}" class="${c.live ? 'live' : 'off'}">${c.live ? '🔴' : '⚪'} ${esc(c.name || c.login)} — ${c.live ? 'в эфире' : 'не в эфире'}</option>`).join('');
@@ -1246,7 +1319,7 @@ html.rail.rch-on #chname{display:block;flex:1;min-width:0;overflow:hidden;text-o
     pmBoot(); gdBoot();
     for (const b of S.el.room.querySelectorAll('[data-r]')) b.setAttribute('aria-pressed', String(b.dataset.r === S.room));
     S.el.mine.hidden = !usesMine(S.room) || S.mines.length < 2;
-    renderTabs(); renderTargets(); updateBar(); pmBar(); gdBar();
+    renderTabs(); renderTargets(); updateBar(); pmBar(); gdBar(); try { railChans(); } catch {}
     modLoad(gen);
     if (hasCity) townsLoad();   // 📍 где отряд и куда можно встать
     document.title = title(); if (S.pip) S.pip.document.title = title();
@@ -1953,6 +2026,7 @@ html.rail.rch-on #chname{display:block;flex:1;min-width:0;overflow:hidden;text-o
   function pmBadge() {
     const P = S.pm;
     P.total = [...P.un.values()].reduce((a, n) => a + n, 0);
+    try { railChans(); } catch {}
     const b = S.el && S.el.room && S.el.room.querySelector('[data-r="pm"] .rb');
     if (b) { b.hidden = !P.total; b.textContent = P.total > 99 ? '99+' : String(P.total); b.parentElement.setAttribute('aria-label', P.total ? `Личные, непрочитанных: ${P.total}` : 'Личные'); }
     if (S.el) { const t = S.unseenTitle ? `(${S.unseenTitle}) ${title()}` : title(); document.title = t; if (S.pip) S.pip.document.title = t; }
