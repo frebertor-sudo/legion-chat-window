@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.1
+// @version      3.18.1.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -83,7 +83,7 @@
           <button type="button" data-m="r" title="Прикрепить справа" aria-label="Прикрепить справа">◨</button>
         </div><div class="lgmc-body"></div>
         <div class="lgmc-grip" title="Потяни, чтобы изменить ширину" aria-hidden="true"></div>
-        <div class="lgmc-corner" title="Потяни, чтобы изменить размер" aria-hidden="true"></div>
+        <div class="lgmc-corner" data-rz="se" title="Потяни, чтобы изменить размер" aria-hidden="true"></div><div class="lgmc-rz" data-rz="n" aria-hidden="true"></div><div class="lgmc-rz" data-rz="s" aria-hidden="true"></div><div class="lgmc-rz" data-rz="e" aria-hidden="true"></div><div class="lgmc-rz" data-rz="w" aria-hidden="true"></div><div class="lgmc-rz" data-rz="ne" aria-hidden="true"></div><div class="lgmc-rz" data-rz="nw" aria-hidden="true"></div><div class="lgmc-rz" data-rz="sw" aria-hidden="true"></div>
         <div class="lgmc-shield" hidden></div>`;
       const snap = document.createElement('div'); snap.id = 'lgmc-snap'; snap.hidden = true;
       const st = document.createElement('style');
@@ -105,6 +105,16 @@
         #lgmc-dock .lgmc-grip:hover,#lgmc-dock.drag-w .lgmc-grip{background:linear-gradient(90deg,transparent 4px,#ff9fd0 4px,#ff9fd0 6px,transparent 6px)}
         #lgmc-dock .lgmc-corner{display:none;position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:2;background:linear-gradient(135deg,transparent 55%,#4a4068 55%,#4a4068 62%,transparent 62%,transparent 72%,#4a4068 72%,#4a4068 79%,transparent 79%)}
         #lgmc-dock.m-f .lgmc-corner{display:block}
+        #lgmc-dock .lgmc-rz{display:none;position:absolute;z-index:2}
+        #lgmc-dock.m-f .lgmc-rz{display:block}
+        #lgmc-dock .lgmc-rz[data-rz="n"]{top:0;left:14px;right:14px;height:5px;cursor:ns-resize}
+        #lgmc-dock .lgmc-rz[data-rz="s"]{bottom:0;left:14px;right:18px;height:6px;cursor:ns-resize}
+        #lgmc-dock .lgmc-rz[data-rz="e"]{right:0;top:14px;bottom:18px;width:6px;cursor:ew-resize}
+        #lgmc-dock .lgmc-rz[data-rz="w"]{left:0;top:14px;bottom:14px;width:6px;cursor:ew-resize}
+        #lgmc-dock .lgmc-rz[data-rz="ne"]{right:0;top:0;width:14px;height:14px;cursor:nesw-resize}
+        #lgmc-dock .lgmc-rz[data-rz="nw"]{left:0;top:0;width:14px;height:14px;cursor:nwse-resize}
+        #lgmc-dock .lgmc-rz[data-rz="sw"]{left:0;bottom:0;width:14px;height:14px;cursor:nesw-resize}
+        #lgmc-dock .lgmc-rz:hover,#lgmc-dock.drag-size .lgmc-rz.on{background:rgba(255,159,208,.35);border-radius:4px}
         #lgmc-dock .lgmc-shield{position:fixed;inset:0;z-index:3}
         #lgmc-dock{opacity:var(--lgmc-op,1);transition:opacity .15s}
         #lgmc-dock.ophov:hover,#lgmc-dock.ophov:focus-within,#lgmc-dock[class*="drag-"]{opacity:1}
@@ -132,7 +142,7 @@
         @media (max-width:640px){#lgmc-dock.m-r,#lgmc-dock.m-l{width:100vw!important;border:0}#lgmc-dock .lgmc-grip{display:none}}`;
       document.head.appendChild(st);
       document.body.appendChild(dock); document.body.appendChild(snap);
-      const bar = dock.querySelector('.lgmc-bar'), grip = dock.querySelector('.lgmc-grip'), corner = dock.querySelector('.lgmc-corner'), shield = dock.querySelector('.lgmc-shield');
+      const bar = dock.querySelector('.lgmc-bar'), grip = dock.querySelector('.lgmc-grip'), shield = dock.querySelector('.lgmc-shield');
       // перетаскивание: поверх рамки — прозрачный щит, иначе рамка «съедает» движение мыши
       const drag = (cls, onMove, onUp, lazy) => {
         dock.classList.add(cls); if (!lazy) shield.hidden = false;
@@ -170,11 +180,20 @@
       });
       bar.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) setMode(L.mode === 'f' ? L.side || 'r' : 'f'); });
       bar.addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) setMode(b.dataset.m); });
-      // размер плавающего окна — за уголок
-      corner.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        const ox = L.x + L.fw - e.clientX, oy = L.y + L.fh - e.clientY; // где взялись за уголок — без скачка
-        drag('drag-size', (ev) => { L.fw = Math.max(minW, Math.min(vw() - L.x, ev.clientX + ox - L.x)); L.fh = Math.max(240, Math.min(vh() - L.y, ev.clientY + oy - L.y)); apply(); });
+      // размер плавающего окна — за любой край или угол; противоположный край стоит на месте
+      for (const h of dock.querySelectorAll('[data-rz]')) h.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault(); e.stopPropagation();
+        const d = h.dataset.rz, x0 = L.x, y0 = L.y, w0 = L.fw, h0 = L.fh, sx = e.clientX, sy = e.clientY;
+        h.classList.add('on');
+        drag('drag-size', (ev) => {
+          const dx = ev.clientX - sx, dy = ev.clientY - sy;
+          if (d.includes('e')) L.fw = Math.max(minW, Math.min(vw() - x0, w0 + dx));
+          if (d.includes('w')) { L.fw = Math.max(minW, Math.min(x0 + w0, w0 - dx)); L.x = x0 + w0 - L.fw; }
+          if (d.includes('s')) L.fh = Math.max(240, Math.min(vh() - y0, h0 + dy));
+          if (d.includes('n')) { L.fh = Math.max(240, Math.min(y0 + h0, h0 - dy)); L.y = y0 + h0 - L.fh; }
+          apply();
+        }, () => h.classList.remove('on'));
       });
       window.addEventListener('resize', apply);
       // прозрачность — из настроек чата (⚙ в окне чата, тот же localStorage): меняется сразу
