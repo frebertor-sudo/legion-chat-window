@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.0.1
+// @version      3.18.0.3
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -812,6 +812,13 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #log li.pm0.gds{padding:4px 12px;font-size:12px;max-width:none}
 #log li.pm0.gdc{padding-top:14px}
 #gdbar .acts button[aria-pressed="true"]{border-color:var(--acc)}
+#log li.gdf .gdl{display:flex;gap:6px;flex-wrap:wrap}
+#log li.conv.gdlk{cursor:default}
+#log .grl{display:inline-block;font:700 10px var(--ff);padding:0 6px;margin-left:6px;border-radius:999px;background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc-tx);vertical-align:1px}
+#log li.gdf .gdz{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mut);margin-top:6px}
+#log li.gdf .gdz input{flex:none;width:16px;height:16px;margin:0;padding:0;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--acc);box-shadow:none}
+#log li.gdrole{padding-left:42px}
+#log li.conv.gdlk .acts{flex-wrap:wrap;justify-content:flex-end}
 </style></head>
 <body>
 <header>
@@ -3726,6 +3733,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   // • На браузер — одно подключение (Web Locks), остальные окна получают сообщения через BroadcastChannel.
   // Честно: ключ гильдии проходит через личные игры, то есть его технически может увидеть сервер игры.
   const NTFY = 'https://ntfy.sh', GD_MAX = 400;
+  const GD_HASH = (/[#&]lgg=([^&]+)/.exec(location.hash) || [])[1] || '';   // открыли ссылку-приглашение
   const GD = { list: [], cur: '', view: '', un: new Map(), es: new Map(), keys: new Map(), sure: '', busy: false, note: '', id: null, lead: false, bc: null, inv: [], old: [], seenSync: new Set() };
   const gdLK = () => 'lgmc_g2_' + (S.me || '_');
   const gdHK = (g) => 'lgmc_g2h_' + g.id;
@@ -3748,6 +3756,11 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   const gdMem = (g) => Object.keys((g.roster && g.roster.m) || {});
   const gdIsMem = (g, l) => !!(g.roster && g.roster.m && g.roster.m[l]);
   const gdOwn = (g) => !!g && g.owner === S.me;
+  // роли: подпись и право звать — назначает только глава, лежат в подписанном составе
+  const gdRole = (g, l) => (g && g.roster && g.roster.r && g.roster.r[l]) || null;
+  const gdCanInv = (g) => !!g && !g.gone && (gdOwn(g) || (!g.wait && !!(gdRole(g, S.me) || {}).z));
+  const GD_ROLES = ['Заместитель', 'Казначей', 'Ветеран', 'Рекрутёр', 'Новичок'];
+  const gdRoleTag = (g, l) => { const r = l === g.owner ? { t: 'глава' } : gdRole(g, l); return r && r.t ? `<small class="grl">${l === g.owner ? '👑 ' : ''}${esc(r.t)}</small>` : ''; };
   // «сделать один раз на весь браузер» — окон с чатом может быть несколько
   function gdOnce(id, ttl = 60000) {
     try {
@@ -3814,8 +3827,19 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 
   // ---- приглашения и ключи в личных игры ----
   // LGG2:<гильдия>.<поколение>.<ключ гильдии>.<открытый ключ главы> — от главы; LGK2:<гильдия>.<мой открытый ключ> — главе
-  const GD_INV = /LGG2:([A-Za-z0-9_-]{8})\.(\d{1,5})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{87})/;
-  const GD_KEYM = /LGK2:([A-Za-z0-9_-]{8})\.([A-Za-z0-9_-]{87})/;
+  // ссылка-приглашение: тот же код + «.<метка ссылки>~<ник главы>» — глава примет ключ по метке, а не только у тех, кого позвал сам
+  const GD_INV = /LGG2:([A-Za-z0-9_-]{8})\.(\d{1,5})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{87})(?:\.([A-Za-z0-9_-]{8})~([a-z0-9_]{1,25}))?/i;
+  const GD_KEYM = /LGK2:([A-Za-z0-9_-]{8})\.([A-Za-z0-9_-]{87})(?:\.([A-Za-z0-9_-]{8}))?/;
+  const GD_LINK_TTL = 7 * 864e5;
+  const gdLinkCode = (g, x) => `LGG2:${g.id}.${g.ep}.${g.key}.${g.opk}.${x.t}~${g.owner}`;
+  const gdLinkUrl = (g, x) => `${ORIGIN}/site/ver?minechat=${encodeURIComponent(g.ch || S.ch)}&room=guild#lgg=${gdLinkCode(g, x)}`;
+  const gdLinkOk = (g, x) => x && Date.now() - x.at < GD_LINK_TTL && (!x.n || (x.used || []).length < x.n);
+  // разобрать ссылку или код, вставленные вручную или открытые по ссылке
+  function gdParseInv(text, ch) {
+    const x = GD_INV.exec(String(text || '')); if (!x || !x[5]) return null;
+    const from = nickOf(x[6]); if (!from) return null;
+    return { id: x[1], ep: +x[2], key: x[3], opk: x[4], tok: x[5], from, ch: ch || S.ch, at: Date.now(), name: '', link: 1 };
+  }
   const GD_OLD = /LGG1:[A-Za-z0-9_-]{8}\.\d{1,4}\.[A-Za-z0-9_-]{43}/;
   const gdInvText = (g) => `⚜ Зову в гильдию «${gdName(g).slice(0, 30)}» — закрытый чат в «Чате Легиона» (github.com/frebertor-sudo/legion-chat-window): LGG2:${g.id}.${g.ep}.${g.key}.${g.opk}`;
   async function gdDm(ch, to, text) {
@@ -3834,9 +3858,9 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     for (const m of list || []) {
       const from = nickOf(m.fl), t = String(m.t || ''); if (!from || from === S.me) continue;
       let x = GD_INV.exec(t);
-      if (x) { found = true; gdSeeInvite({ id: x[1], ep: +x[2], key: x[3], opk: x[4], from, ch, at: m.at || 0, name: ((/«([^»]{1,40})»/.exec(t) || [])[1] || '') }); continue; }
+      if (x) { found = true; const own = x[6] ? nickOf(x[6]) : from; gdSeeInvite({ id: x[1], ep: +x[2], key: x[3], opk: x[4], tok: x[5] || '', from: own || from, via: own && own !== from ? from : '', ch, at: m.at || 0, name: ((/«([^»]{1,40})»/.exec(t) || [])[1] || '') }); continue; }
       x = GD_KEYM.exec(t);
-      if (x) { found = true; gdSeeKey({ id: x[1], pub: x[2], from, ch }); continue; }
+      if (x) { found = true; gdSeeKey({ id: x[1], pub: x[2], tok: x[3] || '', from, ch }); continue; }
       if (GD_OLD.test(t) && !GD.old.some((o) => o.from === from)) { GD.old.push({ from, at: m.at || 0 }); found = true; }
     }
     if (found) { gdTabVis(); gdBadge(); if (S.room === 'guild') gdSoft(); }
@@ -3846,7 +3870,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const g = gdGet(p.id);
     if (g) {
       // глава сменил ключ: новое поколение от того же главы с тем же ключом главы — переходим сами
-      if (!g.gone || g.gone === 'moved') if (p.ep > g.ep && p.from === g.owner && p.opk === g.opk && gdOnce('mv|' + g.id + '|' + p.ep, 864e5)) gdRekeyTo(g, p);
+      if (!g.gone || g.gone === 'moved') if (p.ep > g.ep && p.from === g.owner && !p.via && !p.tok && p.opk === g.opk && gdOnce('mv|' + g.id + '|' + p.ep, 864e5)) gdRekeyTo(g, p);
       return;
     }
     const i = GD.inv.findIndex((x) => x.id === p.id);
@@ -3859,11 +3883,15 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const was = g.roster.m[p.from];
     if (was === p.pub) { if ((g.invited || []).some((x) => x.l === p.from)) { g.invited = g.invited.filter((x) => x.l !== p.from); gdSave(); } return; }
     // принять ключ только у приглашённого (или у участника, который сменил браузер — он тоже приходит по приглашению)
-    if (!(g.invited || []).some((x) => x.l === p.from)) return;
+    const link = p.tok ? (g.links || []).find((x) => x.t === p.tok) : null;
+    const byLink = link && (gdLinkOk(g, link) || (link.used || []).includes(p.from));
+    if (!(g.invited || []).some((x) => x.l === p.from) && !byLink) return;
     if (!gdOnce('key|' + g.id + '|' + p.from + '|' + p.pub, 864e5)) return;
+    if (byLink && !(link.used || []).includes(p.from)) link.used = [...(link.used || []), p.from];
+    if (byLink) g.mch = Object.assign({}, g.mch, { [p.from]: p.ch });
     g.roster.m[p.from] = p.pub; g.mch = Object.assign({}, g.mch, { [p.from]: p.ch }); g.invited = (g.invited || []).filter((x) => x.l !== p.from); gdSave();
     await gdRoster(g);
-    gdSys(g, `${pmName(p.from)} в гильдии`);
+    gdSys(g, `${pmName(p.from)} в гильдии${byLink ? ' (по ссылке)' : ''}`);
     if (S.room === 'guild') gdSoft();
   }
   // проверить личные с теми, от кого ждём ответа (вдруг пришло, пока чат был закрыт)
@@ -3958,7 +3986,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       if (v > ((g.roster && g.roster.v) || 0) && d.m && typeof d.m === 'object') {
         const was = g.roster ? Object.keys(g.roster.m || {}) : [];
         const m = {}; for (const [l, p] of Object.entries(d.m)) { const n = nickOf(l); if (n && /^[A-Za-z0-9_-]{87}$/.test(p)) m[n] = p; }
-        g.roster = { v, m }; g.name = String(d.name || g.name || '').slice(0, 40);
+        const r = {}; for (const [l, x] of Object.entries(d.r && typeof d.r === 'object' ? d.r : {})) { const n = nickOf(l); if (n && m[n] && x && (x.t || x.z)) r[n] = { t: String(x.t || '').slice(0, 20), z: !!x.z }; }
+        g.roster = { v, m, r }; g.name = String(d.name || g.name || '').slice(0, 40);
         if (!Object.keys(m).length) { g.gone = 'closed'; gdSys(g, 'Глава распустил гильдию', 'r' + v); }
         else if (!m[S.me] && (was.includes(S.me) || !g.wait)) { g.gone = 'kicked'; gdSys(g, 'Тебя исключили из гильдии', 'r' + v); }
         else if (g.wait && m[S.me] === (await gdIdent()).pub) { delete g.wait; gdSys(g, 'Глава подтвердил — можно писать', 'w' + v); setTimeout(() => { if (GD.lead) gdAskSync(g); }, 500); }
@@ -3973,6 +4002,10 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       if (!gdOwn(g)) setTimeout(gdPollDm, 4000);
     } else if (d.k === 'leave' && gdOwn(g) && gdIsMem(g, d.f) && d.f !== S.me) {
       if (gdOnce('lv|' + g.id + '|' + d.f + '|' + d.ts, 864e5)) { delete g.roster.m[d.f]; gdSave(); await gdRoster(g); gdSys(g, `${dispName(d.f)} вышел из гильдии. Он знает старый ключ — можно «🔑 Сменить ключ»`); changed = true; }
+    } else if (d.k === 'inv' && gdOwn(g) && d.f !== S.me && (gdRole(g, d.f) || {}).z && /^[A-Za-z0-9_-]{8}$/.test(d.tok || '')) {
+      if (!(g.links || []).some((x) => x.t === d.tok)) { g.links = (g.links || []).concat({ t: d.tok, at: Math.min(+d.ts || Date.now(), Date.now()), n: d.n ? 1 : 0, used: [], by: d.f }); }
+      const l = nickOf(d.l); if (l && !gdIsMem(g, l)) g.invited = (g.invited || []).filter((x) => x.l !== l).concat({ l, ch: nickOf(d.ch) || g.ch, at: Date.now(), by: d.f });
+      gdSave(); changed = true;
     } else if (d.k === 'sync?' && d.f !== S.me && GD.lead) {
       gdSyncReply(g, d);
     } else if (d.k === 'sync' && Array.isArray(d.items)) {
@@ -4002,7 +4035,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   }
 
   // ---- действия ----
-  async function gdRoster(g) { g.roster.v = (g.roster.v || 0) + 1; gdSave(); return gdPost(g, { k: 'roster', v: g.roster.v, name: g.name, m: g.roster.m }); }
+  async function gdRoster(g) { g.roster.v = (g.roster.v || 0) + 1; gdSave(); return gdPost(g, { k: 'roster', v: g.roster.v, name: g.name, m: g.roster.m, r: g.roster.r || {} }); }
   async function gdCreate(name) {
     name = String(name || '').trim().slice(0, 40);
     if (!name) { S.el.err.textContent = 'Назови гильдию'; return; }
@@ -4020,9 +4053,16 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   async function gdInvite(g, who) {
     const l = nickOf(who); if (!l) { S.el.err.textContent = 'Напиши ник игрока'; return; }
     if (l === S.me) { S.el.err.textContent = 'Ты уже в гильдии'; return; }
-    if (!gdOwn(g)) { S.el.err.textContent = 'Приглашает глава гильдии'; return; }
+    if (!gdCanInv(g)) { S.el.err.textContent = 'Звать в гильдию может глава или тот, кому он это разрешил'; return; }
     if (!S.flags.dm) { S.el.err.textContent = 'На этом канале личные выключены — пригласить не получится'; return; }
-    const r = await gdDm(S.ch, l, gdInvText(g));
+    let text = gdInvText(g);
+    if (!gdOwn(g)) {   // заместитель: приглашение с меткой; главе — подписанная запись, чтобы он принял ключ
+      const x = { t: gdRnd(6), at: Date.now(), n: 1, used: [], by: S.me };
+      const ok = await gdPost(g, { k: 'inv', tok: x.t, n: 1, l, ch: S.ch });
+      if (!ok || typeof ok !== 'object') { S.el.err.textContent = 'Нет связи с ntfy.sh — попробуй позже'; return; }
+      text = `⚜ Зову в гильдию «${gdName(g).slice(0, 30)}» — закрытый чат в «Чате Легиона» (github.com/frebertor-sudo/legion-chat-window): ${gdLinkCode(g, x)}`;
+    }
+    const r = await gdDm(S.ch, l, text);
     if (r && r.ok) {
       g.invited = (g.invited || []).filter((x) => x.l !== l).concat({ l, ch: S.ch, at: Date.now() }); gdSave();
       S.el.err.textContent = ''; GD.note = `Приглашение ушло ${pmName(l)} в личные. Он появится в составе, когда примет его (тебе нужно быть в сети).`;
@@ -4033,7 +4073,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   async function gdJoin(p) {
     if (!S.flags.dm && p.ch === S.ch) { S.el.err.textContent = 'На этом канале личные выключены'; return; }
     const id = await gdIdent();
-    const r = await gdDm(p.ch, p.from, `⚜ Вступаю в гильдию — ключ для «Чата Легиона»: LGK2:${p.id}.${id.pub}`);
+    const r = await gdDm(p.ch, p.from, `⚜ Вступаю в гильдию — ключ для «Чата Легиона»: LGK2:${p.id}.${id.pub}${p.tok ? '.' + p.tok : ''}`);
     if (!r || !r.ok) { S.el.err.textContent = `Не получилось ответить ${pmName(p.from)}: ${(r && (ERR[r.error] || r.error)) || 'нет связи'}`; return; }
     gdLoad();
     let g = gdGet(p.id);
@@ -4055,10 +4095,10 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   async function gdRekey(g, kick) {
     if (!gdOwn(g) || GD.busy) return;
     GD.busy = true; gdRender();
-    if (kick) { delete g.roster.m[kick]; g.invited = (g.invited || []).filter((x) => x.l !== kick); }
+    if (kick) { delete g.roster.m[kick]; if (g.roster.r) delete g.roster.r[kick]; g.invited = (g.invited || []).filter((x) => x.l !== kick); }
     await gdRoster(g);                       // по старому ключу: исключённый узнает, что его убрали
     await gdPost(g, { k: 'moved' });
-    g.ep += 1; g.key = gdRnd(32); g.roster.v += 1; gdSave();
+    g.ep += 1; g.key = gdRnd(32); g.roster.v += 1; g.links = []; gdSave();
     gdSubAll(); try { GD.bc && GD.bc.postMessage({ t: 'sub' }); } catch {}
     await gdRoster(g);
     gdSys(g, kick ? `${pmName(kick)} исключён. Новый ключ рассылаю остальным…` : 'Ключ сменён. Рассылаю новый остальным…');
@@ -4124,22 +4164,38 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     if (!gdOn()) li('pm0', '<b>Гильдии недоступны</b>Этот браузер не умеет шифровать (нет WebCrypto).');
     else if (GD.view === 'home') {
       li('pm0 gdc', `<b>⚜ Гильдии — закрытый чат для своих</b>Сообщения зашифрованы и подписаны: читают только участники, подделать чужое сообщение нельзя. Ключ гильдии передаётся через личные игры. Сообщения идут через ntfy.sh (сервер видит только шифр) и хранятся там около 12 часов — старое подтянется у участников, кто в сети.${note}`);
-      if (GD.inv.length) { li('sec', 'Тебя зовут'); for (const p of GD.inv) li('conv', `${avatar(p.from)}<span class="cv"><b>${esc(p.name || 'Гильдия')}</b><span>приглашение от ${esc(pmName(p.from))}</span></span><span class="acts"><button type="button" class="ok" data-gd="join:${esc(p.id)}">Вступить</button><button type="button" data-gd="skip:${esc(p.id)}" aria-label="Отклонить">✕</button></span>`); }
+      if (GD.inv.length) { li('sec', 'Тебя зовут'); for (const p of GD.inv) li('conv', `${avatar(p.from)}<span class="cv"><b>${esc(p.name || 'Гильдия')}</b><span>${p.link ? 'ссылка от' : 'приглашение от'} ${esc(pmName(p.from))}${p.via ? ' · через ' + esc(pmName(p.via)) : ''}</span></span><span class="acts"><button type="button" class="ok" data-gd="join:${esc(p.id)}">Вступить</button><button type="button" data-gd="skip:${esc(p.id)}" aria-label="Отклонить">✕</button></span>`); }
       for (const o of GD.old) li('pm0 gds', `${esc(pmName(o.from))} зовёт в гильдию старого формата (LGG1, без подписей) — попроси пригласить заново из этой версии.`);
       if (GD.list.length) {
         li('sec', 'Мои гильдии');
         for (const x of GD.list) { const u = GD.un.get(x.id) || 0; li('conv', `<span class="av" style="--avc:#c9a24a" aria-hidden="true">⚜</span><span class="cv"><b>${esc(gdName(x))}</b><span>${x.gone === 'kicked' ? 'тебя исключили' : x.gone === 'closed' ? 'распущена' : x.wait ? 'ждём подтверждения главы' : `${gdMem(x).length} в составе${gdOwn(x) ? ' · ты глава' : ''}`}</span></span>${u ? `<span class="cu">${u}</span>` : ''}<span class="acts"><button type="button" class="ok" data-gd="open:${esc(x.id)}">Открыть</button></span>`); }
       }
+      li('sec', 'Вступить по ссылке или коду');
+      li('gdf', `<form data-gdf="code" autocomplete="off"><input name="v" maxlength="400" placeholder="Вставь ссылку или код LGG2:…" aria-label="Ссылка или код приглашения" spellcheck="false"><button type="submit">Вступить</button></form>`);
       li('sec', 'Создать гильдию');
       li('gdf', `<form data-gdf="create" autocomplete="off"><input name="v" maxlength="40" placeholder="Название гильдии" aria-label="Название гильдии"><button type="submit" class="ok">Создать</button></form>`);
     } else if (GD.view === 'members') {
-      const own = gdOwn(g), live = !g.gone;
-      if (own && live) {
+      const own = gdOwn(g), live = !g.gone, inv = gdCanInv(g);
+      if (inv) {
         li('sec', 'Пригласить игрока');
         li('gdf', `<form data-gdf="invite" autocomplete="off"><input name="v" maxlength="26" placeholder="ник игрока" aria-label="Ник игрока" spellcheck="false"><button type="submit" class="ok">Пригласить</button></form>${note}<small class="gdh">Приглашение уходит в личные игры. Игроку нужен «Чат Легиона» 3.18 или новее; в состав он попадёт, когда примет приглашение, а ты будешь в сети.</small>`);
       } else if (note) li('gdf', note);
       li('sec', `Состав · ${gdMem(g).length}`);
-      for (const l of gdMem(g).sort((a, b) => (b === g.owner) - (a === g.owner) || a.localeCompare(b))) li('conv', `${avatar(l)}<span class="cv"><b style="color:${ncol(l)}">${esc(dispName(l))}</b><span>${l === g.owner ? '👑 глава' : 'участник'}${l === S.me ? ' · это ты' : ''}</span></span>${own && live && l !== S.me ? `<span class="acts"><button type="button" class="${GD.sure === l ? 'sure' : ''}" data-gd="kick:${esc(l)}"${GD.busy ? ' disabled' : ''}>${GD.sure === l ? 'Точно исключить?' : 'Исключить'}</button></span>` : ''}`);
+      for (const l of gdMem(g).sort((a, b) => (b === g.owner) - (a === g.owner) || !!gdRole(g, b) - !!gdRole(g, a) || a.localeCompare(b))) {
+        const ro = gdRole(g, l);
+        li('conv', `${avatar(l)}<span class="cv"><b style="color:${ncol(l)}">${esc(dispName(l))}</b><span>${l === g.owner ? '👑 глава' : ro && ro.t ? '🏷 ' + esc(ro.t) : 'участник'}${ro && ro.z ? ' · может звать' : ''}${l === S.me ? ' · это ты' : ''}</span></span>${own && live && l !== S.me ? `<span class="acts"><button type="button" data-gd="role:${esc(l)}" aria-pressed="${GD.roleEdit === l}" title="Назначить роль">🏷 Роль</button><button type="button" class="${GD.sure === l ? 'sure' : ''}" data-gd="kick:${esc(l)}"${GD.busy ? ' disabled' : ''}>${GD.sure === l ? 'Точно исключить?' : 'Исключить'}</button></span>` : ''}`);
+        if (own && live && GD.roleEdit === l) li('gdf gdrole', `<form data-gdf="role" data-l="${esc(l)}" autocomplete="off"><input name="v" maxlength="20" list="gdroles" value="${esc((ro && ro.t) || '')}" placeholder="Роль для ${esc(dispName(l))}" aria-label="Название роли"><datalist id="gdroles">${GD_ROLES.map((x) => `<option value="${esc(x)}">`).join('')}</datalist><button type="submit" class="ok">Сохранить</button>${ro ? `<button type="button" data-gd="roleoff:${esc(l)}">Убрать</button>` : ''}</form><label class="gdz"><input type="checkbox" name="z"${ro && ro.z ? ' checked' : ''}> может звать в гильдию (приглашения и ссылки; в состав всё равно добавляет глава)</label>`);
+      }
+      if (inv) {
+        const links = (g.links || []).filter((x) => gdLinkOk(g, x) && (own || x.by === S.me));
+        li('sec', 'Ссылка-приглашение');
+        li('gdf', `<div class="gdl"><button type="button" class="ok" data-gd="lnew:1">🔗 Ссылка на одного</button><button type="button" data-gd="lnew:0">🔗 Ссылка для всех</button></div><small class="gdh">Ничего не отправляется — скопируй и передай сам, куда удобно. По ссылке можно читать гильдию, пока ты не сменишь ключ; писать — после подтверждения (чат подтвердит сам, когда ты в сети). Ссылка действует 7 дней.</small>`);
+        for (const x of links) {
+          const left = x.n ? `на одного${(x.used || []).length ? ' · использована' : ''}` : `для всех · вступили: ${(x.used || []).length}`;
+          const till = new Date(x.at + GD_LINK_TTL).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+          li('conv gdlk', `<span class="av" style="--avc:#c9a24a" aria-hidden="true">🔗</span><span class="cv"><b>${left}</b><span>до ${esc(till)}${(x.used || []).length ? ' · ' + x.used.map((l) => esc(dispName(l))).join(', ') : ''}</span></span><span class="acts"><button type="button" class="ok" data-gd="lcopy:${esc(x.t)}" title="Скопировать ссылку">⧉ Ссылка</button><button type="button" data-gd="lcode:${esc(x.t)}" title="Скопировать код — вставить в поле «Вступить по ссылке или коду»">⧉ Код</button><button type="button" data-gd="lrev:${esc(x.t)}" aria-label="Отозвать ссылку" title="Отозвать">✕</button></span>`);
+        }
+      }
       if (own && (g.invited || []).length) { li('sec', 'Приглашены, ждём ответа'); for (const x of g.invited) li('conv', `${avatar(x.l)}<span class="cv"><b>${esc(dispName(x.l))}</b><span>приглашение в личных</span></span><span class="acts"><button type="button" data-gd="uninv:${esc(x.l)}">Отозвать</button></span>`); }
       li('gdf', `${own && live ? `<button type="button" data-gd="rekey"${GD.busy ? ' disabled' : ''} title="Новый ключ и адрес — тот, кто ушёл или получил старый ключ, больше ничего не прочитает">🔑 Сменить ключ</button> ` : ''}<button type="button" class="${GD.sure === '!leave' ? 'sure' : ''}" data-gd="leave">${GD.sure === '!leave' ? (own ? 'Точно распустить?' : 'Точно выйти?') : own ? 'Распустить гильдию' : g.gone ? 'Убрать из списка' : 'Выйти из гильдии'}</button>`);
     } else {
@@ -4149,7 +4205,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
         if (!day || !sameDay(day, m.at)) { li('day', dayName(m.at)); day = m.at; }
         if (m.sys) { li('pm0 gds', esc(m.t)); prev = null; continue; }
         const me = m.f === S.me, cont = prev && prev.f === m.f && sameDay(prev.at, m.at) && m.at - prev.at < 5 * 60000;
-        const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}`, `${!me && !cont ? `<span class="gnm n" data-l="${esc(m.f)}" style="color:${ncol(m.f)}">${esc(dispName(m.f))}</span>` : ''}${fmtText(m.t)}<span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}">${hhmm(m.at)}</span>`);
+        const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}`, `${!me && !cont ? `<span class="gnm"><span class="n" data-l="${esc(m.f)}" style="color:${ncol(m.f)}">${esc(dispName(m.f))}</span>${gdRoleTag(g, m.f)}</span>` : ''}${fmtText(m.t)}<span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}">${hhmm(m.at)}</span>`);
         x.dataset.key = 'g:' + m.id;
         prev = m;
       }
@@ -4163,10 +4219,23 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   function gdSoft() { const a = document.activeElement; if (a && a.closest && a.closest('[data-gdf]') && S.el.log.contains(a)) gdBar(); else gdRender(false); }
   function gdEnter() {
     gdLoad(); GD.sure = '';
-    const g = gdCur(); GD.view = g ? (GD.view === 'members' ? 'members' : 'chat') : 'home';
+    const g = gdCur(); GD.view = GD.fromLink ? 'home' : g ? (GD.view === 'members' ? 'members' : 'chat') : 'home'; GD.fromLink = false;
     if (g) GD.cur = g.id;
     gdDot(); gdRender(true); inputState(); gdBadge();
     gdPollDm();
+  }
+  function gdCopy(t, btn) { const lab = btn.textContent; copyText(t, btn); setTimeout(() => { if (btn.isConnected) { btn.textContent = lab; btn.classList.remove('ok'); } }, 1300); }
+  // принять ссылку или код: показать «Тебя зовут» (или сразу вступить, если вставили вручную)
+  function gdTakeLink(text, now) {
+    const p = gdParseInv(text);
+    if (!p) { if (now) S.el.err.textContent = 'Это не похоже на ссылку-приглашение в гильдию'; return null; }
+    if (p.from === S.me) { if (now) S.el.err.textContent = 'Это твоя же ссылка'; return null; }
+    gdLoad(); const g = gdGet(p.id);
+    if (g && !g.gone && !g.wait && g.ep >= p.ep) { GD.cur = g.id; GD.view = 'chat'; if (now) { gdRender(true); inputState(); } return null; }
+    GD.inv = GD.inv.filter((x) => x.id !== p.id).concat(p);
+    gdTabVis(); gdBadge();
+    if (now) gdJoin(p);
+    return p;
   }
   function gdClick(e) {
     const b = e.target.closest('[data-gd]'); if (!b || b.disabled) return;
@@ -4177,6 +4246,18 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     if (a === 'join') { const p = GD.inv.find((x) => x.id === v); if (p) gdJoin(p); return; }
     if (a === 'skip') { GD.inv = GD.inv.filter((x) => x.id !== v); gdTabVis(); gdRender(); return; }
     if (!g) return;
+    if (a === 'lnew') {
+      if (!gdCanInv(g)) return;
+      const x = { t: gdRnd(6), at: Date.now(), n: v === '1' ? 1 : 0, used: [], by: S.me };
+      g.links = (g.links || []).filter((y) => gdLinkOk(g, y)).concat(x); gdSave();
+      GD.note = gdOwn(g) ? 'Ссылка готова — нажми «⧉ Ссылка», чтобы скопировать' : 'Ссылка готова. По ней вступят, когда глава будет в сети';
+      if (!gdOwn(g)) gdPost(g, { k: 'inv', tok: x.t, n: x.n });
+      gdRender(); return;
+    }
+    if (a === 'role') { if (!gdOwn(g)) return; GD.roleEdit = GD.roleEdit === v ? '' : v; gdRender(); const i = S.el.log.querySelector('[data-gdf="role"] input[name="v"]'); if (i) i.focus(); return; }
+    if (a === 'roleoff') { if (!gdOwn(g) || !g.roster.r) return; delete g.roster.r[v]; GD.roleEdit = ''; GD.note = `${dispName(v)}: роль снята`; gdRoster(g).then(() => gdRender()); gdRender(); return; }
+    if (a === 'lcopy' || a === 'lcode') { const x = (g.links || []).find((y) => y.t === v); if (x) gdCopy(a === 'lcopy' ? gdLinkUrl(g, x) : gdLinkCode(g, x), b); return; }
+    if (a === 'lrev') { g.links = (g.links || []).filter((x) => x.t !== v); gdSave(); gdRender(); return; }
     if (a === 'uninv') { g.invited = (g.invited || []).filter((x) => x.l !== v); gdSave(); gdRender(); return; }
     if (a === 'rekey') { gdRekey(g, ''); return; }
     if (a === 'kick') { if (GD.sure !== v) { GD.sure = v; gdRender(); return; } GD.sure = ''; gdRekey(g, v); return; }
@@ -4189,6 +4270,12 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     gdLoad(); gdTabVis(); gdBadge();
     if (!GD.bc) gdLead(); else gdSubAll();
     setTimeout(gdPollDm, 3000);
+    if (GD_HASH && !GD.hashDone) {
+      GD.hashDone = true;
+      let code = GD_HASH; try { code = decodeURIComponent(code); } catch {}
+      if (gdTakeLink(code, false)) { GD.view = 'home'; GD.fromLink = true; }
+      try { history.replaceState(null, '', location.pathname + location.search); } catch {}
+    }
   }
   function gdInit() {
     S.el.gdbar = document.getElementById('gdbar');
@@ -4196,7 +4283,15 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     S.el.log.addEventListener('submit', (e) => {
       const fm = e.target.closest('[data-gdf]'); if (!fm || S.room !== 'guild') return;
       e.preventDefault(); const v = (fm.querySelector('input') || {}).value || '';
-      if (fm.dataset.gdf === 'create') gdCreate(v); else if (fm.dataset.gdf === 'invite' && gdCur()) gdInvite(gdCur(), v);
+      if (fm.dataset.gdf === 'role') {
+        const g = gdCur(), l = nickOf(fm.dataset.l), zb = fm.parentElement && fm.parentElement.querySelector('[name="z"]'), z = !!(zb && zb.checked);
+        if (!g || !gdOwn(g) || !l || !gdIsMem(g, l)) return;
+        const t = v.trim().slice(0, 20); g.roster.r = Object.assign({}, g.roster.r);
+        if (t || z) g.roster.r[l] = { t, z }; else delete g.roster.r[l];
+        GD.roleEdit = ''; GD.note = t || z ? `${dispName(l)}: ${t || 'без названия'}${z ? ' · может звать' : ''}` : `${dispName(l)}: роль снята`;
+        gdRoster(g).then(() => gdRender()); gdRender(); return;
+      }
+      if (fm.dataset.gdf === 'code') gdTakeLink(v, true); else if (fm.dataset.gdf === 'create') gdCreate(v); else if (fm.dataset.gdf === 'invite' && gdCur()) gdInvite(gdCur(), v);
     }, true);
     window.addEventListener('storage', (e) => {   // другое окно изменило гильдии или переписку
       if (!e.key || !(e.key === gdLK() || e.key.startsWith('lgmc_g2h_'))) return;
