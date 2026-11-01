@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.2.2
+// @version      3.18.2.3
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -632,7 +632,7 @@ html.pinned #f>button,html.pinned #f>select{min-height:0;align-self:stretch}
 #send:disabled{opacity:.5;cursor:default}
 #log img.em{height:28px;width:auto;vertical-align:middle;margin:-4px 1px}
 #log .zw{display:inline-grid;vertical-align:middle}#log .zw>img{grid-area:1/1;margin:-4px 1px}
-#emb{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:0 9px;font-size:17px;cursor:pointer}
+#emb,#gpb{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:0 9px;font-size:17px;cursor:pointer}
 #emb[aria-expanded="true"]{border-color:var(--acc)}
 #ep{display:none;flex-direction:column;gap:6px;height:min(320px,45vh);margin:0 0 8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px}
 #ep.on{display:flex}
@@ -814,8 +814,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #ctabs button{border-radius:999px}
 #ctabs button[aria-pressed="true"],#ctabs button[aria-selected="true"]{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
 #in,:is(#dmbar,#gdbar) input,#fq{background:var(--field);border-color:var(--fieldb);border-radius:10px;box-shadow:var(--sh)}
-#pb,#emb,:is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button{background:var(--btn);box-shadow:var(--sh)}
-#send,#pb,#emb{border-radius:10px}
+#pb,#emb,#gpb,:is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button{background:var(--btn);box-shadow:var(--sh)}
+#send,#pb,#emb,#gpb{border-radius:10px}
 :is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button,#log li.pm0 button{border-radius:8px}
 #log li.sec{font-family:Comfortaa,var(--ff)}
 #room button[hidden]{display:none}
@@ -862,6 +862,18 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #log .gpo b{position:relative;font-variant-numeric:tabular-nums}
 #log .gph{color:var(--mut);font-size:11px}
 #log li.gdf .gpf{flex-direction:column;align-items:stretch}
+#log .gtpl{display:flex;flex-wrap:wrap;gap:5px}
+#log .gtpl button,#log .gadd{border:1px solid var(--line);border-radius:999px;background:var(--btn);color:var(--tx);font:600 12px/24px var(--ff);padding:0 10px;cursor:pointer;flex:none}
+#log .gtpl button[aria-pressed="true"]{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
+#log .gopts{display:flex;flex-direction:column;gap:5px}
+#log .gopt{display:flex;gap:5px;align-items:center}
+#log .gopt button{flex:none;width:26px;height:26px;padding:0;border:0;border-radius:6px;background:none;color:var(--mut);cursor:pointer}
+#log .gopt button:hover{color:var(--tx);background:color-mix(in srgb,var(--tx) 8%,transparent)}
+#log .gadd{align-self:flex-start;border-style:dashed;background:none;color:var(--mut)}
+#log .gadd:hover{color:var(--tx);border-color:var(--acc)}
+#log .gpo.mul .gpl::before{content:'☐ ';opacity:.7}#log .gpo.mul.on .gpl::before{content:'☑ ';opacity:1}
+#gpb{flex:none;font-size:16px}
+#gpb[hidden]{display:none}#gpb[aria-pressed="true"]{border-color:var(--acc)}
 #log li.gdf textarea{background:var(--field);color:var(--tx);border:1px solid var(--fieldb);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px;resize:vertical}
 #log li.gdf textarea:focus{outline:none;border-color:var(--acc)}
 #gdbar .gpin{width:100%;display:flex;gap:8px;align-items:flex-start;margin-top:4px;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--acc) 14%,transparent);border:1px solid color-mix(in srgb,var(--acc) 40%,transparent);font-size:13px;line-height:1.35}
@@ -900,7 +912,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 <div id="pp" role="dialog" aria-label="Пасты"><div class="pp-top"><input id="pq" type="search" placeholder="Найти пасту…" aria-label="Поиск пасты"><button type="button" class="pbtn" id="pnew">＋ Новая</button></div><ul id="pl"></ul>
 <div id="pe"><input id="pn" maxlength="40" placeholder="Название (например: «приветствие»)" aria-label="Название пасты"><textarea id="pt" maxlength="500" placeholder="Текст пасты — можно со стикерами" aria-label="Текст пасты"></textarea><div class="pe-b"><small id="pc">0 / 200</small><button type="button" class="pbtn alt" id="pcancel">Отмена</button><button type="button" class="pbtn" id="psave">Сохранить</button></div></div></div>
 <div id="rq" hidden></div><ul id="ac" role="listbox" aria-label="Подсказки ников" hidden></ul>
-<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><textarea id="in" rows="1" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение" spellcheck="true"></textarea><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
+<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><button id="gpb" type="button" title="Сбор или опрос (или /сбор …, /опрос Вопрос | А | Б)" aria-label="Создать опрос" hidden>📊</button><textarea id="in" rows="1" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение" spellcheck="true"></textarea><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
 </body>`;
     { const st0 = document.querySelector('head style'); st0.textContent = st0.textContent.replace(/#log\b/g, ':is(#log,#pvlog)'); }   // пример в настройках выглядит как лента
     const $ = (id) => document.getElementById(id);
@@ -2877,11 +2889,12 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   function inputState() {
     const t = target();
     const gate = !['mine', 'dm', 'pm', 'guild'].includes(t) && !S.inCity;
-    const gdg = t === 'guild' ? gdCur() : null, gdOff = t === 'guild' && (!gdg || !!gdg.gone || !!gdg.wait || GD.view === 'home' || GD.view === 'poll' || GD.view === 'pin');
+    const gdg = t === 'guild' ? gdCur() : null, gdOff = t === 'guild' && (!gdg || !!gdg.gone || !!gdg.wait || GD.view === 'home' || GD.view === 'pin');
     const ro = t === 'ev';
     const banned = (t === 'pm' || t === 'dm') && !!S.pm.ban;
     const off = !S.me || gate || ro || banned || gdOff || (t === 'pm' && !S.flags.dm);
     S.el.inp.disabled = off; S.el.send.disabled = off; S.el.emb.disabled = off; if (S.el.pb) S.el.pb.disabled = off;
+    { const gp = S.el.gpb || (S.el.gpb = document.getElementById('gpb')); if (gp) { const gg = S.room === 'guild' ? gdCur() : null; gp.hidden = !(gg && !gg.gone && !gg.wait && gdIsMem(gg, S.me)); gp.setAttribute('aria-pressed', String(S.room === 'guild' && GD.view === 'poll')); } }
     if (off) { pickerOpen(false, true); pastesOpen(false, true); }
     S.el.inp.placeholder = !S.me ? 'Войди через Twitch на сайте игры, чтобы писать'
       : gate ? (S.room === 'all' ? 'Чтобы писать в город, войди в город' : 'Сначала войди в город')
@@ -4039,7 +4052,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       const ts = Math.min(+d.ts || at, Date.now() + 60000);
       const re = d.re && typeof d.re === 'object' && nickOf(d.re.f) ? { id: String(d.re.id || '').slice(0, 12), f: nickOf(d.re.f), s: String(d.re.s || '').slice(0, 80) } : null;
       const po = d.poll && Array.isArray(d.poll.o) ? d.poll.o.slice(0, 6).map((x) => String(x || '').trim().slice(0, 40)).filter(Boolean) : [];
-      const n = gdKeep(g, [Object.assign({ id: String(d.id || ''), f: d.f, t: String(d.t).slice(0, 500), at: ts, env }, re ? { re } : {}, po.length >= 2 ? { poll: { o: po } } : {})]);
+      const n = gdKeep(g, [Object.assign({ id: String(d.id || ''), f: d.f, t: String(d.t).slice(0, 500), at: ts, env }, re ? { re } : {}, po.length >= 2 ? { poll: Object.assign({ o: po }, d.poll.multi ? { multi: 1 } : {}) } : {})]);
       changed = !!n;
       if (n && live && d.f !== S.me) {
         const viewing = S.room === 'guild' && GD.cur === g.id && GD.view === 'chat' && !hidden();
@@ -4051,7 +4064,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       }
     } else if (['vote', 'react', 'edit', 'del'].includes(d.k) && /^[A-Za-z0-9_-]{6,12}$/.test(String(d.p || ''))) {
       const x = { id: String(d.id || '').slice(0, 12) || gdRnd(6), k: d.k, f: d.f, p: String(d.p), at: Math.min(+d.ts || at, Date.now() + 60000), env };
-      if (d.k === 'vote') x.o = Number.isInteger(d.o) ? d.o : -1;
+      if (d.k === 'vote') { x.o = Number.isInteger(d.o) ? d.o : -1; if ('on' in d) x.on = !!d.on; }
       if (d.k === 'react') { if (!GD_EMO.includes(d.e)) return; x.e = d.e; x.on = !!d.on; }
       if (d.k === 'edit') { if (!d.t) return; x.t = String(d.t).slice(0, 500); }
       changed = !!gdKeep(g, [x]);
@@ -4118,6 +4131,33 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 
   // ---- действия ----
   async function gdRoster(g) { g.roster.v = (g.roster.v || 0) + 1; gdSave(); return gdPost(g, { k: 'roster', v: g.roster.v, name: g.name, m: g.roster.m, r: g.roster.r || {}, pin: g.roster.pin || null }); }
+  // шаблоны опроса
+  const GD_TPL = {
+    sbor: { n: '📅 Сбор', ph: 'Например: суббота 20:00 у ворот — кто идёт?', o: ['✅ Иду', '❌ Не иду', '🤔 Может быть'] },
+    yn: { n: '👍 Да / нет', ph: 'Вопрос', o: ['👍 Да', '👎 Нет'] },
+    time: { n: '🕒 Время', ph: 'Во сколько собираемся?', o: ['18:00', '19:00', '20:00', '21:00'], multi: 1 },
+    own: { n: '✏️ Свой', ph: 'Вопрос', o: ['', ''] },
+  };
+  const gdPollTpl = (k, q) => { const x = GD_TPL[k] || GD_TPL.own; return { tpl: k, q: q || '', o: x.o.slice(), multi: !!x.multi }; };
+  async function gdPollSend(g, q, o, multi) {
+    q = String(q || '').trim(); o = o.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 6);
+    if (!q) { S.el.err.textContent = 'Напиши вопрос'; return false; }
+    if (o.length < 2) { S.el.err.textContent = 'Нужно хотя бы два варианта'; return false; }
+    const env = await gdPost(g, { k: 'msg', id: gdRnd(6), t: q.slice(0, 200), poll: Object.assign({ o }, multi ? { multi: 1 } : {}) });
+    if (env && typeof env === 'object') { S.el.err.textContent = ''; await gdApply(g, env, Date.now(), false); GD.pd = null; GD.view = 'chat'; gdRender(true); inputState(); return true; }
+    S.el.err.textContent = env === 'limit' ? 'Слишком часто — подожди минуту' : 'Нет связи с ntfy.sh — опрос не ушёл'; return false;
+  }
+  // /сбор Текст  ·  /опрос Вопрос | А | Б [| …]  ·  /опрос (без текста) — открыть форму
+  async function gdPollCmd(g, t) {
+    const x = /^\/(сбор|опрос|poll)(?:\s+([\s\S]*))?$/i.exec(t.trim()); if (!x) return false;
+    const rest = (x[2] || '').trim(), parts = rest.split('|').map((y) => y.trim()).filter(Boolean);
+    if (x[1].toLowerCase() === 'сбор' && rest) { if (await gdPollSend(g, rest, GD_TPL.sbor.o, false)) S.el.inp.value = ''; return true; }
+    if (parts.length >= 3) { if (await gdPollSend(g, parts[0], parts.slice(1), false)) S.el.inp.value = ''; return true; }
+    GD.pd = gdPollTpl(x[1].toLowerCase() === 'сбор' ? 'sbor' : parts.length ? 'own' : 'sbor', parts[0] || '');
+    if (parts.length === 2) GD.pd.o = [parts[1], ''];
+    S.el.inp.value = ''; GD.view = 'poll'; gdRender(); inputState(); gdPollFocus(); return true;
+  }
+  function gdPollFocus(sel) { const el = S.el.log.querySelector(sel || '[data-pq]'); if (el) { el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch {} } }
   // событие к сообщению (голос, реакция, правка, удаление): отправить и сразу показать у себя
   async function gdEv(g, d) {
     const env = await gdPost(g, Object.assign({ id: gdRnd(6) }, d));
@@ -4217,6 +4257,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       S.el.send.disabled = false; if (ok) { replyCancel(); S.el.inp.value = ''; }
       if (!S.el.inp.disabled) S.el.inp.focus(); return;
     }
+    if (/^\/(сбор|опрос|poll)(\s|$)/i.test(t.trim())) { await gdPollCmd(g, t); S.el.send.disabled = false; return; }
     const r = S.reply && S.reply.gid === g.id && !S.reply.edit ? { id: S.reply.gmid, f: S.reply.l, s: S.reply.snip } : null;
     const env = await gdPost(g, Object.assign({ k: 'msg', id: gdRnd(6), t: String(t).slice(0, 500) }, r ? { re: r } : {}));
     S.el.send.disabled = false;
@@ -4243,7 +4284,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const own = gdOwn(g), n = gdMem(g).length;
     const st = g.gone === 'kicked' ? 'тебя исключили' : g.gone === 'closed' ? 'гильдия распущена' : g.gone === 'moved' ? 'ждём новый ключ от главы' : g.wait ? 'ждём подтверждения главы' : `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'участник' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'участника' : 'участников'}${own ? ' · ты глава' : ' · глава ' + esc(pmName(g.owner))}`;
     bar.innerHTML = `<span class="who"><span class="av" style="--avc:#c9a24a" aria-hidden="true">⚜</span><span style="min-width:0"><b>${esc(gdName(g))}</b><small title="Сообщения зашифрованы и подписаны. Ключ гильдии передаётся через личные игры. Сервер ntfy.sh хранит шифр около 12 часов, старое подтягивается у участников в сети.">${st} · 🔒 шифр</small></span></span>
-      <span class="acts"><button type="button" data-gd="view:chat" aria-pressed="${GD.view === 'chat'}" title="Переписка" aria-label="Переписка">💬</button><button type="button" data-gd="view:members" aria-pressed="${GD.view === 'members'}" title="Состав" aria-label="Состав">👥</button>${!g.gone && !g.wait ? `<button type="button" data-gd="view:poll" aria-pressed="${GD.view === 'poll'}" title="Сбор или опрос" aria-label="Сбор или опрос">📊</button>` : ''}${own && !g.gone ? `<button type="button" data-gd="view:pin" aria-pressed="${GD.view === 'pin'}" title="Объявление вверху гильдии" aria-label="Объявление">📌</button>` : ''}<button type="button" data-gd="view:home" title="Все гильдии, создать, приглашения" aria-label="Все гильдии">⚜</button></span>${g.roster && g.roster.pin && g.roster.pin.t ? `<div class="gpin" role="note"><span class="gpt">📌 ${fmtText(g.roster.pin.t)}</span>${own && !g.gone ? '<button type="button" data-gd="unpin" title="Убрать объявление" aria-label="Убрать объявление">✕</button>' : ''}</div>` : ''}`;
+      <span class="acts"><button type="button" data-gd="view:chat" aria-pressed="${GD.view === 'chat'}" title="Переписка" aria-label="Переписка">💬</button><button type="button" data-gd="view:members" aria-pressed="${GD.view === 'members'}" title="Состав" aria-label="Состав">👥</button>${own && !g.gone ? `<button type="button" data-gd="view:pin" aria-pressed="${GD.view === 'pin'}" title="Объявление вверху гильдии" aria-label="Объявление">📌</button>` : ''}<button type="button" data-gd="view:home" title="Все гильдии, создать, приглашения" aria-label="Все гильдии">⚜</button></span>${g.roster && g.roster.pin && g.roster.pin.t ? `<div class="gpin" role="note"><span class="gpt">📌 ${fmtText(g.roster.pin.t)}</span>${own && !g.gone ? '<button type="button" data-gd="unpin" title="Убрать объявление" aria-label="Убрать объявление">✕</button>' : ''}</div>` : ''}`;
   }
   function gdRender(stick) {
     if (S.room !== 'guild') return;
@@ -4270,10 +4311,14 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       li('sec', 'Создать гильдию');
       li('gdf', `<form data-gdf="create" autocomplete="off"><input name="v" maxlength="40" placeholder="Название гильдии" aria-label="Название гильдии"><button type="submit" class="ok">Создать</button></form>`);
     } else if (GD.view === 'poll' && !g.gone && !g.wait) {
+      const P = GD.pd || (GD.pd = gdPollTpl('sbor'));
       li('sec', 'Сбор или опрос');
-      li('gdf', `<form data-gdf="poll" class="gpf" autocomplete="off"><input name="q" maxlength="200" placeholder="Например: сбор в субботу в 20:00 — кто идёт?" aria-label="Вопрос"><textarea name="o" rows="4" maxlength="300" aria-label="Варианты ответа, по одному в строке">✅ Иду
-❌ Не иду
-🤔 Может быть</textarea><div class="gdl"><button type="submit" class="ok">Отправить</button><button type="button" data-gd="view:chat">Отмена</button></div></form><small class="gdh">Варианты — по одному в строке, от 2 до 6. Голос можно поменять или снять; видно, кто как ответил.</small>`);
+      li('gdf', `<form data-gdf="poll" class="gpf" autocomplete="off">
+        <div class="gtpl" role="group" aria-label="Шаблон">${Object.entries(GD_TPL).map(([k, x]) => `<button type="button" data-gd="ptpl:${k}" aria-pressed="${P.tpl === k}">${x.n}</button>`).join('')}</div>
+        <input name="q" maxlength="200" value="${esc(P.q)}" placeholder="${esc(GD_TPL[P.tpl] ? GD_TPL[P.tpl].ph : 'Вопрос')}" aria-label="Вопрос" data-pq>
+        <div class="gopts">${P.o.map((o, k) => `<div class="gopt"><input name="o" maxlength="40" value="${esc(o)}" placeholder="Вариант ${k + 1}" aria-label="Вариант ${k + 1}" data-po="${k}">${P.o.length > 2 ? `<button type="button" data-gd="pdel:${k}" aria-label="Убрать вариант ${k + 1}" title="Убрать">✕</button>` : ''}</div>`).join('')}${P.o.length < 6 ? '<button type="button" class="gadd" data-gd="padd">＋ Вариант</button>' : ''}</div>
+        <label class="gdz"><input type="checkbox" data-pm${P.multi ? ' checked' : ''}> можно выбрать несколько</label>
+        <div class="gdl"><button type="submit" class="ok">Отправить</button><button type="button" data-gd="view:chat">Отмена</button></div></form><small class="gdh">Enter — к следующему варианту, Ctrl+Enter — отправить. Быстро из поля ввода: <b>/сбор Суббота 20:00 у ворот</b> или <b>/опрос Куда идём? | Шахта | Город</b>.</small>`);
     } else if (GD.view === 'pin' && gdOwn(g) && !g.gone) {
       const pin = g.roster.pin;
       li('sec', 'Объявление главы');
@@ -4312,7 +4357,10 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
           if (x.k === 'edit' && x.f === m.f) { t = x.t; ed = x.at; }
           else if (x.k === 'del' && (x.f === m.f || x.f === g.owner)) del = x.f;
           else if (x.k === 'react') { const st = rx.get(x.e) || new Set(); if (x.on) st.add(x.f); else st.delete(x.f); rx.set(x.e, st); }
-          else if (x.k === 'vote' && m.poll) { if (x.o >= 0 && x.o < m.poll.o.length) vt.set(x.f, x.o); else vt.delete(x.f); }
+          else if (x.k === 'vote' && m.poll) {
+            if (m.poll.multi) { if (x.o >= 0 && x.o < m.poll.o.length) { const st = new Set(vt.get(x.f) || []); if (x.on === false) st.delete(x.o); else st.add(x.o); if (st.size) vt.set(x.f, st); else vt.delete(x.f); } }
+            else if (x.o >= 0 && x.o < m.poll.o.length) vt.set(x.f, x.o); else vt.delete(x.f);
+          }
         }
         return { t, ed, del, rx, vt };
       };
@@ -4330,8 +4378,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
         else {
           let poll = '';
           if (m.poll) {
-            const tot = i.vt.size, mine = i.vt.get(S.me);
-            poll = `<div class="gpoll">${m.poll.o.map((o, k) => { const who = [...i.vt].filter(([, v]) => v === k).map(([l]) => dispName(l)); const pc = tot ? Math.round(who.length * 100 / tot) : 0; return `<button type="button" class="gpo${mine === k ? ' on' : ''}" data-gd="vote:${id}:${k}" title="${esc(who.join(', ') || 'пока никто')}"${live ? '' : ' disabled'}><span class="gpb" style="width:${pc}%"></span><span class="gpl">${esc(o)}</span><b>${who.length}</b></button>`; }).join('')}<small class="gph">${tot ? `ответили: ${tot}` : 'нажми, чтобы ответить'}${mine !== undefined ? ' · нажми ещё раз, чтобы снять голос' : ''}</small></div>`;
+            const tot = i.vt.size, multi = !!m.poll.multi, has = (v, k) => (multi ? v.has(k) : v === k), mv = i.vt.get(S.me);
+            poll = `<div class="gpoll">${m.poll.o.map((o, k) => { const who = [...i.vt].filter(([, v]) => has(v, k)).map(([l]) => dispName(l)); const pc = tot ? Math.round(who.length * 100 / tot) : 0; return `<button type="button" class="gpo${mv !== undefined && has(mv, k) ? ' on' : ''}${multi ? ' mul' : ''}" data-gd="vote:${id}:${k}" title="${esc(who.join(', ') || 'пока никто')}"${live ? '' : ' disabled'}><span class="gpb" style="width:${pc}%"></span><span class="gpl">${esc(o)}</span><b>${who.length}</b></button>`; }).join('')}<small class="gph">${multi ? 'можно выбрать несколько · ' : ''}${tot ? `ответили: ${tot}` : 'нажми, чтобы ответить'}${mv !== undefined ? ' · нажми ещё раз, чтобы снять' : ''}</small></div>`;
           }
           const rx = [...i.rx].filter(([, st]) => st.size).map(([e, st]) => `<button type="button" class="grc${st.has(S.me) ? ' on' : ''}" data-gd="react:${id}:${e}" title="${esc([...st].map(dispName).join(', '))}"${live ? '' : ' disabled'}>${e} ${st.size}</button>`).join('');
           const pick = GD.rpick === m.id ? `<div class="grp">${GD_EMO.map((e) => `<button type="button" data-gd="react:${id}:${e}" aria-label="Реакция ${e}">${e}</button>`).join('')}</div>` : '';
@@ -4378,14 +4426,18 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       const [mid, w] = [rest[0], rest.slice(1).join(':')];
       if (!gdIsMem(g, S.me) || g.gone || g.wait) return;
       if (a === 'vote') {
-        const mine = gdHist(g).filter((x) => x.k === 'vote' && x.p === mid && x.f === S.me).sort((p, q) => q.at - p.at)[0];
-        gdEv(g, { k: 'vote', p: mid, o: mine && mine.o === +w ? -1 : +w });
+        const pm = gdHist(g).find((x) => x.id === mid && x.poll), mv = gdHist(g).filter((x) => x.k === 'vote' && x.p === mid && x.f === S.me).sort((p, q) => p.at - q.at);
+        if (pm && pm.poll.multi) { const st = new Set(); for (const x of mv) if (x.o >= 0) { if (x.on === false) st.delete(x.o); else st.add(x.o); } gdEv(g, { k: 'vote', p: mid, o: +w, on: !st.has(+w) }); }
+        else { const mine = mv[mv.length - 1]; gdEv(g, { k: 'vote', p: mid, o: mine && mine.o === +w ? -1 : +w }); }
       } else {
         const on = !gdHist(g).filter((x) => x.k === 'react' && x.p === mid && x.f === S.me && x.e === w).sort((p, q) => q.at - p.at).some((x, k) => k === 0 && x.on);
         GD.rpick = ''; gdEv(g, { k: 'react', p: mid, e: w, on });
       }
       return;
     }
+    if (a === 'ptpl') { const q = GD.pd ? GD.pd.q : ''; GD.pd = gdPollTpl(v, q); gdRender(); gdPollFocus(); return; }
+    if (a === 'padd' && GD.pd && GD.pd.o.length < 6) { GD.pd.o.push(''); GD.pd.tpl = GD.pd.tpl === 'own' ? 'own' : GD.pd.tpl; gdRender(); gdPollFocus(`[data-po="${GD.pd.o.length - 1}"]`); return; }
+    if (a === 'pdel' && GD.pd && GD.pd.o.length > 2) { GD.pd.o.splice(+v, 1); gdRender(); return; }
     if (a === 'rpick') { GD.rpick = GD.rpick === v ? '' : v; gdRender(false); return; }
     if (a === 'edit') {
       const m = gdHist(g).find((x) => x.id === v && (!x.k || x.k === 'msg') && x.f === S.me); if (!m) return;
@@ -4457,14 +4509,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       const fm = e.target.closest('[data-gdf]'); if (!fm || S.room !== 'guild') return;
       e.preventDefault(); const v = (fm.querySelector('input') || {}).value || '';
       if (fm.dataset.gdf === 'poll') {
-        const g = gdCur(); if (!g || g.gone || g.wait) return;
-        const q = (fm.querySelector('[name="q"]').value || '').trim(), o = (fm.querySelector('[name="o"]').value || '').split('\n').map((x) => x.trim()).filter(Boolean).slice(0, 6);
-        if (!q) { S.el.err.textContent = 'Напиши вопрос'; return; }
-        if (o.length < 2) { S.el.err.textContent = 'Нужно хотя бы два варианта — по одному в строке'; return; }
-        gdPost(g, { k: 'msg', id: gdRnd(6), t: q.slice(0, 200), poll: { o } }).then(async (env) => {
-          if (env && typeof env === 'object') { S.el.err.textContent = ''; await gdApply(g, env, Date.now(), false); GD.view = 'chat'; gdRender(true); inputState(); }
-          else S.el.err.textContent = env === 'limit' ? 'Слишком часто — подожди минуту' : 'Нет связи с ntfy.sh — опрос не ушёл';
-        });
+        const g = gdCur(); if (!g || g.gone || g.wait || !GD.pd) return;
+        gdPollSend(g, GD.pd.q, GD.pd.o, GD.pd.multi);
         return;
       }
       if (fm.dataset.gdf === 'pin') {
@@ -4483,6 +4529,27 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       }
       if (fm.dataset.gdf === 'code') gdTakeLink(v, true); else if (fm.dataset.gdf === 'create') gdCreate(v); else if (fm.dataset.gdf === 'invite' && gdCur()) gdInvite(gdCur(), v);
     }, true);
+    S.el.log.addEventListener('input', (e) => {
+      if (S.room !== 'guild' || !GD.pd) return;
+      const t = e.target;
+      if (t.matches('[data-pq]')) GD.pd.q = t.value;
+      else if (t.matches('[data-po]')) GD.pd.o[+t.dataset.po] = t.value;
+      else if (t.matches('[data-pm]')) GD.pd.multi = t.checked;
+    });
+    S.el.log.addEventListener('change', (e) => { if (S.room === 'guild' && GD.pd && e.target.matches('[data-pm]')) GD.pd.multi = e.target.checked; });
+    S.el.log.addEventListener('keydown', (e) => {
+      if (S.room !== 'guild' || !GD.pd || e.key !== 'Enter') return;
+      const t = e.target; if (!t.closest || !t.closest('[data-gdf="poll"]')) return;
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) { const g = gdCur(); if (g) gdPollSend(g, GD.pd.q, GD.pd.o, GD.pd.multi); return; }
+      if (t.matches('[data-pq]')) { gdPollFocus('[data-po="0"]'); return; }
+      if (t.matches('[data-po]')) {
+        const k = +t.dataset.po;
+        if (k + 1 < GD.pd.o.length) gdPollFocus(`[data-po="${k + 1}"]`);
+        else if (GD.pd.o.length < 6 && t.value.trim()) { GD.pd.o.push(''); gdRender(); gdPollFocus(`[data-po="${k + 1}"]`); }
+      }
+    });
+    { const gp = document.getElementById('gpb'); S.el.gpb = gp; if (gp) gp.addEventListener('click', () => { if (S.room !== 'guild') return; if (GD.view === 'poll') { GD.view = 'chat'; gdRender(true); } else { GD.pd = GD.pd || gdPollTpl('sbor'); GD.view = 'poll'; gdRender(); gdPollFocus(); } inputState(); }); }
     window.addEventListener('storage', (e) => {   // другое окно изменило гильдии или переписку
       if (!e.key || !(e.key === gdLK() || e.key.startsWith('lgmc_g2h_'))) return;
       gdLoad(); gdTabVis();
