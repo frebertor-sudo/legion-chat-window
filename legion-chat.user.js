@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.2
+// @version      3.19.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -66,7 +66,7 @@
     const ls = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
     const roomFor = () => { const last = lg('lgmc_last', null); return last && last.ch === CH ? last.room : null; };
     const minW = 280, maxW = () => Math.max(minW, Math.min(900, window.innerWidth - 120));
-    let dock = null, frame = null, btn = null;
+    let dock = null, frame = null, btn = null, dockFromFrame = null;
     // где панель: справа / слева (во всю высоту, ширина тянется) или плавающее окно (место и размер — свои)
     const L = Object.assign({ mode: 'r', w: lg('lgmc_dock_w', 380), x: 0, y: 0, fw: 400, fh: 620, side: 'r' }, lg('lgmc_dock_pos', {}) || {});
     const saveL = () => ls('lgmc_dock_pos', L);
@@ -92,6 +92,7 @@
         #lgmc-dock.m-r{top:0;right:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-left:1px solid #322b4d}
         #lgmc-dock.m-l{top:0;left:0;bottom:0;width:var(--lgmc-w,380px);max-width:100vw;border-right:1px solid #322b4d;box-shadow:12px 0 30px -18px rgba(0,0,0,.7)}
         #lgmc-dock.m-f{left:var(--fx,40px);top:var(--fy,40px);width:var(--fw,400px);height:var(--fh,620px);border:1px solid #4a4068;border-radius:14px;overflow:hidden;box-shadow:0 22px 60px -14px rgba(0,0,0,.75)}
+        #lgmc-dock .lgmc-bar.off{display:none}
         #lgmc-dock .lgmc-bar{flex:none;height:24px;display:flex;align-items:center;gap:2px;padding:0 4px 0 8px;background:#1b1631;color:#a59fba;font:700 11px/1 Nunito,"Segoe UI",system-ui,sans-serif;cursor:grab;user-select:none;touch-action:none;border-bottom:1px solid #322b4d}
         #lgmc-dock.drag-move .lgmc-bar{cursor:grabbing}
         #lgmc-dock .lgmc-t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -178,6 +179,27 @@
           apply();
         }, () => { snap.hidden = true; if (started && edge) { L.mode = edge; L.side = edge; apply(); } }, true);
       });
+      // перенос, начатый в самом чате (⠿ или пустое место шапки): рамка присылает координаты указателя
+      let rm = null;
+      dockFromFrame = (d) => {
+        if (!frame) return;
+        const fr = frame.getBoundingClientRect(), px = fr.left + (+d.x || 0), py = fr.top + (+d.y || 0);
+        if (d.ph === 'start') { const r = dock.getBoundingClientRect(); rm = { offX: px - r.left, offY: py - r.top, sx: px, sy: py, r, started: false, edge: null }; return; }
+        if (!rm) return;
+        if (d.ph === 'move') {
+          if (!rm.started) {
+            if (Math.abs(px - rm.sx) + Math.abs(py - rm.sy) < 6) return;
+            rm.started = true; dock.classList.add('drag-move');
+            if (L.mode !== 'f') { L.side = L.mode; L.mode = 'f'; rm.offX = Math.round(Math.min(L.fw - 60, rm.offX * L.fw / Math.max(1, rm.r.width))); rm.offY = Math.min(rm.offY, 40); }
+          }
+          L.x = px - rm.offX; L.y = py - rm.offY;
+          rm.edge = px <= 18 ? 'l' : px >= vw() - 18 ? 'r' : null;
+          snap.hidden = !rm.edge;
+          if (rm.edge) { snap.style.left = rm.edge === 'l' ? '0' : 'auto'; snap.style.right = rm.edge === 'r' ? '0' : 'auto'; snap.style.width = clampW(L.w) + 'px'; }
+          apply(); return;
+        }
+        if (d.ph === 'end') { dock.classList.remove('drag-move'); snap.hidden = true; if (rm.started && rm.edge) { L.mode = rm.edge; L.side = rm.edge; apply(); } rm = null; saveL(); }
+      };
       bar.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) setMode(L.mode === 'f' ? L.side || 'r' : 'f'); });
       bar.addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) setMode(b.dataset.m); });
       // размер плавающего окна — за любой край или угол; противоположный край стоит на месте
@@ -230,6 +252,8 @@
       dock.style.setProperty('--fx', Math.round(L.x) + 'px'); dock.style.setProperty('--fy', Math.round(L.y) + 'px');
       dock.style.setProperty('--fw', Math.round(L.fw) + 'px'); dock.style.setProperty('--fh', Math.round(L.fh) + 'px');
       for (const b of dock.querySelectorAll('[data-m]')) b.setAttribute('aria-pressed', String(b.dataset.m === L.mode));
+      // боковая колонка чата — у края экрана; только когда рамка уже загрузилась (трогать пустую рамку нельзя — сорвёт запуск чата в ней)
+      if (frame && frame.lgReady) try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode }, location.origin); } catch {}
       // кнопки «💬 Чат / ⧉» не прячутся под панелью, прикреплённой слева
       const g = document.getElementById('lgmc-btns');
       if (g) g.style.left = !dock.hidden && L.mode === 'l' && vw() > 640 ? (L.w + 10) + 'px' : '10px';
@@ -246,7 +270,7 @@
         if (!frame) {   // рамка создаётся при открытии и убирается при закрытии — скрытый чат не опрашивает сервер
           frame = document.createElement('iframe');
           frame.title = 'Чат Легиона';
-          frame.src = urlFor(room) + '&embed=1';
+          frame.src = urlFor(room) + '&embed=1&side=' + L.mode;
           dock.querySelector('.lgmc-body').appendChild(frame);
         }
         dock.hidden = false; apply();
@@ -317,6 +341,9 @@
     window.addEventListener('message', (e) => {
       if (e.origin !== location.origin || !e.data || typeof e.data.lgmc !== 'string') return;
       if (e.data.lgmc === 'close' || e.data.lgmc === 'popped') setOpen(false);
+      if (frame && e.source === frame.contentWindow && e.data.lgmc === 'drag' && dockFromFrame) { dockFromFrame(e.data); return; }
+      if (frame && e.source === frame.contentWindow && e.data.lgmc === 'mode') { if (/^[lrf]$/.test(e.data.m)) setMode(e.data.m); else if (e.data.m === 'toggle') setMode(L.mode === 'f' ? L.side || 'r' : 'f'); return; }
+      if (e.data.lgmc === 'ready' && frame && e.source === frame.contentWindow) { frame.lgReady = true; if (e.data.ctl) { const b = dock.querySelector('.lgmc-bar'); if (b) b.classList.add('off'); } try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode }, location.origin); } catch {} return; }
       // окно обмена — в «Городе» игры: открыть эту вкладку
       if (e.data.lgmc === 'citytab') { const b = document.querySelector('nav [data-tab="city"], [data-tab="city"]'); if (b) b.click(); else { location.hash = '#city'; location.reload(); } return; }
       // «📍 встать в город» из панели: игра помнит город во вкладке и открывает «Город» по #city — перезагружаем страницу игры
@@ -632,7 +659,7 @@ html.pinned #f>button,html.pinned #f>select{min-height:0;align-self:stretch}
 #send:disabled{opacity:.5;cursor:default}
 #log img.em{height:28px;width:auto;vertical-align:middle;margin:-4px 1px}
 #log .zw{display:inline-grid;vertical-align:middle}#log .zw>img{grid-area:1/1;margin:-4px 1px}
-#emb{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:0 9px;font-size:17px;cursor:pointer}
+#emb,#gpb{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:0 9px;font-size:17px;cursor:pointer}
 #emb[aria-expanded="true"]{border-color:var(--acc)}
 #ep{display:none;flex-direction:column;gap:6px;height:min(320px,45vh);margin:0 0 8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px}
 #ep.on{display:flex}
@@ -814,11 +841,64 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #ctabs button{border-radius:999px}
 #ctabs button[aria-pressed="true"],#ctabs button[aria-selected="true"]{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
 #in,:is(#dmbar,#gdbar) input,#fq{background:var(--field);border-color:var(--fieldb);border-radius:10px;box-shadow:var(--sh)}
-#pb,#emb,:is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button{background:var(--btn);box-shadow:var(--sh)}
-#send,#pb,#emb{border-radius:10px}
+#pb,#emb,#gpb,:is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button{background:var(--btn);box-shadow:var(--sh)}
+#send,#pb,#emb,#gpb{border-radius:10px}
 :is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button,#log li.pm0 button{border-radius:8px}
 #log li.sec{font-family:Comfortaa,var(--ff)}
 #room button[hidden]{display:none}
+#rail{position:fixed;top:0;bottom:0;left:0;width:64px;z-index:4;box-sizing:border-box;background:var(--hdr,var(--panel));border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:6px 0 10px}
+#rail::-webkit-scrollbar{display:none}
+/* нижняя строка как в Telegram: одна плоская полоса, значки без рамок, стрелка — только когда есть текст */
+footer{padding:2px 6px}
+#f{display:flex;align-items:flex-end;gap:0}
+#f>#pb{order:1}#f>#gpb{order:2}#f>#tgt{order:3}#f>#in{order:4}#f>#emb{order:5}#f>#send{order:6}
+#f>#pb,#f>#emb,#f>#gpb,#f>#send{flex:none;width:40px;min-height:42px;height:42px;padding:0;border:0!important;border-radius:10px;background:none!important;box-shadow:none!important;color:var(--mut);display:grid;place-items:center;cursor:pointer;transition:color .12s}
+#f>#pb:hover:not(:disabled),#f>#emb:hover:not(:disabled),#f>#gpb:hover:not(:disabled),#f>#pb[aria-expanded="true"],#f>#emb[aria-expanded="true"],#f>#gpb[aria-pressed="true"]{color:var(--acc-tx)}
+#f>#pb:disabled,#f>#emb:disabled,#f>#gpb:disabled{opacity:.35;cursor:default}
+#f>#gpb[hidden]{display:none}
+#f>#send{color:var(--acc)}#f>#send:hover:not(:disabled){color:var(--acc-tx);background:color-mix(in srgb,var(--acc) 12%,transparent)!important}
+#f>#in:placeholder-shown~#send{display:none}
+#f>#in{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;padding:11px 8px;min-height:42px;height:42px;max-height:calc(6 * 1.4em + 22px)}
+#f>#in:focus{outline:none}
+#f>#in::placeholder{color:color-mix(in srgb,var(--mut) 85%,transparent)}
+#f>#tgt{align-self:center;margin:0 2px;background:color-mix(in srgb,var(--tx) 6%,transparent)!important;border:0!important;box-shadow:none!important;border-radius:999px;min-height:26px;height:26px;padding:0 8px;font-size:11.5px}
+html.pinned #f>#in{padding:8px 6px;min-height:36px;height:36px}
+html.pinned #f>#pb,html.pinned #f>#emb,html.pinned #f>#gpb,html.pinned #f>#send{width:34px;min-height:36px;height:36px}
+#dctl{display:flex;align-items:center;gap:2px;flex:none}
+#dctl button{border:0;background:none;color:var(--mut);border-radius:6px;padding:0 4px;font:14px/24px system-ui,sans-serif;cursor:pointer}
+#dctl button:hover{color:var(--tx);background:color-mix(in srgb,var(--tx) 8%,transparent)}
+#dctl button[aria-pressed="true"]{color:var(--acc-tx);background:color-mix(in srgb,var(--acc) 20%,transparent)}
+#dctl #dgrip{cursor:grab;touch-action:none;font-size:16px;letter-spacing:-1px}
+#dctl #dgrip:active{cursor:grabbing}
+header .hr{touch-action:none}
+#rail #dctl{flex-direction:column;margin-top:auto;padding-top:8px;gap:3px}
+#rail #dctl button{width:44px;line-height:26px}
+#rail #dctl #dgrip{order:-1}
+#rail[hidden]{display:none}
+html.rail body{padding-left:64px}
+html.rail-r #rail{left:auto;right:0;border-right:0;border-left:1px solid var(--line)}
+html.rail-r body{padding-left:0;padding-right:64px}
+html.rail #rail #room{display:flex;flex-direction:column;gap:2px;border:0;border-radius:0;background:none;overflow:visible}
+html.rail #rail #room button{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;margin:0 5px;padding:7px 2px 6px;border:0;border-radius:12px;background:none;color:var(--mut);font:700 10px/1.15 var(--ff)}
+html.rail #rail #room button>span[aria-hidden]{font-size:19px;line-height:1}
+html.rail #rail #room button .rl{position:static!important;width:auto!important;height:auto!important;clip:auto!important;overflow:visible!important;white-space:nowrap;max-width:54px;text-overflow:ellipsis}
+html.rail #rail #room button:not(:disabled):hover{background:color-mix(in srgb,var(--tx) 8%,transparent);color:var(--tx)}
+html.rail #rail #room button[aria-pressed="true"]{background:color-mix(in srgb,var(--acc) 20%,transparent);color:var(--acc-tx)}
+html.rail #rail #room button[aria-pressed="true"]::before{content:'';position:absolute;left:-5px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--acc)}
+html.rail-r #rail #room button[aria-pressed="true"]::before{left:auto;right:-5px;border-radius:3px 0 0 3px}
+html.rail #rail #room .rb{position:absolute;top:1px;right:5px;margin:0;min-width:15px;padding:0 4px;font-size:10px;line-height:15px}
+html.rail #rail #room button[aria-pressed="true"] .rb{background:var(--bad);color:#fff}
+html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
+#rchans{display:flex;flex-direction:column;align-items:center;gap:9px;margin:8px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+#rchans:empty{display:none}
+#rchans .rpe{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;width:56px;padding:4px 0;border:0;border-radius:12px;background:none;color:var(--mut);cursor:pointer;font:600 9.5px/1.1 var(--ff)}
+#rchans .rpe:hover{background:color-mix(in srgb,var(--tx) 8%,transparent);color:var(--tx)}
+#rchans .rpe[aria-pressed="true"]{background:color-mix(in srgb,var(--acc) 20%,transparent);color:var(--acc-tx)}
+#rchans .rpe .av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:700 15px var(--ff);color:#fff;background:color-mix(in oklch,var(--avc,#8a7a60) var(--avm,62%),var(--avb,#000))}
+#rchans .rpe .av.cl{background:color-mix(in srgb,var(--avc) 22%,var(--panel));box-shadow:inset 0 0 0 2px color-mix(in oklch,var(--avc) var(--ncm,100%),var(--ncb,#000));font-weight:400;font-size:17px}
+#rchans .rpe small{max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#rchans .rpe .on{position:absolute;left:34px;top:30px;width:10px;height:10px;border-radius:50%;background:var(--ok);border:2px solid var(--hdr,var(--panel))}
+#rchans .rpe .un{position:absolute;right:6px;top:1px;min-width:15px;padding:0 4px;border-radius:8px;background:var(--bad);color:#fff;font:700 10px/15px var(--ff);text-align:center}
 #log li.gdf{align-self:stretch;padding:2px 2px 6px}
 #log li.gdf form{display:flex;gap:6px}
 #log li.gdf input{flex:1;min-width:0;background:var(--field);color:var(--tx);border:1px solid var(--fieldb);border-radius:8px;padding:5px 8px;font:inherit;font-size:13px}
@@ -835,6 +915,50 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #log li.gdf .gdl{display:flex;gap:6px;flex-wrap:wrap}
 #log li.conv.gdlk{cursor:default}
 #log li.b{position:relative}
+#log li.b .gdact{position:absolute;bottom:calc(100% - 4px);left:8px;z-index:3;display:flex;gap:2px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:0 4px 12px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .1s;white-space:nowrap}
+#log li.b.me .gdact{left:auto;right:8px}
+#log li.b:hover .gdact,#log li.b .gdact:focus-within{pointer-events:auto}
+#log li.b.hot .gdact{opacity:1;pointer-events:auto}
+#log li.b:hover .gdact,#log li.b .gdact:focus-within{opacity:1}
+@media (hover:none){#log li.b .gdact{opacity:.7;pointer-events:auto}}
+#log li.b .gdact button{height:22px;min-width:24px;padding:0 4px;border:1px solid transparent;border-radius:6px;background:none;color:var(--mut);font:12px/20px var(--ff);cursor:pointer}
+#log li.b .gdact button:hover{color:var(--tx);background:color-mix(in srgb,var(--acc) 16%,transparent)}
+#log li.b .gdact button.sure{background:var(--bad);border-color:var(--bad);color:#fff}
+#log .gdel{color:var(--mut);font-style:italic}
+#log .ged{font-style:normal;opacity:.8}
+#log .grx{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+#log .grc{border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--tx) 5%,transparent);color:var(--tx);font:600 12px/20px var(--ff);padding:0 7px;cursor:pointer}
+#log .grc.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 18%,transparent)}
+#log .grp{display:flex;gap:2px;margin-top:5px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--panel);width:max-content}
+#log .grp button{border:0;background:none;font-size:18px;line-height:24px;width:30px;border-radius:999px;cursor:pointer}
+#log .grp button:hover{background:color-mix(in srgb,var(--acc) 18%,transparent)}
+#log li.b.gpl{min-width:min(280px,82%)}
+#log .gpoll{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+#log .gpo{position:relative;display:flex;align-items:center;gap:8px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:color-mix(in srgb,var(--tx) 4%,transparent);color:var(--tx);font:600 13px/1.3 var(--ff);padding:6px 10px;cursor:pointer;text-align:left}
+#log .gpo:hover:not(:disabled){border-color:var(--acc)}
+#log .gpo.on{border-color:var(--acc)}
+#log .gpo .gpb{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--acc) 20%,transparent);transition:width .25s}
+#log .gpo .gpl{position:relative;flex:1}
+#log .gpo b{position:relative;font-variant-numeric:tabular-nums}
+#log .gph{color:var(--mut);font-size:11px}
+#log li.gdf .gpf{flex-direction:column;align-items:stretch}
+#log .gtpl{display:flex;flex-wrap:wrap;gap:5px}
+#log .gtpl button,#log .gadd{border:1px solid var(--line);border-radius:999px;background:var(--btn);color:var(--tx);font:600 12px/24px var(--ff);padding:0 10px;cursor:pointer;flex:none}
+#log .gtpl button[aria-pressed="true"]{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
+#log .gopts{display:flex;flex-direction:column;gap:5px}
+#log .gopt{display:flex;gap:5px;align-items:center}
+#log .gopt button{flex:none;width:26px;height:26px;padding:0;border:0;border-radius:6px;background:none;color:var(--mut);cursor:pointer}
+#log .gopt button:hover{color:var(--tx);background:color-mix(in srgb,var(--tx) 8%,transparent)}
+#log .gadd{align-self:flex-start;border-style:dashed;background:none;color:var(--mut)}
+#log .gadd:hover{color:var(--tx);border-color:var(--acc)}
+#log .gpo.mul .gpl::before{content:'☐ ';opacity:.7}#log .gpo.mul.on .gpl::before{content:'☑ ';opacity:1}
+#gpb{flex:none;font-size:16px}
+#gpb[hidden]{display:none}#gpb[aria-pressed="true"]{border-color:var(--acc)}
+#log li.gdf textarea{background:var(--field);color:var(--tx);border:1px solid var(--fieldb);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px;resize:vertical}
+#log li.gdf textarea:focus{outline:none;border-color:var(--acc)}
+#gdbar .gpin{width:100%;display:flex;gap:8px;align-items:flex-start;margin-top:4px;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--acc) 14%,transparent);border:1px solid color-mix(in srgb,var(--acc) 40%,transparent);font-size:13px;line-height:1.35}
+#gdbar .gpin .gpt{flex:1;min-width:0;overflow-wrap:anywhere;max-height:5.4em;overflow:auto}
+#gdbar .gpin button{flex:none;width:22px;height:22px;padding:0;border:0;background:none;color:var(--mut);cursor:pointer}
 #log li.b .gdre{position:absolute;top:-9px;right:6px;width:24px;height:20px;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--mut);font:12px/18px var(--ff);cursor:pointer;opacity:0}
 #log li.b.me .gdre{right:auto;left:6px}
 #log li.b:hover .gdre,#log li.b .gdre:focus-visible{opacity:1}#log li.b .gdre:hover{color:var(--tx);border-color:var(--acc)}
@@ -851,8 +975,9 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #log li.conv.gdlk .acts{flex-wrap:wrap;justify-content:flex-end}
 </style></head>
 <body>
+<nav id="rail" aria-label="Чаты и последние собеседники" hidden><div id="rchans" role="group" aria-label="Последние собеседники"></div></nav>
 <header>
-  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
+  <div class="hr">${EMBED ? '<span id="dctl"><button id="dgrip" type="button" title="Потяни, чтобы перенести панель; двойной щелчок — окном или прикрепить" aria-label="Перенести панель">⠿</button><button type="button" data-dm="l" title="Прикрепить слева" aria-label="Прикрепить слева">◧</button><button type="button" data-dm="f" title="Плавающее окно — двигать и менять размер" aria-label="Плавающее окно">❐</button><button type="button" data-dm="r" title="Прикрепить справа" aria-label="Прикрепить справа">◨</button></span>' : ''}<span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button><button type="button" data-r="guild" title="Гильдия — закрытый чат для своих" hidden>${rlab('guild')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="bmp" role="dialog" aria-label="Закладки" hidden></div><div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
@@ -868,7 +993,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 <div id="pp" role="dialog" aria-label="Пасты"><div class="pp-top"><input id="pq" type="search" placeholder="Найти пасту…" aria-label="Поиск пасты"><button type="button" class="pbtn" id="pnew">＋ Новая</button></div><ul id="pl"></ul>
 <div id="pe"><input id="pn" maxlength="40" placeholder="Название (например: «приветствие»)" aria-label="Название пасты"><textarea id="pt" maxlength="500" placeholder="Текст пасты — можно со стикерами" aria-label="Текст пасты"></textarea><div class="pe-b"><small id="pc">0 / 200</small><button type="button" class="pbtn alt" id="pcancel">Отмена</button><button type="button" class="pbtn" id="psave">Сохранить</button></div></div></div>
 <div id="rq" hidden></div><ul id="ac" role="listbox" aria-label="Подсказки ников" hidden></ul>
-<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><textarea id="in" rows="1" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение" spellcheck="true"></textarea><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
+<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="4" width="13" height="17" rx="2.2"/><path d="M9 4V2.8h6V4M8.8 9.5h6.4M8.8 13h6.4M8.8 16.5h3.6"/></svg></button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.3 14.2a4.4 4.4 0 0 0 7.4 0"/><path d="M9 9.6h.01M15 9.6h.01" stroke-width="2.8"/></svg></button><button id="gpb" type="button" title="Сбор или опрос (или /сбор …, /опрос Вопрос | А | Б)" aria-label="Создать опрос" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg></button><textarea id="in" rows="1" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение" spellcheck="true"></textarea><button id="send" type="submit" aria-label="Отправить" title="Отправить (Enter)"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l.05 6.5L15.5 12 3.45 13.9z"/></svg></button></form></footer>
 </body>`;
     { const st0 = document.querySelector('head style'); st0.textContent = st0.textContent.replace(/#log\b/g, ':is(#log,#pvlog)'); }   // пример в настройках выглядит как лента
     const $ = (id) => document.getElementById(id);
@@ -1073,12 +1198,80 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     clearTimeout(S.chanT); S.chanT = setTimeout(loadChannels, hidden() ? 300000 : 120000);   // эфиры начинаются и заканчиваются — раз в 2 минуты
   }
   // список стримеров: кто в эфире — сверху и с пометкой; у текущего, если он в эфире, — «В ЭФИРЕ» рядом (ссылка на Twitch)
+  // боковая колонка (как в Telegram): комнаты значками с подписями, ниже — стримеры кружками.
+  // Сторона: «авто» — у края экрана (панель в игре справа → колонка справа), иначе как выбрано в ⚙
+  S.dockSide = /^[lrf]$/.test(Q.get('side') || '') ? Q.get('side') : 'l';
+  function railApply() {
+    if (!S.el || !S.el.room) return;
+    const rail = S.el.rail || (S.el.rail = document.getElementById('rail')), r2 = S.el.r2 || (S.el.r2 = document.querySelector('.hr.r2'));
+    if (!rail || !r2) return;
+    const mode = CZ.rail || 'auto', on = mode !== 'off';
+    const side = mode === 'left' ? 'l' : mode === 'right' ? 'r' : EMBED && S.dockSide === 'r' ? 'r' : 'l';
+    for (const d of docs()) { d.documentElement.classList.toggle('rail', on); d.documentElement.classList.toggle('rail-r', on && side === 'r'); }
+    if (on && S.el.room.parentElement !== rail) rail.insertBefore(S.el.room, rail.firstChild);
+    if (!on && S.el.room.parentElement !== r2) r2.insertBefore(S.el.room, r2.firstChild);
+    rail.hidden = !on;
+    const ctl = document.getElementById('dctl');
+    if (ctl) {   // ⠿ и «слева / окном / справа»: в колонке — внизу, без колонки — в начале шапки
+      const hr = document.querySelector('header .hr');
+      if (on && ctl.parentElement !== rail) rail.appendChild(ctl);
+      if (!on && ctl.parentElement !== hr) hr.insertBefore(ctl, hr.firstChild);
+      for (const b of ctl.querySelectorAll('[data-dm]')) b.setAttribute('aria-pressed', String(b.dataset.dm === S.dockSide));
+    }
+    railChans();
+  }
+  // панель в игре: перенос за ⠿ или пустое место шапки — указатель пересылаем игре, она двигает панель
+  if (EMBED) {
+    const post = (d) => { try { window.parent.postMessage(d, location.origin); } catch {} };
+    const dragFrom = (e, el) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      try { el.setPointerCapture(e.pointerId); } catch {}
+      post({ lgmc: 'drag', ph: 'start', x: e.clientX, y: e.clientY });
+      const mv = (ev) => post({ lgmc: 'drag', ph: 'move', x: ev.clientX, y: ev.clientY });
+      const up = (ev) => { post({ lgmc: 'drag', ph: 'end', x: ev.clientX, y: ev.clientY }); el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+      el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    };
+    const emptyHead = (t) => t.closest && t.closest('header .hr') && !t.closest('button,select,a,input,#room,#ctabs,#mine');
+    document.addEventListener('pointerdown', (e) => {
+      const g = e.target.closest && e.target.closest('#dgrip');
+      if (g) return dragFrom(e, g);
+      if (emptyHead(e.target)) dragFrom(e, e.target.closest('header .hr'));
+    });
+    document.addEventListener('dblclick', (e) => { if ((e.target.closest && e.target.closest('#dgrip')) || emptyHead(e.target)) post({ lgmc: 'mode', m: 'toggle' }); });
+    document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#dctl [data-dm]'); if (b) post({ lgmc: 'mode', m: b.dataset.dm }); });
+  }
+  // в колонке под комнатами — последние, с кем переписывался: значок класса, непрочитанные, «в сети»
+  function railChans() {
+    const box = document.getElementById('rchans'); if (!box || !S.el || !S.el.rail || S.el.rail.hidden) { if (box) box.innerHTML = ''; return; }
+    const P = S.pm;
+    if (!S.me || !S.flags.dm || !P || !P.last) { box.innerHTML = ''; return; }
+    const max = Math.max(3, Math.min(12, Math.floor((window.innerHeight - 330) / 50)));
+    const peers = Object.keys(P.last).filter((l) => nickOf(l) && l !== S.me && !S.ign.has(l) && (P.last[l].at || P.un.get(l))).sort((a, b) => (P.last[b].at || 0) - (P.last[a].at || 0)).slice(0, max);
+    box.innerHTML = peers.map((l) => {
+      const n = P.un.get(l) || 0, f = pmFriend(l), on = !!(f && f.on), last = P.last[l] || {};
+      const cur = S.room === 'pm' && P.peer === l;
+      return `<button type="button" class="rpe" data-rpeer="${esc(l)}" aria-pressed="${cur}" title="${esc(dispName(l))}${on ? ' · ' + esc(f.on.t || 'в сети') : ''}${last.t ? '\n' + esc((last.mine ? 'Ты: ' : '') + last.t.slice(0, 60)) : ''}" aria-label="${esc(dispName(l))}${n ? ', непрочитанных: ' + n : ''}">${avIn(l, null, 'av')}</span>${on ? '<span class="on" aria-hidden="true"></span>' : ''}${n ? `<b class="un">${n > 99 ? '99+' : n}</b>` : ''}<small>${esc(dispName(l))}</small></button>`;
+    }).join('');
+  }
+  window.addEventListener('message', (e) => {
+    if (e.source !== window.parent || e.origin !== location.origin || !e.data || e.data.lgmc !== 'side' || !/^[lrf]$/.test(e.data.side)) return;
+    if (S.dockSide !== e.data.side) { S.dockSide = e.data.side; railApply(); }
+  });
+  if (EMBED) try { window.parent.postMessage({ lgmc: 'ready', ctl: 1 }, location.origin); } catch {}   // панель в игре: «готов» — пришли, с какой ты стороны
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest && e.target.closest('#rchans [data-rpeer]'); if (!b) return;
+    const l = b.dataset.rpeer;
+    if (S.room !== 'pm') await switchTo(S.ch, 'pm');
+    pmOpen(l);
+  });
   function renderChannels() {
     const list = S.channels.map((c, i) => [c, i]).sort((a, b) => (b[0].live ? 1 : 0) - (a[0].live ? 1 : 0) || a[1] - b[1]).map((x) => x[0]);
     S.el.chan.innerHTML = list.map((c) => `<option value="${esc(c.login.toLowerCase())}" class="${c.live ? 'live' : 'off'}">${c.live ? '🔴' : '⚪'} ${esc(c.name || c.login)} — ${c.live ? 'в эфире' : 'не в эфире'}</option>`).join('');
     S.el.chan.value = S.ch;
     const cur = S.channels.find((c) => c.login.toLowerCase() === S.ch);
     if (cur && cur.name) S.chName = cur.name;
+    railChans();
     const live = !!(cur && cur.live);
     S.el.chan.title = live ? `${S.chName} — сейчас в эфире` : `${S.chName} — сейчас не в эфире`;
     S.el.chan.classList.toggle('live', live);
@@ -1142,7 +1335,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     pmBoot(); gdBoot();
     for (const b of S.el.room.querySelectorAll('[data-r]')) b.setAttribute('aria-pressed', String(b.dataset.r === S.room));
     S.el.mine.hidden = !usesMine(S.room) || S.mines.length < 2;
-    renderTabs(); renderTargets(); updateBar(); pmBar(); gdBar();
+    renderTabs(); renderTargets(); updateBar(); pmBar(); gdBar(); try { railChans(); } catch {}
     modLoad(gen);
     if (hasCity) townsLoad();   // 📍 где отряд и куда можно встать
     document.title = title(); if (S.pip) S.pip.document.title = title();
@@ -1849,6 +2042,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   function pmBadge() {
     const P = S.pm;
     P.total = [...P.un.values()].reduce((a, n) => a + n, 0);
+    try { railChans(); } catch {}
     const b = S.el && S.el.room && S.el.room.querySelector('[data-r="pm"] .rb');
     if (b) { b.hidden = !P.total; b.textContent = P.total > 99 ? '99+' : String(P.total); b.parentElement.setAttribute('aria-label', P.total ? `Личные, непрочитанных: ${P.total}` : 'Личные'); }
     if (S.el) { const t = S.unseenTitle ? `(${S.unseenTitle}) ${title()}` : title(); document.title = t; if (S.pip) S.pip.document.title = t; }
@@ -2463,7 +2657,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   function replyBar() {
     const r = S.reply, el = S.el.rq; if (!el) return;
     el.hidden = !r;
-    if (r) el.innerHTML = `<span class="rb">${RQ_ICO}Ответ <b style="color:${ncol(r.l)}">@${esc(r.n)}</b>: ${esc(r.snip)}</span><button type="button" aria-label="Отменить ответ" title="Отменить ответ (Esc)">✕</button>`;
+    if (r && r.edit) el.innerHTML = `<span class="rb">✏️ Правка сообщения: ${esc(r.snip)}</span><button type="button" aria-label="Отменить правку" title="Отменить (Esc)">✕</button>`;
+    else if (r) el.innerHTML = `<span class="rb">${RQ_ICO}Ответ <b style="color:${ncol(r.l)}">@${esc(r.n)}</b>: ${esc(r.snip)}</span><button type="button" aria-label="Отменить ответ" title="Отменить ответ (Esc)">✕</button>`;
   }
   function replyCancel() { S.reply = null; replyBar(); }
   function replyWrap(t) {   // текст с цитатой — не длиннее 200
@@ -2844,11 +3039,12 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   function inputState() {
     const t = target();
     const gate = !['mine', 'dm', 'pm', 'guild'].includes(t) && !S.inCity;
-    const gdg = t === 'guild' ? gdCur() : null, gdOff = t === 'guild' && (!gdg || !!gdg.gone || !!gdg.wait || GD.view === 'home');
+    const gdg = t === 'guild' ? gdCur() : null, gdOff = t === 'guild' && (!gdg || !!gdg.gone || !!gdg.wait || GD.view === 'home' || GD.view === 'pin');
     const ro = t === 'ev';
     const banned = (t === 'pm' || t === 'dm') && !!S.pm.ban;
     const off = !S.me || gate || ro || banned || gdOff || (t === 'pm' && !S.flags.dm);
     S.el.inp.disabled = off; S.el.send.disabled = off; S.el.emb.disabled = off; if (S.el.pb) S.el.pb.disabled = off;
+    { const gp = S.el.gpb || (S.el.gpb = document.getElementById('gpb')); if (gp) { const gg = S.room === 'guild' ? gdCur() : null; gp.hidden = !(gg && !gg.gone && !gg.wait && gdIsMem(gg, S.me)); gp.setAttribute('aria-pressed', String(S.room === 'guild' && GD.view === 'poll')); } }
     if (off) { pickerOpen(false, true); pastesOpen(false, true); }
     S.el.inp.placeholder = !S.me ? 'Войди через Twitch на сайте игры, чтобы писать'
       : gate ? (S.room === 'all' ? 'Чтобы писать в город, войди в город' : 'Сначала войди в город')
@@ -3410,7 +3606,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, rail: 'auto', hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -3504,6 +3700,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   function czApply() {
     CZ_HL = czWords(CZ.hl); CZ_HIDE = czWords(CZ.hide);
     if (typeof gdTabVis === 'function') try { gdTabVis(); } catch {}
+    try { railApply(); } catch {}
     const css = czCss();
     for (const d of docs()) {
       // шрифты игры (Nunito, Comfortaa) — с того же Google Fonts, откуда их берёт сама игра
@@ -3591,6 +3788,9 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     sp.innerHTML = `<div class="sp-h"><b>⚙ Настройки чата</b><button type="button" class="hb" data-cz="close" aria-label="Закрыть настройки">✕</button></div>
       <div class="sp-b">
         <section><h4>Пример</h4><ol id="pvlog" aria-label="Пример сообщений"></ol></section>
+        <section><h4>Расположение</h4>
+          <label class="sel">Вкладки чатов <select data-sel="rail">${opt({ auto: ['Сбоку — у края экрана'], left: ['Сбоку слева'], right: ['Сбоку справа'], off: ['Сверху, как раньше'] }, CZ.rail || 'auto')}</select></label>
+        </section>
         <section><h4>Цвета</h4>
           <div class="lbl">Тёмная тема</div><div class="sws">${sch('dark')}</div>
           <div class="lbl">Светлая тема</div><div class="sws">${sch('light')}</div>
@@ -3764,7 +3964,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   // • Сервер держит сообщения ~12 часов; пропущенное дольше подтянется от участников, кто в сети (догон).
   // • На браузер — одно подключение (Web Locks), остальные окна получают сообщения через BroadcastChannel.
   // Честно: ключ гильдии проходит через личные игры, то есть его технически может увидеть сервер игры.
-  const NTFY = 'https://ntfy.sh', GD_MAX = 400;
+  const NTFY = 'https://ntfy.sh', GD_MAX = 900;
+  const GD_EMO = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
   const GD_HASH = (/[#&]lgg=([^&]+)/.exec(location.hash) || [])[1] || '';   // открыли ссылку-приглашение
   const GD = { list: [], cur: '', view: '', un: new Map(), es: new Map(), keys: new Map(), sure: '', busy: false, note: '', id: null, lead: false, bc: null, inv: [], old: [], seenSync: new Set() };
   const gdLK = () => 'lgmc_g2_' + (S.me || '_');
@@ -4004,23 +4205,32 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     if (d.k === 'msg' && d.t) {
       const ts = Math.min(+d.ts || at, Date.now() + 60000);
       const re = d.re && typeof d.re === 'object' && nickOf(d.re.f) ? { id: String(d.re.id || '').slice(0, 12), f: nickOf(d.re.f), s: String(d.re.s || '').slice(0, 80) } : null;
-      const n = gdKeep(g, [Object.assign({ id: String(d.id || ''), f: d.f, t: String(d.t).slice(0, 500), at: ts, env }, re ? { re } : {})]);
+      const po = d.poll && Array.isArray(d.poll.o) ? d.poll.o.slice(0, 6).map((x) => String(x || '').trim().slice(0, 40)).filter(Boolean) : [];
+      const n = gdKeep(g, [Object.assign({ id: String(d.id || ''), f: d.f, t: String(d.t).slice(0, 500), at: ts, env }, re ? { re } : {}, po.length >= 2 ? { poll: Object.assign({ o: po }, d.poll.multi ? { multi: 1 } : {}) } : {})]);
       changed = !!n;
       if (n && live && d.f !== S.me) {
         const viewing = S.room === 'guild' && GD.cur === g.id && GD.view === 'chat' && !hidden();
         if (!viewing) {
           GD.un.set(g.id, (GD.un.get(g.id) || 0) + 1); gdBadge();
-          pmToast(d.f, `⚜ ${gdName(g)} · ${dispName(d.f)}${d.re && nickOf(d.re.f) === S.me ? ' ответил тебе' : ''}: ${String(d.t).slice(0, 70)}`, 'Гильдия', 'guild:' + g.id);
+          pmToast(d.f, `⚜ ${gdName(g)} · ${dispName(d.f)}${d.re && nickOf(d.re.f) === S.me ? ' ответил тебе' : ''}: ${po.length >= 2 ? '📊 ' : ''}${String(d.t).slice(0, 70)}`, 'Гильдия', 'guild:' + g.id);
           czBeepOnce('dm', 'g2|' + d.id);
         }
       }
+    } else if (['vote', 'react', 'edit', 'del'].includes(d.k) && /^[A-Za-z0-9_-]{6,12}$/.test(String(d.p || ''))) {
+      const x = { id: String(d.id || '').slice(0, 12) || gdRnd(6), k: d.k, f: d.f, p: String(d.p), at: Math.min(+d.ts || at, Date.now() + 60000), env };
+      if (d.k === 'vote') { x.o = Number.isInteger(d.o) ? d.o : -1; if ('on' in d) x.on = !!d.on; }
+      if (d.k === 'react') { if (!GD_EMO.includes(d.e)) return; x.e = d.e; x.on = !!d.on; }
+      if (d.k === 'edit') { if (!d.t) return; x.t = String(d.t).slice(0, 500); }
+      changed = !!gdKeep(g, [x]);
     } else if (d.k === 'roster') {
       const v = +d.v || 0;
       if (v > ((g.roster && g.roster.v) || 0) && d.m && typeof d.m === 'object') {
         const was = g.roster ? Object.keys(g.roster.m || {}) : [];
         const m = {}; for (const [l, p] of Object.entries(d.m)) { const n = nickOf(l); if (n && /^[A-Za-z0-9_-]{87}$/.test(p)) m[n] = p; }
         const r = {}; for (const [l, x] of Object.entries(d.r && typeof d.r === 'object' ? d.r : {})) { const n = nickOf(l); if (n && m[n] && x && (x.t || x.z)) r[n] = { t: String(x.t || '').slice(0, 20), z: !!x.z }; }
-        g.roster = { v, m, r }; g.name = String(d.name || g.name || '').slice(0, 40);
+        const pin = d.pin && d.pin.t ? { t: String(d.pin.t).slice(0, 300), at: +d.pin.at || 0 } : null, pin0 = g.roster && g.roster.pin;
+        if (live && pin && (!pin0 || pin0.t !== pin.t) && was.length) gdSys(g, '📌 Глава закрепил объявление', 'p' + v);
+        g.roster = { v, m, r, pin }; g.name = String(d.name || g.name || '').slice(0, 40);
         if (!Object.keys(m).length) { g.gone = 'closed'; gdSys(g, 'Глава распустил гильдию', 'r' + v); }
         else if (!m[S.me] && (was.includes(S.me) || !g.wait)) { g.gone = 'kicked'; gdSys(g, 'Тебя исключили из гильдии', 'r' + v); }
         else if (g.wait && m[S.me] === (await gdIdent()).pub) { delete g.wait; gdSys(g, 'Глава подтвердил — можно писать', 'w' + v); setTimeout(() => { if (GD.lead) gdAskSync(g); }, 500); }
@@ -4061,14 +4271,54 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     if (!items.length) return;
     setTimeout(async () => {
       if (GD.seenSync.has(d.rq)) return;   // уже ответил кто-то другой
-      const out = []; let size = 0;
-      for (let i = items.length - 1; i >= 0; i--) { const s = JSON.stringify(items[i].env).length; if (size + s > 2400) break; size += s; out.unshift(items[i].env); }
-      if (out.length) await gdPost(g, { k: 'sync', rq: d.rq, items: out });
+      // частями по ~2,4 КБ (у ntfy предел 4 КБ на сообщение), не больше 12 частей — самое свежее важнее
+      const parts = []; let cur = [], size = 0;
+      for (let i = items.length - 1; i >= 0 && parts.length < 12; i--) {
+        const n = JSON.stringify(items[i].env).length;
+        if (size + n > 2400 && cur.length) { parts.push(cur); cur = []; size = 0; if (parts.length >= 12) break; }
+        cur.unshift(items[i].env); size += n;
+      }
+      if (cur.length && parts.length < 12) parts.push(cur);
+      for (const part of parts.reverse()) { await gdPost(g, { k: 'sync', rq: d.rq, items: part }); await new Promise((ok) => setTimeout(ok, 250)); }
     }, 400 + Math.random() * 2200);
   }
 
   // ---- действия ----
-  async function gdRoster(g) { g.roster.v = (g.roster.v || 0) + 1; gdSave(); return gdPost(g, { k: 'roster', v: g.roster.v, name: g.name, m: g.roster.m, r: g.roster.r || {} }); }
+  async function gdRoster(g) { g.roster.v = (g.roster.v || 0) + 1; gdSave(); return gdPost(g, { k: 'roster', v: g.roster.v, name: g.name, m: g.roster.m, r: g.roster.r || {}, pin: g.roster.pin || null }); }
+  // шаблоны опроса
+  const GD_TPL = {
+    sbor: { n: '📅 Сбор', ph: 'Например: суббота 20:00 у ворот — кто идёт?', o: ['✅ Иду', '❌ Не иду', '🤔 Может быть'] },
+    yn: { n: '👍 Да / нет', ph: 'Вопрос', o: ['👍 Да', '👎 Нет'] },
+    time: { n: '🕒 Время', ph: 'Во сколько собираемся?', o: ['18:00', '19:00', '20:00', '21:00'], multi: 1 },
+    own: { n: '✏️ Свой', ph: 'Вопрос', o: ['', ''] },
+  };
+  const gdPollTpl = (k, q) => { const x = GD_TPL[k] || GD_TPL.own; return { tpl: k, q: q || '', o: x.o.slice(), multi: !!x.multi }; };
+  async function gdPollSend(g, q, o, multi) {
+    q = String(q || '').trim(); o = o.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 6);
+    if (!q) { S.el.err.textContent = 'Напиши вопрос'; return false; }
+    if (o.length < 2) { S.el.err.textContent = 'Нужно хотя бы два варианта'; return false; }
+    const env = await gdPost(g, { k: 'msg', id: gdRnd(6), t: q.slice(0, 200), poll: Object.assign({ o }, multi ? { multi: 1 } : {}) });
+    if (env && typeof env === 'object') { S.el.err.textContent = ''; await gdApply(g, env, Date.now(), false); GD.pd = null; GD.view = 'chat'; gdRender(true); inputState(); return true; }
+    S.el.err.textContent = env === 'limit' ? 'Слишком часто — подожди минуту' : 'Нет связи с ntfy.sh — опрос не ушёл'; return false;
+  }
+  // /сбор Текст  ·  /опрос Вопрос | А | Б [| …]  ·  /опрос (без текста) — открыть форму
+  async function gdPollCmd(g, t) {
+    const x = /^\/(сбор|опрос|poll)(?:\s+([\s\S]*))?$/i.exec(t.trim()); if (!x) return false;
+    const rest = (x[2] || '').trim(), parts = rest.split('|').map((y) => y.trim()).filter(Boolean);
+    if (x[1].toLowerCase() === 'сбор' && rest) { if (await gdPollSend(g, rest, GD_TPL.sbor.o, false)) S.el.inp.value = ''; return true; }
+    if (parts.length >= 3) { if (await gdPollSend(g, parts[0], parts.slice(1), false)) S.el.inp.value = ''; return true; }
+    GD.pd = gdPollTpl(x[1].toLowerCase() === 'сбор' ? 'sbor' : parts.length ? 'own' : 'sbor', parts[0] || '');
+    if (parts.length === 2) GD.pd.o = [parts[1], ''];
+    S.el.inp.value = ''; GD.view = 'poll'; gdRender(); inputState(); gdPollFocus(); return true;
+  }
+  function gdPollFocus(sel) { const el = S.el.log.querySelector(sel || '[data-pq]'); if (el) { el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch {} } }
+  // событие к сообщению (голос, реакция, правка, удаление): отправить и сразу показать у себя
+  async function gdEv(g, d) {
+    const env = await gdPost(g, Object.assign({ id: gdRnd(6) }, d));
+    if (env && typeof env === 'object') { await gdApply(g, env, Date.now(), false); gdRender(false); return true; }
+    S.el.err.textContent = env === 'limit' ? 'Слишком часто — подожди минуту' : 'Нет связи с ntfy.sh — не получилось';
+    return false;
+  }
   async function gdCreate(name) {
     name = String(name || '').trim().slice(0, 40);
     if (!name) { S.el.err.textContent = 'Назови гильдию'; return; }
@@ -4156,7 +4406,13 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   async function gdSay(t) {
     const g = gdCur(); if (!g || g.gone || g.wait) return;
     S.el.send.disabled = true;
-    const r = S.reply && S.reply.gid === g.id ? { id: S.reply.gmid, f: S.reply.l, s: S.reply.snip } : null;
+    if (S.reply && S.reply.gid === g.id && S.reply.edit) {
+      const ok = await gdEv(g, { k: 'edit', p: S.reply.gmid, t: String(t).slice(0, 500) });
+      S.el.send.disabled = false; if (ok) { replyCancel(); S.el.inp.value = ''; }
+      if (!S.el.inp.disabled) S.el.inp.focus(); return;
+    }
+    if (/^\/(сбор|опрос|poll)(\s|$)/i.test(t.trim())) { await gdPollCmd(g, t); S.el.send.disabled = false; return; }
+    const r = S.reply && S.reply.gid === g.id && !S.reply.edit ? { id: S.reply.gmid, f: S.reply.l, s: S.reply.snip } : null;
     const env = await gdPost(g, Object.assign({ k: 'msg', id: gdRnd(6), t: String(t).slice(0, 500) }, r ? { re: r } : {}));
     S.el.send.disabled = false;
     if (env && typeof env === 'object') { if (r) replyCancel(); S.el.inp.value = ''; S.el.err.textContent = ''; await gdApply(g, env, Date.now(), false); GD.view = 'chat'; gdRender(true); }
@@ -4182,7 +4438,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const own = gdOwn(g), n = gdMem(g).length;
     const st = g.gone === 'kicked' ? 'тебя исключили' : g.gone === 'closed' ? 'гильдия распущена' : g.gone === 'moved' ? 'ждём новый ключ от главы' : g.wait ? 'ждём подтверждения главы' : `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'участник' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'участника' : 'участников'}${own ? ' · ты глава' : ' · глава ' + esc(pmName(g.owner))}`;
     bar.innerHTML = `<span class="who"><span class="av" style="--avc:#c9a24a" aria-hidden="true">⚜</span><span style="min-width:0"><b>${esc(gdName(g))}</b><small title="Сообщения зашифрованы и подписаны. Ключ гильдии передаётся через личные игры. Сервер ntfy.sh хранит шифр около 12 часов, старое подтягивается у участников в сети.">${st} · 🔒 шифр</small></span></span>
-      <span class="acts"><button type="button" data-gd="view:chat" aria-pressed="${GD.view === 'chat'}" title="Переписка" aria-label="Переписка">💬</button><button type="button" data-gd="view:members" aria-pressed="${GD.view === 'members'}" title="Состав" aria-label="Состав">👥</button><button type="button" data-gd="view:home" title="Все гильдии, создать, приглашения" aria-label="Все гильдии">⚜</button></span>`;
+      <span class="acts"><button type="button" data-gd="view:chat" aria-pressed="${GD.view === 'chat'}" title="Переписка" aria-label="Переписка">💬</button><button type="button" data-gd="view:members" aria-pressed="${GD.view === 'members'}" title="Состав" aria-label="Состав">👥</button>${own && !g.gone ? `<button type="button" data-gd="view:pin" aria-pressed="${GD.view === 'pin'}" title="Объявление вверху гильдии" aria-label="Объявление">📌</button>` : ''}<button type="button" data-gd="view:home" title="Все гильдии, создать, приглашения" aria-label="Все гильдии">⚜</button></span>${g.roster && g.roster.pin && g.roster.pin.t ? `<div class="gpin" role="note"><span class="gpt">📌 ${fmtText(g.roster.pin.t)}</span>${own && !g.gone ? '<button type="button" data-gd="unpin" title="Убрать объявление" aria-label="Убрать объявление">✕</button>' : ''}</div>` : ''}`;
   }
   function gdRender(stick) {
     if (S.room !== 'guild') return;
@@ -4208,6 +4464,19 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       li('gdf', `<form data-gdf="code" autocomplete="off"><input name="v" maxlength="400" placeholder="Вставь ссылку или код LGG2:…" aria-label="Ссылка или код приглашения" spellcheck="false"><button type="submit">Вступить</button></form>`);
       li('sec', 'Создать гильдию');
       li('gdf', `<form data-gdf="create" autocomplete="off"><input name="v" maxlength="40" placeholder="Название гильдии" aria-label="Название гильдии"><button type="submit" class="ok">Создать</button></form>`);
+    } else if (GD.view === 'poll' && !g.gone && !g.wait) {
+      const P = GD.pd || (GD.pd = gdPollTpl('sbor'));
+      li('sec', 'Сбор или опрос');
+      li('gdf', `<form data-gdf="poll" class="gpf" autocomplete="off">
+        <div class="gtpl" role="group" aria-label="Шаблон">${Object.entries(GD_TPL).map(([k, x]) => `<button type="button" data-gd="ptpl:${k}" aria-pressed="${P.tpl === k}">${x.n}</button>`).join('')}</div>
+        <input name="q" maxlength="200" value="${esc(P.q)}" placeholder="${esc(GD_TPL[P.tpl] ? GD_TPL[P.tpl].ph : 'Вопрос')}" aria-label="Вопрос" data-pq>
+        <div class="gopts">${P.o.map((o, k) => `<div class="gopt"><input name="o" maxlength="40" value="${esc(o)}" placeholder="Вариант ${k + 1}" aria-label="Вариант ${k + 1}" data-po="${k}">${P.o.length > 2 ? `<button type="button" data-gd="pdel:${k}" aria-label="Убрать вариант ${k + 1}" title="Убрать">✕</button>` : ''}</div>`).join('')}${P.o.length < 6 ? '<button type="button" class="gadd" data-gd="padd">＋ Вариант</button>' : ''}</div>
+        <label class="gdz"><input type="checkbox" data-pm${P.multi ? ' checked' : ''}> можно выбрать несколько</label>
+        <div class="gdl"><button type="submit" class="ok">Отправить</button><button type="button" data-gd="view:chat">Отмена</button></div></form><small class="gdh">Enter — к следующему варианту, Ctrl+Enter — отправить. Быстро из поля ввода: <b>/сбор Суббота 20:00 у ворот</b> или <b>/опрос Куда идём? | Шахта | Город</b>.</small>`);
+    } else if (GD.view === 'pin' && gdOwn(g) && !g.gone) {
+      const pin = g.roster.pin;
+      li('sec', 'Объявление главы');
+      li('gdf', `<form data-gdf="pin" class="gpf" autocomplete="off"><textarea name="t" rows="3" maxlength="300" placeholder="Что увидят все вверху гильдии" aria-label="Текст объявления">${esc((pin && pin.t) || '')}</textarea><div class="gdl"><button type="submit" class="ok">Закрепить</button>${pin ? '<button type="button" data-gd="unpin">Убрать</button>' : ''}<button type="button" data-gd="view:chat">Отмена</button></div></form><small class="gdh">Объявление видят все участники, и новенькие тоже. Можно закрепить и любое сообщение — кнопкой 📌 при наведении.</small>`);
     } else if (GD.view === 'members') {
       const own = gdOwn(g), live = !g.gone, inv = gdCanInv(g);
       if (inv) {
@@ -4233,17 +4502,49 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       if (own && (g.invited || []).length) { li('sec', 'Приглашены, ждём ответа'); for (const x of g.invited) li('conv', `${avatar(x.l)}<span class="cv"><b>${esc(dispName(x.l))}</b><span>приглашение в личных</span></span><span class="acts"><button type="button" data-gd="uninv:${esc(x.l)}">Отозвать</button></span>`); }
       li('gdf', `${own && live ? `<button type="button" data-gd="rekey"${GD.busy ? ' disabled' : ''} title="Новый ключ и адрес — тот, кто ушёл или получил старый ключ, больше ничего не прочитает">🔑 Сменить ключ</button> ` : ''}<button type="button" class="${GD.sure === '!leave' ? 'sure' : ''}" data-gd="leave">${GD.sure === '!leave' ? (own ? 'Точно распустить?' : 'Точно выйти?') : own ? 'Распустить гильдию' : g.gone ? 'Убрать из списка' : 'Выйти из гильдии'}</button>`);
     } else {
-      const L = gdHist(g);
+      const L = gdHist(g), ev = new Map(), own = gdOwn(g), live = !g.gone && !g.wait;
+      for (const x of L) if (x.k && x.k !== 'msg' && x.p) { if (!ev.has(x.p)) ev.set(x.p, []); ev.get(x.p).push(x); }
+      const info = (m) => {
+        let t = m.t, ed = 0, del = '';
+        const rx = new Map(), vt = new Map();
+        for (const x of (ev.get(m.id) || []).slice().sort((a, b) => a.at - b.at)) {
+          if (x.k === 'edit' && x.f === m.f) { t = x.t; ed = x.at; }
+          else if (x.k === 'del' && (x.f === m.f || x.f === g.owner)) del = x.f;
+          else if (x.k === 'react') { const st = rx.get(x.e) || new Set(); if (x.on) st.add(x.f); else st.delete(x.f); rx.set(x.e, st); }
+          else if (x.k === 'vote' && m.poll) {
+            if (m.poll.multi) { if (x.o >= 0 && x.o < m.poll.o.length) { const st = new Set(vt.get(x.f) || []); if (x.on === false) st.delete(x.o); else st.add(x.o); if (st.size) vt.set(x.f, st); else vt.delete(x.f); } }
+            else if (x.o >= 0 && x.o < m.poll.o.length) vt.set(x.f, x.o); else vt.delete(x.f);
+          }
+        }
+        return { t, ed, del, rx, vt };
+      };
       let prev = null, day = 0;
       for (const m of L) {
+        if (m.k && m.k !== 'msg') continue;
         if (!day || !sameDay(day, m.at)) { li('day', dayName(m.at)); day = m.at; }
         if (m.sys) { li('pm0 gds', esc(m.t)); prev = null; continue; }
         const me = m.f === S.me, cont = prev && prev.f === m.f && sameDay(prev.at, m.at) && m.at - prev.at < 5 * 60000;
-        const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}`, `${!me && !cont ? `<span class="gnm"><span class="n" data-l="${esc(m.f)}" style="color:${ncol(m.f)}">${esc(dispName(m.f))}</span>${gdRoleTag(g, m.f)}</span>` : ''}${m.re ? `<span class="gdq${m.re.f === S.me ? ' me' : ''}" data-gq="${esc(m.re.id)}" role="button" tabindex="0" title="К сообщению">${RQ_ICO}<b style="color:${ncol(m.re.f)}">@${esc(dispName(m.re.f))}</b>: ${esc(m.re.s)}</span>` : ''}${fmtText(m.t)}<button type="button" class="gdre" data-gd="re:${esc(m.id)}" title="Ответить" aria-label="Ответить">↩</button><span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}">${hhmm(m.at)}</span>`);
+        const i = info(m), id = esc(m.id);
+        const name = !me && !cont ? `<span class="gnm"><span class="n" data-l="${esc(m.f)}" style="color:${ncol(m.f)}">${esc(dispName(m.f))}</span>${gdRoleTag(g, m.f)}</span>` : '';
+        const tm = `<span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}${i.ed ? ' · изменено ' + esc(new Date(i.ed).toLocaleString('ru-RU')) : ''}">${i.ed ? '<i class="ged">изм.</i> ' : ''}${hhmm(m.at)}</span>`;
+        let body;
+        if (i.del) body = `${name}<span class="gdel">${i.del === m.f ? 'Сообщение удалено' : 'Удалено главой'}</span>${tm}`;
+        else {
+          let poll = '';
+          if (m.poll) {
+            const tot = i.vt.size, multi = !!m.poll.multi, has = (v, k) => (multi ? v.has(k) : v === k), mv = i.vt.get(S.me);
+            poll = `<div class="gpoll">${m.poll.o.map((o, k) => { const who = [...i.vt].filter(([, v]) => has(v, k)).map(([l]) => dispName(l)); const pc = tot ? Math.round(who.length * 100 / tot) : 0; return `<button type="button" class="gpo${mv !== undefined && has(mv, k) ? ' on' : ''}${multi ? ' mul' : ''}" data-gd="vote:${id}:${k}" title="${esc(who.join(', ') || 'пока никто')}"${live ? '' : ' disabled'}><span class="gpb" style="width:${pc}%"></span><span class="gpl">${esc(o)}</span><b>${who.length}</b></button>`; }).join('')}<small class="gph">${multi ? 'можно выбрать несколько · ' : ''}${tot ? `ответили: ${tot}` : 'нажми, чтобы ответить'}${mv !== undefined ? ' · нажми ещё раз, чтобы снять' : ''}</small></div>`;
+          }
+          const rx = [...i.rx].filter(([, st]) => st.size).map(([e, st]) => `<button type="button" class="grc${st.has(S.me) ? ' on' : ''}" data-gd="react:${id}:${e}" title="${esc([...st].map(dispName).join(', '))}"${live ? '' : ' disabled'}>${e} ${st.size}</button>`).join('');
+          const pick = GD.rpick === m.id ? `<div class="grp">${GD_EMO.map((e) => `<button type="button" data-gd="react:${id}:${e}" aria-label="Реакция ${e}">${e}</button>`).join('')}</div>` : '';
+          const acts = live ? `<span class="gdact"><button type="button" data-gd="re:${id}" title="Ответить" aria-label="Ответить">↩</button><button type="button" data-gd="rpick:${id}" title="Реакция" aria-label="Реакция">☺</button>${me && !m.poll ? `<button type="button" data-gd="edit:${id}" title="Изменить" aria-label="Изменить">✏️</button>` : ''}${own ? `<button type="button" data-gd="pinm:${id}" title="Закрепить как объявление" aria-label="Закрепить">📌</button>` : ''}${me || own ? `<button type="button" class="${GD.sure === 'del:' + m.id ? 'sure' : ''}" data-gd="del:${id}" title="Удалить" aria-label="Удалить">${GD.sure === 'del:' + m.id ? 'Точно?' : '🗑'}</button>` : ''}</span>` : '';
+          body = `${name}${m.re ? `<span class="gdq${m.re.f === S.me ? ' me' : ''}" data-gq="${esc(m.re.id)}" role="button" tabindex="0" title="К сообщению">${RQ_ICO}<b style="color:${ncol(m.re.f)}">@${esc(dispName(m.re.f))}</b>: ${esc(m.re.s)}</span>` : ''}${m.poll ? '<b class="gpq">📊 </b>' : ''}${fmtText(i.t)}${poll}${rx ? `<div class="grx">${rx}</div>` : ''}${pick}${acts}${tm}`;
+        }
+        const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}${i.del ? ' gdd' : ''}${m.poll ? ' gpl' : ''}${GD.sure === 'del:' + m.id || GD.rpick === m.id ? ' hot' : ''}`, body);
         x.dataset.key = 'g:' + m.id; if (m.re && m.re.f === S.me && !me) x.classList.add('tome');
         prev = m;
       }
-      if (!L.some((m) => !m.sys)) li('pm0', g.gone === 'kicked' ? '<b>Гильдия недоступна</b>Тебя исключили.' : g.gone === 'closed' ? '<b>Гильдия распущена</b>' : g.wait ? '<b>Почти готово</b>Глава подтвердит тебя, когда будет в сети, — тогда можно писать.' : '<b>Здесь пока тихо</b>Напиши первым — прочитают только участники гильдии.');
+      if (!L.some((m) => !m.sys && (!m.k || m.k === 'msg'))) li('pm0', g.gone === 'kicked' ? '<b>Гильдия недоступна</b>Тебя исключили.' : g.gone === 'closed' ? '<b>Гильдия распущена</b>' : g.wait ? '<b>Почти готово</b>Глава подтвердит тебя, когда будет в сети, — тогда можно писать.' : '<b>Здесь пока тихо</b>Напиши первым — прочитают только участники гильдии.');
       GD.un.delete(g.id); gdBadge();
     }
     log.innerHTML = ''; log.appendChild(f);
@@ -4275,13 +4576,44 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const b = e.target.closest('[data-gd]'); if (!b || b.disabled) return;
     e.stopPropagation();
     const [a, ...rest] = b.dataset.gd.split(':'), v = rest.join(':'), g = gdCur();
+    if (a === 'vote' || a === 'react') {
+      const [mid, w] = [rest[0], rest.slice(1).join(':')];
+      if (!gdIsMem(g, S.me) || g.gone || g.wait) return;
+      if (a === 'vote') {
+        const pm = gdHist(g).find((x) => x.id === mid && x.poll), mv = gdHist(g).filter((x) => x.k === 'vote' && x.p === mid && x.f === S.me).sort((p, q) => p.at - q.at);
+        if (pm && pm.poll.multi) { const st = new Set(); for (const x of mv) if (x.o >= 0) { if (x.on === false) st.delete(x.o); else st.add(x.o); } gdEv(g, { k: 'vote', p: mid, o: +w, on: !st.has(+w) }); }
+        else { const mine = mv[mv.length - 1]; gdEv(g, { k: 'vote', p: mid, o: mine && mine.o === +w ? -1 : +w }); }
+      } else {
+        const on = !gdHist(g).filter((x) => x.k === 'react' && x.p === mid && x.f === S.me && x.e === w).sort((p, q) => q.at - p.at).some((x, k) => k === 0 && x.on);
+        GD.rpick = ''; gdEv(g, { k: 'react', p: mid, e: w, on });
+      }
+      return;
+    }
+    if (a === 'ptpl') { const q = GD.pd ? GD.pd.q : ''; GD.pd = gdPollTpl(v, q); gdRender(); gdPollFocus(); return; }
+    if (a === 'padd' && GD.pd && GD.pd.o.length < 6) { GD.pd.o.push(''); GD.pd.tpl = GD.pd.tpl === 'own' ? 'own' : GD.pd.tpl; gdRender(); gdPollFocus(`[data-po="${GD.pd.o.length - 1}"]`); return; }
+    if (a === 'pdel' && GD.pd && GD.pd.o.length > 2) { GD.pd.o.splice(+v, 1); gdRender(); return; }
+    if (a === 'rpick') { GD.rpick = GD.rpick === v ? '' : v; gdRender(false); return; }
+    if (a === 'edit') {
+      const m = gdHist(g).find((x) => x.id === v && (!x.k || x.k === 'msg') && x.f === S.me); if (!m) return;
+      const last = gdHist(g).filter((x) => x.k === 'edit' && x.p === v && x.f === S.me).sort((p, q) => q.at - p.at)[0], t = last ? last.t : m.t;
+      S.reply = { l: S.me, n: '', snip: t.replace(/\s+/g, ' ').slice(0, 40), key: 'g:' + v, gid: g.id, gmid: v, edit: true };
+      replyBar(); S.el.inp.value = t; if (!S.el.inp.disabled) { S.el.inp.focus(); S.el.inp.setSelectionRange(t.length, t.length); }
+      return;
+    }
+    if (a === 'del') { if (GD.sure !== 'del:' + v) { GD.sure = 'del:' + v; gdRender(false); return; } GD.sure = ''; gdEv(g, { k: 'del', p: v }); return; }
+    if (a === 'pinm' && gdOwn(g)) {
+      const m = gdHist(g).find((x) => x.id === v && (!x.k || x.k === 'msg')); if (!m) return;
+      const last = gdHist(g).filter((x) => x.k === 'edit' && x.p === v && x.f === m.f).sort((p, q) => q.at - p.at)[0];
+      g.roster.pin = { t: ((last ? last.t : m.t) || '').slice(0, 300), at: Date.now() }; gdRoster(g).then(() => gdRender(false)); gdRender(false); return;
+    }
+    if (a === 'unpin' && gdOwn(g)) { g.roster.pin = null; GD.view = 'chat'; gdRoster(g).then(() => gdRender(false)); gdRender(true); return; }
     if (a === 're') {
       const m = gdHist(g).find((x) => x.id === v && !x.sys); if (!m) return;
       let snip = String(m.t).replace(/\s+/g, ' ').trim(); if (snip.length > 40) snip = snip.slice(0, 39).trimEnd() + '…';
       S.reply = { l: m.f, n: dispName(m.f), snip, key: 'g:' + m.id, gid: g.id, gmid: m.id };
       replyBar(); if (!S.el.inp.disabled) S.el.inp.focus(); return;
     }
-    if (a === 'view') { GD.view = v; GD.sure = ''; gdRender(v === 'chat'); inputState(); return; }
+    if (a === 'view') { GD.view = v; GD.sure = ''; GD.rpick = ''; gdRender(v === 'chat'); inputState(); return; }
     if (a === 'open') { GD.cur = v; GD.view = 'chat'; if (S.reply && S.reply.gid !== v) replyCancel(); gdRender(true); inputState(); return; }
     if (a === 'join') { const p = GD.inv.find((x) => x.id === v); if (p) gdJoin(p); return; }
     if (a === 'skip') { GD.inv = GD.inv.filter((x) => x.id !== v); gdTabVis(); gdRender(); return; }
@@ -4330,6 +4662,17 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     S.el.log.addEventListener('submit', (e) => {
       const fm = e.target.closest('[data-gdf]'); if (!fm || S.room !== 'guild') return;
       e.preventDefault(); const v = (fm.querySelector('input') || {}).value || '';
+      if (fm.dataset.gdf === 'poll') {
+        const g = gdCur(); if (!g || g.gone || g.wait || !GD.pd) return;
+        gdPollSend(g, GD.pd.q, GD.pd.o, GD.pd.multi);
+        return;
+      }
+      if (fm.dataset.gdf === 'pin') {
+        const g = gdCur(); if (!g || !gdOwn(g) || g.gone) return;
+        const t = (fm.querySelector('[name="t"]').value || '').trim().slice(0, 300);
+        g.roster.pin = t ? { t, at: Date.now() } : null; GD.view = 'chat';
+        gdRoster(g).then(() => gdRender(false)); gdRender(true); inputState(); return;
+      }
       if (fm.dataset.gdf === 'role') {
         const g = gdCur(), l = nickOf(fm.dataset.l), zb = fm.parentElement && fm.parentElement.querySelector('[name="z"]'), z = !!(zb && zb.checked);
         if (!g || !gdOwn(g) || !l || !gdIsMem(g, l)) return;
@@ -4340,6 +4683,27 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       }
       if (fm.dataset.gdf === 'code') gdTakeLink(v, true); else if (fm.dataset.gdf === 'create') gdCreate(v); else if (fm.dataset.gdf === 'invite' && gdCur()) gdInvite(gdCur(), v);
     }, true);
+    S.el.log.addEventListener('input', (e) => {
+      if (S.room !== 'guild' || !GD.pd) return;
+      const t = e.target;
+      if (t.matches('[data-pq]')) GD.pd.q = t.value;
+      else if (t.matches('[data-po]')) GD.pd.o[+t.dataset.po] = t.value;
+      else if (t.matches('[data-pm]')) GD.pd.multi = t.checked;
+    });
+    S.el.log.addEventListener('change', (e) => { if (S.room === 'guild' && GD.pd && e.target.matches('[data-pm]')) GD.pd.multi = e.target.checked; });
+    S.el.log.addEventListener('keydown', (e) => {
+      if (S.room !== 'guild' || !GD.pd || e.key !== 'Enter') return;
+      const t = e.target; if (!t.closest || !t.closest('[data-gdf="poll"]')) return;
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) { const g = gdCur(); if (g) gdPollSend(g, GD.pd.q, GD.pd.o, GD.pd.multi); return; }
+      if (t.matches('[data-pq]')) { gdPollFocus('[data-po="0"]'); return; }
+      if (t.matches('[data-po]')) {
+        const k = +t.dataset.po;
+        if (k + 1 < GD.pd.o.length) gdPollFocus(`[data-po="${k + 1}"]`);
+        else if (GD.pd.o.length < 6 && t.value.trim()) { GD.pd.o.push(''); gdRender(); gdPollFocus(`[data-po="${k + 1}"]`); }
+      }
+    });
+    { const gp = document.getElementById('gpb'); S.el.gpb = gp; if (gp) gp.addEventListener('click', () => { if (S.room !== 'guild') return; if (GD.view === 'poll') { GD.view = 'chat'; gdRender(true); } else { GD.pd = GD.pd || gdPollTpl('sbor'); GD.view = 'poll'; gdRender(); gdPollFocus(); } inputState(); }); }
     window.addEventListener('storage', (e) => {   // другое окно изменило гильдии или переписку
       if (!e.key || !(e.key === gdLK() || e.key.startsWith('lgmc_g2h_'))) return;
       gdLoad(); gdTabVis();
