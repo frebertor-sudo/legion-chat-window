@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.19.1
+// @version      3.19.2
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -179,7 +179,8 @@
             }
           }
           L.x = ev.clientX - offX; L.y = ev.clientY - offY;
-          edge = ev.clientX <= 18 ? 'l' : ev.clientX >= vw() - 18 ? 'r' : null;
+          const dw = L.mini ? 65 : L.fw;
+          edge = ev.clientX <= 18 || L.x <= 2 ? 'l' : ev.clientX >= vw() - 18 || L.x + dw >= vw() - 2 ? 'r' : null;
           snap.hidden = !edge;
           if (edge) { snap.style.left = edge === 'l' ? '0' : 'auto'; snap.style.right = edge === 'r' ? '0' : 'auto'; snap.style.width = clampW(L.w) + 'px'; }
           apply();
@@ -199,7 +200,8 @@
             if (L.mode !== 'f') { L.side = L.mode; L.mode = 'f'; rm.offX = Math.round(Math.min(L.fw - 60, rm.offX * L.fw / Math.max(1, rm.r.width))); rm.offY = Math.min(rm.offY, 40); }
           }
           L.x = px - rm.offX; L.y = py - rm.offY;
-          rm.edge = px <= 18 ? 'l' : px >= vw() - 18 ? 'r' : null;
+          const dw = L.mini ? 65 : L.fw;
+          rm.edge = px <= 18 || L.x <= 2 ? 'l' : px >= vw() - 18 || L.x + dw >= vw() - 2 ? 'r' : null;
           snap.hidden = !rm.edge;
           if (rm.edge) { snap.style.left = rm.edge === 'l' ? '0' : 'auto'; snap.style.right = rm.edge === 'r' ? '0' : 'auto'; snap.style.width = clampW(L.w) + 'px'; }
           apply(); return;
@@ -854,7 +856,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 :is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button,#log li.pm0 button{border-radius:8px}
 #log li.sec{font-family:Comfortaa,var(--ff)}
 #room button[hidden]{display:none}
-#rail{position:fixed;top:0;bottom:0;left:0;width:64px;z-index:4;box-sizing:border-box;background:var(--hdr,var(--panel));border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:6px 0 10px}
+#rail{position:fixed;top:0;bottom:0;left:0;width:64px;z-index:4;box-sizing:border-box;background:var(--hdr,var(--panel));border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;padding:6px 0 8px}
 #rail::-webkit-scrollbar{display:none}
 /* нижняя строка как в Telegram: одна плоская полоса, значки без рамок, стрелка — только когда есть текст */
 footer{padding:2px 6px}
@@ -903,7 +905,10 @@ html.rail-r #rail #room button[aria-pressed="true"]::before{left:auto;right:-5px
 html.rail #rail #room .rb{position:absolute;top:1px;right:5px;margin:0;min-width:15px;padding:0 4px;font-size:10px;line-height:15px}
 html.rail #rail #room button[aria-pressed="true"] .rb{background:var(--bad);color:#fff}
 html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
-#rchans{display:flex;flex-direction:column;align-items:center;gap:9px;margin:8px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+#rchans{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;align-items:center;gap:9px;margin:8px 0 0;padding:10px 0 6px;border-top:1px solid var(--line)}
+#rchans::-webkit-scrollbar{display:none}
+#rail #room{flex:none}
+#rail #dctl{flex:none;border-top:1px solid var(--line)}
 #rchans:empty{display:none}
 #rchans .rpe{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;width:56px;padding:4px 0;border:0;border-radius:12px;background:none;color:var(--mut);cursor:pointer;font:600 9.5px/1.1 var(--ff)}
 #rchans .rpe:hover{background:color-mix(in srgb,var(--tx) 8%,transparent);color:var(--tx)}
@@ -940,6 +945,10 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
 #log li.b .gdact button.sure{background:var(--bad);border-color:var(--bad);color:#fff}
 #log .gdel{color:var(--mut);font-style:italic}
 #log .ged{font-style:normal;opacity:.8}
+#log .gtk{margin-left:4px;letter-spacing:-2px;color:var(--mut);font-weight:700}
+#log .gtk.rd{color:color-mix(in srgb,var(--acc) 60%,var(--mut))}
+#log .gtk.all{color:var(--acc-tx)}
+#log .gtk small{letter-spacing:0;font-size:9px;margin-left:3px}
 #log .grx{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 #log .grc{border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--tx) 5%,transparent);color:var(--tx);font:600 12px/20px var(--ff);padding:0 7px;cursor:pointer}
 #log .grc.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 18%,transparent)}
@@ -1227,7 +1236,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     rail.hidden = !on;
     for (const d of docs()) d.documentElement.classList.toggle('mini', !!(EMBED && on && S.mini));
     const mb = document.getElementById('dmini');
-    if (mb) { mb.hidden = !on; const toR = side === 'r'; mb.textContent = S.mini ? (toR ? '«' : '»') : (toR ? '»' : '«'); mb.title = S.mini ? 'Развернуть чат' : 'Свернуть до колонки — останутся комнаты и собеседники'; mb.setAttribute('aria-label', mb.title); mb.setAttribute('aria-pressed', String(!!S.mini)); }
+    if (mb) { mb.hidden = !on; const toR = side === 'r'; mb.textContent = S.mini ? (toR ? '«' : '»') : (toR ? '»' : '«'); mb.title = S.mini ? 'Развернуть чат' : 'Свернуть до колонки (или двойной щелчок по комнате) — останутся комнаты и собеседники'; mb.setAttribute('aria-label', mb.title); mb.setAttribute('aria-pressed', String(!!S.mini)); }
     const ctl = document.getElementById('dctl');
     if (ctl) {   // ⠿ и «слева / окном / справа»: в колонке — внизу, без колонки — в начале шапки
       const hr = document.querySelector('header .hr');
@@ -1255,7 +1264,11 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       if (g) return dragFrom(e, g);
       if (emptyHead(e.target)) dragFrom(e, e.target.closest('header .hr'));
     });
-    document.addEventListener('dblclick', (e) => { if ((e.target.closest && e.target.closest('#dgrip')) || emptyHead(e.target)) post({ lgmc: 'mode', m: 'toggle' }); });
+    document.addEventListener('dblclick', (e) => {
+      if (!e.target.closest) return;
+      if (e.target.closest('#rail #room [data-r]')) { if (!S.mini) post({ lgmc: 'mode', m: 'mini' }); return; }   // двойной щелчок по комнате — свернуть до колонки
+      if (e.target.closest('#dgrip') || emptyHead(e.target)) post({ lgmc: 'mode', m: 'toggle' });
+    });
     document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#dctl [data-dm]'); if (b) post({ lgmc: 'mode', m: b.dataset.dm }); });
     document.addEventListener('click', (e) => {
       const t = e.target.closest && e.target; if (!t) return;
@@ -1268,7 +1281,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     const box = document.getElementById('rchans'); if (!box || !S.el || !S.el.rail || S.el.rail.hidden) { if (box) box.innerHTML = ''; return; }
     const P = S.pm;
     if (!S.me || !S.flags.dm || !P || !P.last) { box.innerHTML = ''; return; }
-    const max = Math.max(3, Math.min(12, Math.floor((window.innerHeight - 330) / 50)));
+    const max = 30;   // список листается — комнаты сверху и кнопки снизу стоят на месте
     const peers = Object.keys(P.last).filter((l) => nickOf(l) && l !== S.me && !S.ign.has(l) && (P.last[l].at || P.un.get(l))).sort((a, b) => (P.last[b].at || 0) - (P.last[a].at || 0)).slice(0, max);
     box.innerHTML = peers.map((l) => {
       const n = P.un.get(l) || 0, f = pmFriend(l), on = !!(f && f.on), last = P.last[l] || {};
@@ -3629,7 +3642,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, rail: 'auto', hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, gdRead: true, rail: 'auto', hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -3829,7 +3842,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
         </section>
         <section><h4>Сообщения</h4>
           ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}${tg('scrollbar', 'Полоса прокрутки')}${tg('hist', 'Помнить ленту между запусками (игра отдаёт только последние ~120)')}
-          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('tips', 'Подсказки над полем ввода: «Скопировано», «В закладках»…')}${tg('guilds', 'Вкладка ⚜ Гильдия — закрытый чат для своих (сама появится, если позовут)')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
+          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('tips', 'Подсказки над полем ввода: «Скопировано», «В закладках»…')}${tg('guilds', 'Вкладка ⚜ Гильдия — закрытый чат для своих (сама появится, если позовут)')}${tg('gdRead', 'Гильдии: отметки «прочитано» ✓✓ (выключишь — не видно ни твоих, ни чужих)')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
           ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
         </section>
         <section><h4>Подсветка и фильтр</h4>
@@ -4272,6 +4285,9 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       if (!(g.links || []).some((x) => x.t === d.tok)) { g.links = (g.links || []).concat({ t: d.tok, at: Math.min(+d.ts || Date.now(), Date.now()), n: d.n ? 1 : 0, used: [], by: d.f }); }
       const l = nickOf(d.l); if (l && !gdIsMem(g, l)) g.invited = (g.invited || []).filter((x) => x.l !== l).concat({ l, ch: nickOf(d.ch) || g.ch, at: Date.now(), by: d.f });
       gdSave(); changed = true;
+    } else if (d.k === 'read' && d.f !== S.me && +d.at > 0) {
+      const r = gdReads(g), t = Math.min(+d.at, Date.now() + 60000);
+      if (t > (r[d.f] || 0)) { r[d.f] = t; lsSet('lgmc_g2r_' + g.id, r); changed = true; }
     } else if (d.k === 'sync?' && d.f !== S.me && GD.lead) {
       gdSyncReply(g, d);
     } else if (d.k === 'sync' && Array.isArray(d.items)) {
@@ -4509,7 +4525,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       li('sec', `Состав · ${gdMem(g).length}`);
       for (const l of gdMem(g).sort((a, b) => (b === g.owner) - (a === g.owner) || !!gdRole(g, b) - !!gdRole(g, a) || a.localeCompare(b))) {
         const ro = gdRole(g, l);
-        li('conv', `${avatar(l)}<span class="cv"><b style="color:${ncol(l)}">${esc(dispName(l))}</b><span>${l === g.owner ? '👑 глава' : ro && ro.t ? '🏷 ' + esc(ro.t) : 'участник'}${ro && ro.z ? ' · может звать' : ''}${l === S.me ? ' · это ты' : ''}</span></span>${own && live && l !== S.me ? `<span class="acts"><button type="button" data-gd="role:${esc(l)}" aria-pressed="${GD.roleEdit === l}" title="Назначить роль">🏷 Роль</button><button type="button" class="${GD.sure === l ? 'sure' : ''}" data-gd="kick:${esc(l)}"${GD.busy ? ' disabled' : ''}>${GD.sure === l ? 'Точно исключить?' : 'Исключить'}</button></span>` : ''}`);
+        li('conv', `${avatar(l)}<span class="cv"><b style="color:${ncol(l)}">${esc(dispName(l))}</b><span>${l === g.owner ? '👑 глава' : ro && ro.t ? '🏷 ' + esc(ro.t) : 'участник'}${ro && ro.z ? ' · может звать' : ''}${l === S.me ? ' · это ты' : gdRcpt() && gdReads(g)[l] ? ' · прочитал до ' + (sameDay(gdReads(g)[l], Date.now()) ? hhmm(gdReads(g)[l]) : dayName(gdReads(g)[l]) + ' ' + hhmm(gdReads(g)[l])) : ''}</span></span>${own && live && l !== S.me ? `<span class="acts"><button type="button" data-gd="role:${esc(l)}" aria-pressed="${GD.roleEdit === l}" title="Назначить роль">🏷 Роль</button><button type="button" class="${GD.sure === l ? 'sure' : ''}" data-gd="kick:${esc(l)}"${GD.busy ? ' disabled' : ''}>${GD.sure === l ? 'Точно исключить?' : 'Исключить'}</button></span>` : ''}`);
         if (own && live && GD.roleEdit === l) li('gdf gdrole', `<form data-gdf="role" data-l="${esc(l)}" autocomplete="off"><input name="v" maxlength="20" list="gdroles" value="${esc((ro && ro.t) || '')}" placeholder="Роль для ${esc(dispName(l))}" aria-label="Название роли"><datalist id="gdroles">${GD_ROLES.map((x) => `<option value="${esc(x)}">`).join('')}</datalist><button type="submit" class="ok">Сохранить</button>${ro ? `<button type="button" data-gd="roleoff:${esc(l)}">Убрать</button>` : ''}</form><label class="gdz"><input type="checkbox" name="z"${ro && ro.z ? ' checked' : ''}> может звать в гильдию (приглашения и ссылки; в состав всё равно добавляет глава)</label>`);
       }
       if (inv) {
@@ -4549,7 +4565,13 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
         const me = m.f === S.me, cont = prev && prev.f === m.f && sameDay(prev.at, m.at) && m.at - prev.at < 5 * 60000;
         const i = info(m), id = esc(m.id);
         const name = !me && !cont ? `<span class="gnm"><span class="n" data-l="${esc(m.f)}" style="color:${ncol(m.f)}">${esc(dispName(m.f))}</span>${gdRoleTag(g, m.f)}</span>` : '';
-        const tm = `<span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}${i.ed ? ' · изменено ' + esc(new Date(i.ed).toLocaleString('ru-RU')) : ''}">${i.ed ? '<i class="ged">изм.</i> ' : ''}${hhmm(m.at)}</span>`;
+        let tick = '';
+        if (me && !i.del && gdRcpt()) {
+          const rd = gdReads(g), others = gdMem(g).filter((l) => l !== S.me), seen = others.filter((l) => (rd[l] || 0) >= m.at), not = others.filter((l) => (rd[l] || 0) < m.at);
+          const all = others.length && !not.length;
+          tick = `<span class="gtk${seen.length ? ' rd' : ''}${all ? ' all' : ''}" title="${esc(seen.length ? 'Прочитали: ' + seen.map(dispName).join(', ') + (not.length ? '\nЕщё не прочитали: ' + not.map(dispName).join(', ') : '') : 'Отправлено, пока никто не прочитал')}" aria-label="${seen.length ? 'прочитали: ' + seen.length : 'отправлено'}">${seen.length ? '✓✓' : '✓'}${seen.length && !all && others.length > 1 ? ` <small>${seen.length}</small>` : ''}</span>`;
+        }
+        const tm = `<span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}${i.ed ? ' · изменено ' + esc(new Date(i.ed).toLocaleString('ru-RU')) : ''}">${i.ed ? '<i class="ged">изм.</i> ' : ''}${hhmm(m.at)}${tick}</span>`;
         let body;
         if (i.del) body = `${name}<span class="gdel">${i.del === m.f ? 'Сообщение удалено' : 'Удалено главой'}</span>${tm}`;
         else {
@@ -4568,7 +4590,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
         prev = m;
       }
       if (!L.some((m) => !m.sys && (!m.k || m.k === 'msg'))) li('pm0', g.gone === 'kicked' ? '<b>Гильдия недоступна</b>Тебя исключили.' : g.gone === 'closed' ? '<b>Гильдия распущена</b>' : g.wait ? '<b>Почти готово</b>Глава подтвердит тебя, когда будет в сети, — тогда можно писать.' : '<b>Здесь пока тихо</b>Напиши первым — прочитают только участники гильдии.');
-      GD.un.delete(g.id); gdBadge();
+      GD.un.delete(g.id); gdBadge(); gdReadMark(g);
     }
     log.innerHTML = ''; log.appendChild(f);
     if (GD.view === 'chat' && stick !== false) toBottom();
@@ -4594,6 +4616,22 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     gdTabVis(); gdBadge();
     if (now) gdJoin(p);
     return p;
+  }
+  // «Точно?» — само снимается через 4 с, по Esc и по щелчку в любом другом месте
+  // отметки «прочитано»: у каждого — до какого времени он дочитал; отправляем, когда переписка на виду
+  const gdReads = (g) => lsGet('lgmc_g2r_' + g.id, {}) || {};
+  const gdRcpt = () => CZ.gdRead !== false;
+  function gdReadMark(g) {
+    if (!gdRcpt() || !g || g.gone || g.wait || hidden() || S.room !== 'guild' || GD.view !== 'chat' || GD.cur !== g.id) return;
+    const last = gdHist(g).filter((x) => !x.sys && (!x.k || x.k === 'msg') && x.f !== S.me).reduce((a, x) => Math.max(a, x.at || 0), 0);
+    const k = 'lgmc_g2rs_' + g.id;
+    if (!last || last <= (lsGet(k, 0) || 0) || GD.readT) return;
+    GD.readT = setTimeout(async () => { GD.readT = 0; if (!gdOnce('rd|' + g.id + '|' + last, 30000)) return; const ok = await gdPost(g, { k: 'read', at: last }); if (ok && typeof ok === 'object') lsSet(k, last); }, 1500);
+  }
+  function gdSure(v) {
+    GD.sure = v; clearTimeout(GD.sureT);
+    if (v) GD.sureT = setTimeout(() => gdSure(''), 4000);
+    if (S.room === 'guild') gdRender(false);
   }
   function gdClick(e) {
     const b = e.target.closest('[data-gd]'); if (!b || b.disabled) return;
@@ -4623,7 +4661,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       replyBar(); S.el.inp.value = t; if (!S.el.inp.disabled) { S.el.inp.focus(); S.el.inp.setSelectionRange(t.length, t.length); }
       return;
     }
-    if (a === 'del') { if (GD.sure !== 'del:' + v) { GD.sure = 'del:' + v; gdRender(false); return; } GD.sure = ''; gdEv(g, { k: 'del', p: v }); return; }
+    if (a === 'del') { if (GD.sure !== 'del:' + v) { gdSure('del:' + v); return; } GD.sure = ''; gdEv(g, { k: 'del', p: v }); return; }
     if (a === 'pinm' && gdOwn(g)) {
       const m = gdHist(g).find((x) => x.id === v && (!x.k || x.k === 'msg')); if (!m) return;
       const last = gdHist(g).filter((x) => x.k === 'edit' && x.p === v && x.f === m.f).sort((p, q) => q.at - p.at)[0];
@@ -4655,8 +4693,8 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     if (a === 'lrev') { g.links = (g.links || []).filter((x) => x.t !== v); gdSave(); gdRender(); return; }
     if (a === 'uninv') { g.invited = (g.invited || []).filter((x) => x.l !== v); gdSave(); gdRender(); return; }
     if (a === 'rekey') { gdRekey(g, ''); return; }
-    if (a === 'kick') { if (GD.sure !== v) { GD.sure = v; gdRender(); return; } GD.sure = ''; gdRekey(g, v); return; }
-    if (a === 'leave') { if (GD.sure !== '!leave') { GD.sure = '!leave'; gdRender(); return; } GD.sure = ''; gdLeave(g); }
+    if (a === 'kick') { if (GD.sure !== v) { gdSure(v); return; } GD.sure = ''; gdRekey(g, v); return; }
+    if (a === 'leave') { if (GD.sure !== '!leave') { gdSure('!leave'); return; } GD.sure = ''; gdLeave(g); }
   }
   function gdBoot() {   // после /api/me: знаем, кто мы
     if (!S.me || !gdOn()) { gdTabVis(); return; }
@@ -4706,6 +4744,10 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       }
       if (fm.dataset.gdf === 'code') gdTakeLink(v, true); else if (fm.dataset.gdf === 'create') gdCreate(v); else if (fm.dataset.gdf === 'invite' && gdCur()) gdInvite(gdCur(), v);
     }, true);
+    const rdBack = () => { if (S.room === 'guild') gdReadMark(gdCur()); };
+    document.addEventListener('visibilitychange', rdBack); window.addEventListener('focus', rdBack);
+    document.addEventListener('pointerdown', (e) => { if (S.room === 'guild' && GD.sure && !(e.target.closest && e.target.closest('.sure'))) gdSure(''); }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.room === 'guild' && GD.sure) { e.preventDefault(); gdSure(''); } }, true);
     S.el.log.addEventListener('input', (e) => {
       if (S.room !== 'guild' || !GD.pd) return;
       const t = e.target;
