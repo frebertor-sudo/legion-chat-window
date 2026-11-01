@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.19.1
+// @version      3.19.1.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -1227,7 +1227,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     rail.hidden = !on;
     for (const d of docs()) d.documentElement.classList.toggle('mini', !!(EMBED && on && S.mini));
     const mb = document.getElementById('dmini');
-    if (mb) { mb.hidden = !on; const toR = side === 'r'; mb.textContent = S.mini ? (toR ? '«' : '»') : (toR ? '»' : '«'); mb.title = S.mini ? 'Развернуть чат' : 'Свернуть до колонки — останутся комнаты и собеседники'; mb.setAttribute('aria-label', mb.title); mb.setAttribute('aria-pressed', String(!!S.mini)); }
+    if (mb) { mb.hidden = !on; const toR = side === 'r'; mb.textContent = S.mini ? (toR ? '«' : '»') : (toR ? '»' : '«'); mb.title = S.mini ? 'Развернуть чат' : 'Свернуть до колонки (или двойной щелчок по комнате) — останутся комнаты и собеседники'; mb.setAttribute('aria-label', mb.title); mb.setAttribute('aria-pressed', String(!!S.mini)); }
     const ctl = document.getElementById('dctl');
     if (ctl) {   // ⠿ и «слева / окном / справа»: в колонке — внизу, без колонки — в начале шапки
       const hr = document.querySelector('header .hr');
@@ -1255,7 +1255,11 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       if (g) return dragFrom(e, g);
       if (emptyHead(e.target)) dragFrom(e, e.target.closest('header .hr'));
     });
-    document.addEventListener('dblclick', (e) => { if ((e.target.closest && e.target.closest('#dgrip')) || emptyHead(e.target)) post({ lgmc: 'mode', m: 'toggle' }); });
+    document.addEventListener('dblclick', (e) => {
+      if (!e.target.closest) return;
+      if (e.target.closest('#rail #room [data-r]')) { if (!S.mini) post({ lgmc: 'mode', m: 'mini' }); return; }   // двойной щелчок по комнате — свернуть до колонки
+      if (e.target.closest('#dgrip') || emptyHead(e.target)) post({ lgmc: 'mode', m: 'toggle' });
+    });
     document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#dctl [data-dm]'); if (b) post({ lgmc: 'mode', m: b.dataset.dm }); });
     document.addEventListener('click', (e) => {
       const t = e.target.closest && e.target; if (!t) return;
