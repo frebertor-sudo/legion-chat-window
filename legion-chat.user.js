@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.2.3
+// @version      3.18.2.4
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -230,6 +230,8 @@
       dock.style.setProperty('--fx', Math.round(L.x) + 'px'); dock.style.setProperty('--fy', Math.round(L.y) + 'px');
       dock.style.setProperty('--fw', Math.round(L.fw) + 'px'); dock.style.setProperty('--fh', Math.round(L.fh) + 'px');
       for (const b of dock.querySelectorAll('[data-m]')) b.setAttribute('aria-pressed', String(b.dataset.m === L.mode));
+      // боковая колонка чата — у края экрана; только когда рамка уже загрузилась (трогать пустую рамку нельзя — сорвёт запуск чата в ней)
+      if (frame && frame.lgReady) try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode }, location.origin); } catch {}
       // кнопки «💬 Чат / ⧉» не прячутся под панелью, прикреплённой слева
       const g = document.getElementById('lgmc-btns');
       if (g) g.style.left = !dock.hidden && L.mode === 'l' && vw() > 640 ? (L.w + 10) + 'px' : '10px';
@@ -246,7 +248,7 @@
         if (!frame) {   // рамка создаётся при открытии и убирается при закрытии — скрытый чат не опрашивает сервер
           frame = document.createElement('iframe');
           frame.title = 'Чат Легиона';
-          frame.src = urlFor(room) + '&embed=1';
+          frame.src = urlFor(room) + '&embed=1&side=' + L.mode;
           dock.querySelector('.lgmc-body').appendChild(frame);
         }
         dock.hidden = false; apply();
@@ -317,6 +319,7 @@
     window.addEventListener('message', (e) => {
       if (e.origin !== location.origin || !e.data || typeof e.data.lgmc !== 'string') return;
       if (e.data.lgmc === 'close' || e.data.lgmc === 'popped') setOpen(false);
+      if (e.data.lgmc === 'ready' && frame && e.source === frame.contentWindow) { frame.lgReady = true; try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode }, location.origin); } catch {} return; }
       // окно обмена — в «Городе» игры: открыть эту вкладку
       if (e.data.lgmc === 'citytab') { const b = document.querySelector('nav [data-tab="city"], [data-tab="city"]'); if (b) b.click(); else { location.hash = '#city'; location.reload(); } return; }
       // «📍 встать в город» из панели: игра помнит город во вкладке и открывает «Город» по #city — перезагружаем страницу игры
@@ -819,6 +822,33 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 :is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button,#log li.pm0 button{border-radius:8px}
 #log li.sec{font-family:Comfortaa,var(--ff)}
 #room button[hidden]{display:none}
+#rail{position:fixed;top:0;bottom:0;left:0;width:64px;z-index:4;box-sizing:border-box;background:var(--hdr,var(--panel));border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:6px 0 10px}
+#rail::-webkit-scrollbar{display:none}
+#rail[hidden]{display:none}
+html.rail body{padding-left:64px}
+html.rail-r #rail{left:auto;right:0;border-right:0;border-left:1px solid var(--line)}
+html.rail-r body{padding-left:0;padding-right:64px}
+html.rail #rail #room{display:flex;flex-direction:column;gap:2px;border:0;border-radius:0;background:none;overflow:visible}
+html.rail #rail #room button{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;margin:0 5px;padding:7px 2px 6px;border:0;border-radius:12px;background:none;color:var(--mut);font:700 10px/1.15 var(--ff)}
+html.rail #rail #room button>span[aria-hidden]{font-size:19px;line-height:1}
+html.rail #rail #room button .rl{position:static!important;width:auto!important;height:auto!important;clip:auto!important;overflow:visible!important;white-space:nowrap;max-width:54px;text-overflow:ellipsis}
+html.rail #rail #room button:not(:disabled):hover{background:color-mix(in srgb,var(--tx) 8%,transparent);color:var(--tx)}
+html.rail #rail #room button[aria-pressed="true"]{background:color-mix(in srgb,var(--acc) 20%,transparent);color:var(--acc-tx)}
+html.rail #rail #room button[aria-pressed="true"]::before{content:'';position:absolute;left:-5px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--acc)}
+html.rail-r #rail #room button[aria-pressed="true"]::before{left:auto;right:-5px;border-radius:3px 0 0 3px}
+html.rail #rail #room .rb{position:absolute;top:1px;right:5px;margin:0;min-width:15px;padding:0 4px;font-size:10px;line-height:15px}
+html.rail #rail #room button[aria-pressed="true"] .rb{background:var(--bad);color:#fff}
+html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
+#chname{display:none}
+html.rail.rch-on #chan{display:none}
+html.rail.rch-on #chname{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 14px/1.2 var(--ff);color:var(--tx)}
+#rchans{display:flex;flex-direction:column;align-items:center;gap:9px;margin:8px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+#rchans:empty{display:none}
+#rchans .rch{position:relative;flex:none;width:40px;height:40px;border-radius:50%;border:2px solid transparent;background:color-mix(in oklch,var(--c) 70%,#000);color:#fff;font:800 16px/36px var(--ff);cursor:pointer;padding:0;text-align:center}
+#rchans .rch:hover{border-color:color-mix(in srgb,var(--acc) 50%,transparent)}
+#rchans .rch[aria-pressed="true"]{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 30%,transparent)}
+#rchans .rch .lv{position:absolute;right:-3px;bottom:-3px;min-width:10px;height:10px;border-radius:999px;background:#e53935;border:2px solid var(--hdr,var(--panel))}
+#rchans .rch.off{opacity:.62}#rchans .rch.off:hover,#rchans .rch[aria-pressed="true"]{opacity:1}
 #log li.gdf{align-self:stretch;padding:2px 2px 6px}
 #log li.gdf form{display:flex;gap:6px}
 #log li.gdf input{flex:1;min-width:0;background:var(--field);color:var(--tx);border:1px solid var(--fieldb);border-radius:8px;padding:5px 8px;font:inherit;font-size:13px}
@@ -895,8 +925,9 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #log li.conv.gdlk .acts{flex-wrap:wrap;justify-content:flex-end}
 </style></head>
 <body>
+<nav id="rail" aria-label="Чаты и стримеры" hidden><div id="rchans" role="group" aria-label="Стримеры"></div></nav>
 <header>
-  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
+  <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><b id="chname"></b><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button><button type="button" data-r="guild" title="Гильдия — закрытый чат для своих" hidden>${rlab('guild')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="bmp" role="dialog" aria-label="Закладки" hidden></div><div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
@@ -1117,12 +1148,41 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     clearTimeout(S.chanT); S.chanT = setTimeout(loadChannels, hidden() ? 300000 : 120000);   // эфиры начинаются и заканчиваются — раз в 2 минуты
   }
   // список стримеров: кто в эфире — сверху и с пометкой; у текущего, если он в эфире, — «В ЭФИРЕ» рядом (ссылка на Twitch)
+  // боковая колонка (как в Telegram): комнаты значками с подписями, ниже — стримеры кружками.
+  // Сторона: «авто» — у края экрана (панель в игре справа → колонка справа), иначе как выбрано в ⚙
+  S.dockSide = /^[lrf]$/.test(Q.get('side') || '') ? Q.get('side') : 'l';
+  function railApply() {
+    if (!S.el || !S.el.room) return;
+    const rail = S.el.rail || (S.el.rail = document.getElementById('rail')), r2 = S.el.r2 || (S.el.r2 = document.querySelector('.hr.r2'));
+    if (!rail || !r2) return;
+    const mode = CZ.rail || 'auto', on = mode !== 'off';
+    const side = mode === 'left' ? 'l' : mode === 'right' ? 'r' : EMBED && S.dockSide === 'r' ? 'r' : 'l';
+    for (const d of docs()) { d.documentElement.classList.toggle('rail', on); d.documentElement.classList.toggle('rail-r', on && side === 'r'); }
+    if (on && S.el.room.parentElement !== rail) rail.insertBefore(S.el.room, rail.firstChild);
+    if (!on && S.el.room.parentElement !== r2) r2.insertBefore(S.el.room, r2.firstChild);
+    rail.hidden = !on;
+    railChans();
+  }
+  function railChans() {
+    const box = document.getElementById('rchans'); if (!box) return;
+    const list = S.channels.map((c, i) => [c, i]).sort((a, b) => (b[0].live ? 1 : 0) - (a[0].live ? 1 : 0) || a[1] - b[1]).map((x) => x[0]);
+    for (const d of docs()) d.documentElement.classList.toggle('rch-on', list.length > 1);
+    const cn = document.getElementById('chname'); if (cn) { cn.textContent = S.chName; cn.title = S.chName; }
+    box.innerHTML = list.length > 1 ? list.map((c) => { const l = c.login.toLowerCase(), n = c.name || c.login; return `<button type="button" class="rch${c.live ? '' : ' off'}" data-rch="${esc(l)}" style="--c:${nkColor(l)}" aria-pressed="${l === S.ch}" title="${esc(n)} — ${c.live ? 'в эфире' : 'не в эфире'}" aria-label="${esc(n)}${c.live ? ', в эфире' : ''}">${esc(n.slice(0, 1).toUpperCase())}${c.live ? '<span class="lv" aria-hidden="true"></span>' : ''}</button>`; }).join('') : '';
+  }
+  window.addEventListener('message', (e) => {
+    if (e.source !== window.parent || e.origin !== location.origin || !e.data || e.data.lgmc !== 'side' || !/^[lrf]$/.test(e.data.side)) return;
+    if (S.dockSide !== e.data.side) { S.dockSide = e.data.side; railApply(); }
+  });
+  if (EMBED) try { window.parent.postMessage({ lgmc: 'ready' }, location.origin); } catch {}   // панель в игре: «готов» — пришли, с какой ты стороны
+  document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#rchans [data-rch]'); if (b && b.dataset.rch !== S.ch) switchTo(b.dataset.rch, S.room); });
   function renderChannels() {
     const list = S.channels.map((c, i) => [c, i]).sort((a, b) => (b[0].live ? 1 : 0) - (a[0].live ? 1 : 0) || a[1] - b[1]).map((x) => x[0]);
     S.el.chan.innerHTML = list.map((c) => `<option value="${esc(c.login.toLowerCase())}" class="${c.live ? 'live' : 'off'}">${c.live ? '🔴' : '⚪'} ${esc(c.name || c.login)} — ${c.live ? 'в эфире' : 'не в эфире'}</option>`).join('');
     S.el.chan.value = S.ch;
     const cur = S.channels.find((c) => c.login.toLowerCase() === S.ch);
     if (cur && cur.name) S.chName = cur.name;
+    railChans();
     const live = !!(cur && cur.live);
     S.el.chan.title = live ? `${S.chName} — сейчас в эфире` : `${S.chName} — сейчас не в эфире`;
     S.el.chan.classList.toggle('live', live);
@@ -3456,7 +3516,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, rail: 'auto', hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -3550,6 +3610,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   function czApply() {
     CZ_HL = czWords(CZ.hl); CZ_HIDE = czWords(CZ.hide);
     if (typeof gdTabVis === 'function') try { gdTabVis(); } catch {}
+    try { railApply(); } catch {}
     const css = czCss();
     for (const d of docs()) {
       // шрифты игры (Nunito, Comfortaa) — с того же Google Fonts, откуда их берёт сама игра
@@ -3637,6 +3698,9 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     sp.innerHTML = `<div class="sp-h"><b>⚙ Настройки чата</b><button type="button" class="hb" data-cz="close" aria-label="Закрыть настройки">✕</button></div>
       <div class="sp-b">
         <section><h4>Пример</h4><ol id="pvlog" aria-label="Пример сообщений"></ol></section>
+        <section><h4>Расположение</h4>
+          <label class="sel">Вкладки чатов <select data-sel="rail">${opt({ auto: ['Сбоку — у края экрана'], left: ['Сбоку слева'], right: ['Сбоку справа'], off: ['Сверху, как раньше'] }, CZ.rail || 'auto')}</select></label>
+        </section>
         <section><h4>Цвета</h4>
           <div class="lbl">Тёмная тема</div><div class="sws">${sch('dark')}</div>
           <div class="lbl">Светлая тема</div><div class="sws">${sch('light')}</div>
