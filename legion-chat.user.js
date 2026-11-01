@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.19.2
+// @version      3.19.2.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -180,7 +180,7 @@
           }
           L.x = ev.clientX - offX; L.y = ev.clientY - offY;
           const dw = L.mini ? 65 : L.fw;
-          edge = ev.clientX <= 18 || L.x <= 2 ? 'l' : ev.clientX >= vw() - 18 || L.x + dw >= vw() - 2 ? 'r' : null;
+          edge = ev.clientX <= 18 || L.x <= -30 ? 'l' : ev.clientX >= vw() - 18 || L.x + dw >= vw() + 30 ? 'r' : null;
           snap.hidden = !edge;
           if (edge) { snap.style.left = edge === 'l' ? '0' : 'auto'; snap.style.right = edge === 'r' ? '0' : 'auto'; snap.style.width = clampW(L.w) + 'px'; }
           apply();
@@ -201,7 +201,8 @@
           }
           L.x = px - rm.offX; L.y = py - rm.offY;
           const dw = L.mini ? 65 : L.fw;
-          rm.edge = px <= 18 || L.x <= 2 ? 'l' : px >= vw() - 18 || L.x + dw >= vw() - 2 ? 'r' : null;
+          // окно у края встаёт в угол; дотянул дальше (≈30 px) или указатель у самого края — прилипнет
+          rm.edge = px <= 18 || L.x <= -30 ? 'l' : px >= vw() - 18 || L.x + dw >= vw() + 30 ? 'r' : null;
           snap.hidden = !rm.edge;
           if (rm.edge) { snap.style.left = rm.edge === 'l' ? '0' : 'auto'; snap.style.right = rm.edge === 'r' ? '0' : 'auto'; snap.style.width = clampW(L.w) + 'px'; }
           apply(); return;
@@ -255,7 +256,7 @@
       L.w = clampW(L.w);
       // плавающее окно — целиком на экране: и полоска, и уголок размера всегда доступны
       L.fw = Math.max(minW, Math.min(vw(), +L.fw || 400)); L.fh = Math.max(240, Math.min(vh(), +L.fh || 620));
-      L.x = Math.max(0, Math.min(vw() - L.fw, +L.x || 0)); L.y = Math.max(0, Math.min(vh() - L.fh, +L.y || 0));
+      L.x = Math.max(0, Math.min(vw() - (L.mini ? 65 : L.fw), +L.x || 0)); L.y = Math.max(0, Math.min(vh() - L.fh, +L.y || 0));
       dock.classList.toggle('m-r', L.mode === 'r'); dock.classList.toggle('m-l', L.mode === 'l'); dock.classList.toggle('m-f', L.mode === 'f');
       dock.classList.toggle('mini', !!L.mini);
       dock.style.setProperty('--lgmc-w', (L.mini ? 65 : L.w) + 'px');
