@@ -838,6 +838,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #log li.b .gdact{position:absolute;bottom:calc(100% - 4px);left:8px;z-index:3;display:flex;gap:2px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:0 4px 12px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .1s;white-space:nowrap}
 #log li.b.me .gdact{left:auto;right:8px}
 #log li.b:hover .gdact,#log li.b .gdact:focus-within{pointer-events:auto}
+#log li.b.hot .gdact{opacity:1;pointer-events:auto}
 #log li.b:hover .gdact,#log li.b .gdact:focus-within{opacity:1}
 @media (hover:none){#log li.b .gdact{opacity:.7;pointer-events:auto}}
 #log li.b .gdact button{height:22px;min-width:24px;padding:0 4px;border:1px solid transparent;border-radius:6px;background:none;color:var(--mut);font:12px/20px var(--ff);cursor:pointer}
@@ -4337,7 +4338,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
           const acts = live ? `<span class="gdact"><button type="button" data-gd="re:${id}" title="Ответить" aria-label="Ответить">↩</button><button type="button" data-gd="rpick:${id}" title="Реакция" aria-label="Реакция">☺</button>${me && !m.poll ? `<button type="button" data-gd="edit:${id}" title="Изменить" aria-label="Изменить">✏️</button>` : ''}${own ? `<button type="button" data-gd="pinm:${id}" title="Закрепить как объявление" aria-label="Закрепить">📌</button>` : ''}${me || own ? `<button type="button" class="${GD.sure === 'del:' + m.id ? 'sure' : ''}" data-gd="del:${id}" title="Удалить" aria-label="Удалить">${GD.sure === 'del:' + m.id ? 'Точно?' : '🗑'}</button>` : ''}</span>` : '';
           body = `${name}${m.re ? `<span class="gdq${m.re.f === S.me ? ' me' : ''}" data-gq="${esc(m.re.id)}" role="button" tabindex="0" title="К сообщению">${RQ_ICO}<b style="color:${ncol(m.re.f)}">@${esc(dispName(m.re.f))}</b>: ${esc(m.re.s)}</span>` : ''}${m.poll ? '<b class="gpq">📊 </b>' : ''}${fmtText(i.t)}${poll}${rx ? `<div class="grx">${rx}</div>` : ''}${pick}${acts}${tm}`;
         }
-        const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}${i.del ? ' gdd' : ''}${m.poll ? ' gpl' : ''}`, body);
+        const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}${i.del ? ' gdd' : ''}${m.poll ? ' gpl' : ''}${GD.sure === 'del:' + m.id || GD.rpick === m.id ? ' hot' : ''}`, body);
         x.dataset.key = 'g:' + m.id; if (m.re && m.re.f === S.me && !me) x.classList.add('tome');
         prev = m;
       }
