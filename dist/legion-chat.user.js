@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.17.2
+// @version      3.18.0
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -44,6 +44,7 @@
   • С 29.10 у игры единый чат: город читается GET /api/chat/feed?room=city[&c=], пишется POST /api/chat/say { text, room: 'city' [, k: 'tr'] }
     откуда угодно (герой не идёт на Ярмарку); шахта — { room: 'mine' }, если герой не в шахте. Старый путь — запасной.
   • Модерация (только у админа и модераторов чата): GET/POST <чат>/mod — удалить, мут, бан, снять, назначить модератора.
+  • ⚜ Гильдии: закрытый чат через ntfy.sh — шифр AES-GCM, подписи ECDSA, ключи передаются личными игры (подробно — у модуля гильдий).
 */
 
 (function () {
@@ -54,7 +55,7 @@
   /* global content */
   const pfetch = typeof content === 'object' && content && typeof content.fetch === 'function' ? content.fetch.bind(content) : fetch.bind(window);
   const PES = typeof content === 'object' && content && typeof content.EventSource === 'function' ? content.EventSource : window.EventSource;
-  const chatUrl = (ch, room) => `${ORIGIN}/site/ver?minechat=${encodeURIComponent(ch)}${room === 'city' || room === 'all' || room === 'pm' || room === 'ping' ? '&room=' + room : ''}`;
+  const chatUrl = (ch, room) => `${ORIGIN}/site/ver?minechat=${encodeURIComponent(ch)}${room === 'city' || room === 'all' || room === 'pm' || room === 'ping' || room === 'guild' ? '&room=' + room : ''}`;
 
   // ---------- 1. Страница игры: панель чата сбоку + кнопка «в отдельное окно» ----------
   const game = location.pathname.match(/^\/c\/([^/]+)\/?$/i);
@@ -326,7 +327,7 @@
     rate_limited: 'Не так быстро', forbidden: 'Нет прав', login_required: 'Войди через Twitch на сайте игры',
     mine_closed: 'Шахта закрыта', city_closed: 'Город закрыт', town_closed: 'Этот город сейчас закрыт',
   };
-  const ROOMS = { mine: '⛏ Шахта', city: '🏰 Город', all: '🔀 Всё', pm: '✉ Личные', ping: '📣 Пинги' };
+  const ROOMS = { mine: '⛏ Шахта', city: '🏰 Город', all: '🔀 Всё', pm: '✉ Личные', ping: '📣 Пинги', guild: '⚜ Гильдия' };
   const SRC = { mine: 'Шахта', g: 'Город', tr: 'Торг', ev: 'Событие', dm: 'Лично' };   // пометки источника в общей ленте
   const usesMine = (r) => r === 'mine' || r === 'all' || r === 'ping', usesCity = (r) => r === 'city' || r === 'all' || r === 'ping';
   // подпись комнаты: значок + название; в узком окне у неактивных остаётся только значок (название — в подсказке)
@@ -352,7 +353,7 @@
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
   const S = {
-    ch: CH0.toLowerCase(), chName: CH0, room: ['city', 'all', 'pm', 'ping'].includes(Q.get('room')) ? Q.get('room') : Q.get('minechat') === 'last' && LAST0 && ['city', 'all', 'pm', 'ping'].includes(LAST0.room) ? LAST0.room : 'mine', mine: 'home', mines: [],
+    ch: CH0.toLowerCase(), chName: CH0, room: ['city', 'all', 'pm', 'ping', 'guild'].includes(Q.get('room')) ? Q.get('room') : Q.get('minechat') === 'last' && LAST0 && ['city', 'all', 'pm', 'ping', 'guild'].includes(LAST0.room) ? LAST0.room : 'mine', mine: 'home', mines: [],
     channels: [], me: '', hero: null, flags: { cc: false, tr: false, dm: false }, inCity: false, entering: false,
     tab: 'g', un: { g: 0, tr: 0, ev: 0, dm: 0 }, ign: new Set(), gen: 0,
     mc: 0, cc: 0, list: [], ids: new Set(), mix: Object.assign({ mine: true, g: true, tr: true, ev: true, dm: true }, lsGet('lgmc_mix', {})), to: lsGet('lgmc_mix_to', 'g'), timer: 0, busy: false, fails: 0, stick: true, unseen: 0, unseenTitle: 0,
@@ -361,7 +362,7 @@
   { const last = lsGet(LAST_KEY, null); if (last && last.ch === S.ch && !Q.get('room') && ROOMS[last.room]) S.room = last.room; }
   if (Q.get('minechat') === 'last') try { history.replaceState(null, '', chatUrl(S.ch, S.room) + (EMBED ? '&embed=1' : '')); } catch {}
   const BASE = () => `/c/${S.ch}`;
-  const title = () => `${S.pm && S.pm.total ? `✉${S.pm.total} · ` : ''}${{ mine: 'Шахта', city: 'Город', all: 'Все чаты', pm: 'Личные', ping: 'Пинги' }[S.room]} · ${S.chName}`;
+  const title = () => `${S.pm && S.pm.total ? `✉${S.pm.total} · ` : ''}${{ mine: 'Шахта', city: 'Город', all: 'Все чаты', pm: 'Личные', ping: 'Пинги', guild: 'Гильдия' }[S.room]} · ${S.chName}`;
 
   function boot() {
     // на этапе document-start корня <html> может ещё не быть — тогда создаём его сами
@@ -401,14 +402,14 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #ctabs .lbl{color:var(--mut);font:600 11px var(--ff);align-self:center;margin-right:2px}
 #cbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;background:var(--me);border-bottom:1px solid var(--line);font-size:12px;flex:none}
 #cbar[hidden]{display:none}
-#dmbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--panel);font-size:13px;flex:none}
-#dmbar[hidden]{display:none}
-#dmbar b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#dmbar button{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font:600 12px var(--ff);cursor:pointer}
-#dmbar button:hover{border-color:var(--acc)}
-#dmbar form{display:flex;gap:6px;flex:1;min-width:0}
-#dmbar input{flex:1;min-width:0;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font:inherit;font-size:13px}
-#dmbar input:focus{outline:none;border-color:var(--acc)}
+:is(#dmbar,#gdbar){display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--panel);font-size:13px;flex:none}
+:is(#dmbar,#gdbar)[hidden]{display:none}
+:is(#dmbar,#gdbar) b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(#dmbar,#gdbar) button{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font:600 12px var(--ff);cursor:pointer}
+:is(#dmbar,#gdbar) button:hover{border-color:var(--acc)}
+:is(#dmbar,#gdbar) form{display:flex;gap:6px;flex:1;min-width:0}
+:is(#dmbar,#gdbar) input{flex:1;min-width:0;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font:inherit;font-size:13px}
+:is(#dmbar,#gdbar) input:focus{outline:none;border-color:var(--acc)}
 #log li.conv{display:flex;gap:10px;align-items:center;padding:7px 8px;cursor:pointer;border:1px solid transparent}
 #log li.conv:hover,#log li.conv:focus-visible{border-color:var(--line);background:var(--hov);outline:none}
 #log li.conv .cv{flex:1;min-width:0}
@@ -419,15 +420,15 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #log.pm{display:flex;flex-direction:column;gap:3px;padding:8px 10px 12px}
 #log.pm li+li{margin-top:0}
 #log li.sec{font:700 11px var(--ff);letter-spacing:.06em;text-transform:uppercase;color:var(--mut);padding:10px 4px 2px}
-#log .av,#dmbar .av{background:color-mix(in oklch,var(--avc,#8a7a60) var(--avm,62%),var(--avb,#000))}
-#log .av.cl,#dmbar .av.cl{background:color-mix(in srgb,var(--avc) 22%,var(--panel));box-shadow:inset 0 0 0 2px color-mix(in oklch,var(--avc) var(--ncm,100%),var(--ncb,#000));font-weight:400}
+#log .av,:is(#dmbar,#gdbar) .av{background:color-mix(in oklch,var(--avc,#8a7a60) var(--avm,62%),var(--avb,#000))}
+#log .av.cl,:is(#dmbar,#gdbar) .av.cl{background:color-mix(in srgb,var(--avc) 22%,var(--panel));box-shadow:inset 0 0 0 2px color-mix(in oklch,var(--avc) var(--ncm,100%),var(--ncb,#000));font-weight:400}
 #log li.conv .av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:700 14px var(--ff);color:#fff;position:relative}
 #log li.conv .av .on{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;background:var(--ok);border:2px solid var(--bg)}
 #log li.conv .cv span.st{color:var(--ok)}
 #log li.conv .acts{display:flex;gap:4px;flex:none}
 #log li.conv .cv b small.lg{font-weight:400;color:var(--mut);font-size:11px}
-#log li.conv .acts button,#dmbar .acts button,#log li.pmmore button,#log li.pm0 button{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font:600 12px var(--ff);cursor:pointer}
-#log li.conv .acts button:hover,#dmbar .acts button:hover,#log li.pmmore button:hover{border-color:var(--acc)}
+#log li.conv .acts button,:is(#dmbar,#gdbar) .acts button,#log li.pmmore button,#log li.pm0 button{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font:600 12px var(--ff);cursor:pointer}
+#log li.conv .acts button:hover,:is(#dmbar,#gdbar) .acts button:hover,#log li.pmmore button:hover{border-color:var(--acc)}
 #log li.conv .acts button.ok{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
 #log li.day{align-self:center;color:var(--mut);font-size:11px;padding:8px 0 2px}
 #log li.b{max-width:82%;padding:6px 10px 4px;border-radius:14px 14px 14px 4px;background:var(--panel);border:1px solid var(--line);align-self:flex-start;line-height:1.38;overflow-wrap:anywhere}
@@ -439,18 +440,19 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 #log li.pm0{align-self:center;color:var(--mut);text-align:center;padding:26px 12px;font-size:13px;max-width:330px}
 #log li.pm0 b{display:block;color:var(--tx);font-size:14px;margin-bottom:4px}
 #log li.pm0 button{margin-top:10px}
-#dmbar .who{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
-#dmbar .who .av{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--ff);color:#fff}
-#dmbar .who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#dmbar .who small{display:block;color:var(--mut);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#dmbar .who small.on{color:var(--ok)}
-#dmbar .acts{display:flex;gap:4px;flex:none}
-#dmbar .acts button.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
-#dmbar .rep{display:flex;flex-direction:column;gap:6px;width:100%}
-#dmbar .rep p{margin:0;color:var(--mut);font-size:12px}
-#dmbar .rep div{display:flex;gap:6px}
-#dmbar .bell[aria-pressed="true"]{border-color:var(--acc);background:var(--panel)}
+:is(#dmbar,#gdbar) .who{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+:is(#dmbar,#gdbar) .who .av{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--ff);color:#fff}
+:is(#dmbar,#gdbar) .who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(#dmbar,#gdbar) .who small{display:block;color:var(--mut);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:is(#dmbar,#gdbar) .who small.on{color:var(--ok)}
+:is(#dmbar,#gdbar) .acts{display:flex;gap:4px;flex:none}
+:is(#dmbar,#gdbar) .acts button.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+:is(#dmbar,#gdbar) .rep{display:flex;flex-direction:column;gap:6px;width:100%}
+:is(#dmbar,#gdbar) .rep p{margin:0;color:var(--mut);font-size:12px}
+:is(#dmbar,#gdbar) .rep div{display:flex;gap:6px}
+:is(#dmbar,#gdbar) .bell[aria-pressed="true"]{border-color:var(--acc);background:var(--panel)}
 @media (max-width:400px){#room button:not([aria-pressed="true"]) .rl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}
+@media (max-width:520px){#room.many button:not([aria-pressed="true"]) .rl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}
 #room .rb{display:inline-block;min-width:16px;padding:0 4px;margin-left:4px;border-radius:8px;background:var(--bad);color:#fff;font-size:10px;line-height:15px;text-align:center}
 #room button[aria-pressed="true"] .rb{background:var(--on-acc);color:var(--acc)}
 #room .rb[hidden],#log li.conv .cu[hidden]{display:none}
@@ -470,7 +472,7 @@ header select{background:var(--bg);color:var(--tx);border:1px solid var(--line);
 .coin{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;cursor:pointer;line-height:1.4}
 .coin[aria-disabled="true"]{opacity:.4;cursor:default;filter:grayscale(1)}
 #log .frm,#log li.conv .cv b .frm{display:inline;font-size:11px;margin-left:2px;opacity:.8;color:inherit}
-#dmbar .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:2px 8px;font:600 11px var(--ff);cursor:pointer;margin-left:6px}
+:is(#dmbar,#gdbar) .go{background:var(--acc);color:var(--on-acc);border:0;border-radius:6px;padding:2px 8px;font:600 11px var(--ff);cursor:pointer;margin-left:6px}
 #sp{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column}
 :is(#sp,#bmp) .sp-h{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
 :is(#sp,#bmp) .sp-h b{flex:1;font-size:14px}
@@ -738,7 +740,7 @@ html.pinned.mini #log{padding-bottom:12px}
 #sp .keys{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;margin:0}
 #sp .keys dt{font-family:ui-monospace,monospace;color:var(--acc-tx)}#sp .keys dd{margin:0;color:var(--mut)}
 #sp .ign{display:flex;flex-direction:column;gap:4px}#sp .ign div{display:flex;align-items:center;gap:8px;font-size:13px}#sp .ign div span{flex:1}
-#log .extm,#dmbar .extm{font-size:.78em;margin-left:3px;opacity:.85;cursor:default}
+#log .extm,:is(#dmbar,#gdbar) .extm{font-size:.78em;margin-left:3px;opacity:.85;cursor:default}
 #log .at[data-at]{cursor:pointer;border-radius:3px}
 #log .at[data-at]:hover,#log .at[data-at]:focus-visible{text-decoration:underline;outline:none}
 #log li.uhl{background:color-mix(in srgb,var(--acc) 13%,transparent);box-shadow:inset 3px 0 0 color-mix(in srgb,var(--acc) 70%,transparent)}
@@ -791,20 +793,41 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 .seg button:not([aria-pressed="true"]):not(:disabled):hover{background:color-mix(in srgb,var(--tx) 9%,transparent);color:var(--tx)}
 #ctabs button{border-radius:999px}
 #ctabs button[aria-pressed="true"],#ctabs button[aria-selected="true"]{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
-#in,#dmbar input,#fq{background:var(--field);border-color:var(--fieldb);border-radius:10px;box-shadow:var(--sh)}
-#pb,#emb,#dmbar button,#log li.conv .acts button,#log li.pmmore button{background:var(--btn);box-shadow:var(--sh)}
+#in,:is(#dmbar,#gdbar) input,#fq{background:var(--field);border-color:var(--fieldb);border-radius:10px;box-shadow:var(--sh)}
+#pb,#emb,:is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button{background:var(--btn);box-shadow:var(--sh)}
 #send,#pb,#emb{border-radius:10px}
-#dmbar button,#log li.conv .acts button,#log li.pmmore button,#log li.pm0 button{border-radius:8px}
+:is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button,#log li.pm0 button{border-radius:8px}
 #log li.sec{font-family:Comfortaa,var(--ff)}
+#room button[hidden]{display:none}
+#log li.gdf{align-self:stretch;padding:2px 2px 6px}
+#log li.gdf form{display:flex;gap:6px}
+#log li.gdf input{flex:1;min-width:0;background:var(--field);color:var(--tx);border:1px solid var(--fieldb);border-radius:8px;padding:5px 8px;font:inherit;font-size:13px}
+#log li.gdf input:focus{outline:none;border-color:var(--acc)}
+#log li.gdf button{background:var(--btn);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font:600 12px var(--ff);cursor:pointer}
+#log li.gdf button.ok{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
+#log li.gdf button.sure,#log li.conv .acts button.sure{background:var(--bad);color:#fff;border-color:var(--bad)}
+#log li.gdf .gdh{display:block;color:var(--mut);font-size:11px;margin-top:4px}
+#log .gdn{margin:6px 0 0;color:var(--ok);font-size:12px}
+#log li.b .gnm{display:block;font:700 12px var(--ff);margin-bottom:1px;cursor:pointer}
+#log li.pm0.gds{padding:4px 12px;font-size:12px;max-width:none}
+#log li.pm0.gdc{padding-top:14px}
+#gdbar .acts button[aria-pressed="true"]{border-color:var(--acc)}
+#log li.gdf .gdl{display:flex;gap:6px;flex-wrap:wrap}
+#log li.conv.gdlk{cursor:default}
+#log .grl{display:inline-block;font:700 10px var(--ff);padding:0 6px;margin-left:6px;border-radius:999px;background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc-tx);vertical-align:1px}
+#log li.gdf .gdz{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mut);margin-top:6px}
+#log li.gdf .gdz input{flex:none;width:16px;height:16px;margin:0;padding:0;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--acc);box-shadow:none}
+#log li.gdrole{padding-left:42px}
+#log li.conv.gdlk .acts{flex-wrap:wrap;justify-content:flex-end}
 </style></head>
 <body>
 <header>
   <div class="hr"><span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
-  <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
+  <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button><button type="button" data-r="guild" title="Гильдия — закрытый чат для своих" hidden>${rlab('guild')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="bmp" role="dialog" aria-label="Закладки" hidden></div><div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
 <div id="cbar" hidden></div><div id="away" role="status" hidden></div><div id="onlyb" role="status" hidden></div>
-<div id="dmbar" hidden></div>
+<div id="dmbar" hidden></div><div id="gdbar" hidden></div>
 <div id="pmtoast" role="status" hidden></div>
 <div id="sp" role="dialog" aria-label="Настройки чата" hidden></div>
 <ol id="log" role="log" aria-live="polite"></ol><p id="empty">Загружаю чат…</p><div id="gate" hidden></div>
@@ -882,7 +905,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     pickerInit();
     pastesInit();
     modInit();
-    pmInit(); pingInit(); findInit(); comfyInit(); growInit();
+    pmInit(); pingInit(); findInit(); comfyInit(); growInit(); gdInit();
     czInit();
     start();
     loadChannels();
@@ -1080,19 +1103,21 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     rb('city').disabled = !hasCity; rb('city').title = hasCity ? 'Чат города' : 'Чат города на этом канале выключен';
     rb('all').disabled = !hasMine && !hasCity;
     rb('pm').disabled = !S.me || !S.flags.dm; rb('pm').title = rb('pm').disabled ? (S.me ? 'Личные сообщения на этом канале выключены' : 'Войди на сайте игры, чтобы писать лично') : 'Личные сообщения и друзья';
+    rb('guild').disabled = !S.me; rb('guild').title = S.me ? 'Гильдия — закрытый чат для своих' : 'Войди на сайте игры — гильдия привязана к твоему нику';
     rb('ping').disabled = !S.me; rb('ping').title = S.me ? 'Сообщения, где тебя упомянули по @нику' : 'Войди на сайте игры — пинги ищутся по твоему нику';
     if (rb(S.room).disabled) S.room = hasCity ? 'city' : 'mine';
     S.cityChk = isMix(S.room) && hasCity && !S.inCity;   // пока не узнали, открыт ли город в игре, — полоску не показываем
     pingBoot();
-    pmBoot();
+    pmBoot(); gdBoot();
     for (const b of S.el.room.querySelectorAll('[data-r]')) b.setAttribute('aria-pressed', String(b.dataset.r === S.room));
     S.el.mine.hidden = !usesMine(S.room) || S.mines.length < 2;
-    renderTabs(); renderTargets(); updateBar(); pmBar();
+    renderTabs(); renderTargets(); updateBar(); pmBar(); gdBar();
     modLoad(gen);
     if (hasCity) townsLoad();   // 📍 где отряд и куда можно встать
     document.title = title(); if (S.pip) S.pip.document.title = title();
     inputState();
     if (S.room === 'pm') { clearLog(''); pmEnter(); return; }
+    if (S.room === 'guild') { clearLog(''); gdEnter(); return; }
     if (S.room === 'mine' && !hasMine) { clearLog('На этом канале у тебя нет шахты — переключись на 🏰 Город.'); return; }
     if (S.room === 'city' && !S.inCity) {
       if (await cityAttach(gen)) return;   // герой уже в городе (например, город открыт в игре) — просто подхватываем
@@ -1311,9 +1336,10 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   function renderLog() {
     if (S.mmenu) modMenuClose();
     if (S.room === 'pm') { pmRender(); return; }
+    if (S.room === 'guild') { gdRender(); return; }
     S.el.log.classList.remove('pm');
     S.el.log.innerHTML = '';
-    pmBar();
+    pmBar(); gdBar();
     const f = document.createDocumentFragment();
     for (const m of S.room === 'ping' ? pingView() : S.list) if (S.room === 'ping' || visible(m)) f.appendChild(row(m));
     S.el.log.appendChild(f);
@@ -1326,7 +1352,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   };
   function emptyState() {
     if (!S.el.gate.hidden) return;
-    if (S.room === 'pm') { S.el.empty.hidden = true; return; }
+    if (S.room === 'pm' || S.room === 'guild') { S.el.empty.hidden = true; return; }
     const has = !!S.el.log.firstElementChild;
     S.el.empty.hidden = has;
     if (!has && S.only) { S.el.empty.textContent = `В ленте нет сообщений ${dispName(S.only)}`; return; }
@@ -1613,6 +1639,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       const p = S.el.pmtoast.dataset.peer, w = S.el.pmtoast.dataset.where; S.el.pmtoast.hidden = true;
       if (e.target.closest('.x')) return;
       if (w === 'ping') { if (S.room !== 'ping') switchTo(S.ch, 'ping'); return; }
+      if (w && w.startsWith('guild:')) { GD.cur = w.slice(6); GD.view = GD.cur ? 'chat' : 'home'; if (S.room !== 'guild') switchTo(S.ch, 'guild'); else { gdRender(true); inputState(); } return; }
       if (w === 'live') { try { window.open('https://www.twitch.tv/' + encodeURIComponent(p), '_blank'); } catch {} return; }
       if (w === 'tracc') { tradeAccept(p); return; }
       if (w === 'game') { tradeShowGame(); return; }
@@ -1722,6 +1749,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const watching = S.room === 'pm' && P.peer === l && !hidden();
     if (!mine) {
       if (watching) pmMarkRead(l);
+      else if (GD_KEYM.test(m.t)) { /* служебное: ключ для гильдии — чат обработает сам */ }
+      else if (GD_INV.test(m.t)) { P.un.set(l, (P.un.get(l) || 0) + 1); pmToast(l, `⚜ ${pmName(l)} зовёт в гильдию`, 'Открыть', 'guild:'); czBeepOnce('dm', 'dm|' + (m.id || m.at)); }
       else { P.un.set(l, (P.un.get(l) || 0) + 1); awayNote('dm', l); pmToast(l, `✉ ${pmName(l)}: ${m.t}`, 'Ответить'); pmNotify(l, m); czBeepOnce('dm', 'dm|' + (m.id || m.at)); }
     }
     if (S.room === 'all') apply({ chat: [pmToFeed(m)] }, 'pm');
@@ -1734,7 +1763,9 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const P = S.pm;
     const cur = P.conv.get(l) || [], ids = new Set(cur.map((x) => x.id));
     let n = 0;
-    for (const x of list) { const m = x.fl ? x : pmNorm(x); if (extHas(m.t)) { extAdd(m.fl); m.t = extStrip(m.t); } if (ids.has(m.id)) continue; ids.add(m.id); cur.push(m); n++; }
+    const fresh = [];
+    for (const x of list) { const m = x.fl ? x : pmNorm(x); if (extHas(m.t)) { extAdd(m.fl); m.t = extStrip(m.t); } if (ids.has(m.id)) continue; ids.add(m.id); cur.push(m); fresh.push(m); n++; }
+    if (fresh.length) gdScanDm(S.ch, fresh);
     if (!n && P.conv.has(l)) return 0;
     cur.sort((a, b) => a.at - b.at);
     if (cur.length > PM_MAX) cur.splice(0, cur.length - PM_MAX);
@@ -2139,8 +2170,9 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const items = [];
     if (S.flags.dm && st !== 'blocked') items.push(['dm', '✉ Написать лично']);
     items.push(['reply', '↩ Ответить в этом чате']);
-    if (S.room !== 'pm') items.push(S.only === l ? ['onlyoff', '👁 Показать всех'] : ['only', '👁 Только его сообщения']);
+    if (S.room !== 'pm' && S.room !== 'guild') items.push(S.only === l ? ['onlyoff', '👁 Показать всех'] : ['only', '👁 Только его сообщения']);
     items.push(['nick', NK[l] ? '🎨 Свой цвет и прозвище ✓' : '🎨 Свой цвет и прозвище']);
+    { const og = gdOn() && gdLoad().find((g) => gdOwn(g) && !g.gone && !gdIsMem(g, l)); if (og && S.flags.dm) items.push(['gdinv', `⚜ Позвать в «${gdName(og).slice(0, 24)}»`]); }
     items.push(S.ign.has(l) ? ['unign', '👁 Снять игнор'] : ['ign', '🙈 Игнорировать в чате']);
     if (S.meFriends) {
       if (st === 'friends') items.push(['', `👥 В друзьях${f && f.on ? ' · ' + (f.on.t || 'в сети') : ''}`, true]);
@@ -2168,6 +2200,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       if (k === 'reply') { S.el.inp.value = `@${l} ` + S.el.inp.value.replace(/^@\S+\s*/, ''); S.el.inp.focus(); return; }
       if (k === 'coin' && f) return giveCoin(f.id);
       if (k === 'trade') return tradeInvite(l);
+      if (k === 'gdinv') { const og = gdLoad().find((g) => gdOwn(g) && !g.gone && !gdIsMem(g, l)); if (og) gdInvite(og, l); return; }
       if (k === 'ign' || k === 'unign') return ignSet(l, k === 'ign');
       if (k === 'only') return onlySet(l);
       if (k === 'onlyoff') return onlySet('');
@@ -2418,9 +2451,9 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   }
 
   // ---- горячие клавиши ----
-  const ROOM_KEYS = ['mine', 'city', 'all', 'pm', 'ping'];
+  const ROOM_KEYS = ['mine', 'city', 'all', 'pm', 'ping', 'guild'];
   function hotkeys(e) {
-    if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-5]$/.test(e.code)) {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-6]$/.test(e.code)) {
       const r = ROOM_KEYS[+e.code.slice(5) - 1], b = S.el.room.querySelector(`[data-r="${r}"]`);
       if (b && !b.disabled) { e.preventDefault(); if (r !== S.room) switchTo(S.ch, r); }
     }
@@ -2774,20 +2807,22 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     S.el.tgt.hidden = !isMix(S.room) || !opts.length;
   }
   function setTarget(k) { S.to = k; S.el.tgt.value = k; lsSet('lgmc_mix_to', k); inputState(); }
-  const target = () => (isMix(S.room) ? S.to : S.room === 'mine' ? 'mine' : S.room === 'pm' ? 'pm' : S.tab);
+  const target = () => (isMix(S.room) ? S.to : S.room === 'mine' ? 'mine' : S.room === 'pm' ? 'pm' : S.room === 'guild' ? 'guild' : S.tab);
 
   function inputState() {
     const t = target();
-    const gate = !['mine', 'dm', 'pm'].includes(t) && !S.inCity;
+    const gate = !['mine', 'dm', 'pm', 'guild'].includes(t) && !S.inCity;
+    const gdg = t === 'guild' ? gdCur() : null, gdOff = t === 'guild' && (!gdg || !!gdg.gone || !!gdg.wait || GD.view === 'home');
     const ro = t === 'ev';
     const banned = (t === 'pm' || t === 'dm') && !!S.pm.ban;
-    const off = !S.me || gate || ro || banned || (t === 'pm' && !S.flags.dm);
+    const off = !S.me || gate || ro || banned || gdOff || (t === 'pm' && !S.flags.dm);
     S.el.inp.disabled = off; S.el.send.disabled = off; S.el.emb.disabled = off; if (S.el.pb) S.el.pb.disabled = off;
     if (off) { pickerOpen(false, true); pastesOpen(false, true); }
     S.el.inp.placeholder = !S.me ? 'Войди через Twitch на сайте игры, чтобы писать'
       : gate ? (S.room === 'all' ? 'Чтобы писать в город, войди в город' : 'Сначала войди в город')
       : ro ? 'Здесь только события игры'
       : banned ? 'Модератор закрыл тебе личку'
+      : t === 'guild' ? (!gdg || GD.view === 'home' ? 'Выбери гильдию или создай свою' : gdg.wait ? 'Ждём, пока глава подтвердит…' : gdg.gone ? 'Гильдия недоступна' : `В «${gdName(gdg)}» — прочитают только свои…`)
       : t === 'pm' ? (S.pm.peer ? `Лично для ${pmName(S.pm.peer)}…` : '@ник сообщение — новый диалог')
       : t === 'mine' ? 'Написать в чат шахты…'
       : t === 'tr' ? 'Куплю / продам / меняю…'
@@ -3343,7 +3378,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -3436,6 +3471,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   }
   function czApply() {
     CZ_HL = czWords(CZ.hl); CZ_HIDE = czWords(CZ.hide);
+    if (typeof gdTabVis === 'function') try { gdTabVis(); } catch {}
     const css = czCss();
     for (const d of docs()) {
       // шрифты игры (Nunito, Comfortaa) — с того же Google Fonts, откуда их берёт сама игра
@@ -3538,7 +3574,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
         </section>
         <section><h4>Сообщения</h4>
           ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}${tg('scrollbar', 'Полоса прокрутки')}${tg('hist', 'Помнить ленту между запусками (игра отдаёт только последние ~120)')}
-          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('tips', 'Подсказки над полем ввода: «Скопировано», «В закладках»…')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
+          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('tips', 'Подсказки над полем ввода: «Скопировано», «В закладках»…')}${tg('guilds', 'Вкладка ⚜ Гильдия — закрытый чат для своих (сама появится, если позовут)')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
           ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
         </section>
         <section><h4>Подсветка и фильтр</h4>
@@ -3657,6 +3693,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     let path, body;
     const tg = target();
     if (tg === 'pm' || tg === 'dm') { await pmSay(t, tg); return; }
+    if (tg === 'guild') { await gdSay(t); return; }
     const raw = t;
     if (S.reply && t[0] !== '/') t = replyWrap(t);
     if (t[0] === '/' && canMod(tg === 'mine' ? 'mine' : 'city')) { if (await modCommand(tg === 'mine' ? 'mine' : 'city', t)) S.el.inp.value = ''; return; }
@@ -3680,6 +3717,588 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
       }
     } catch { S.el.err.textContent = 'Нет связи — сообщение не ушло'; }
     finally { inputState(); if (!S.el.inp.disabled) S.el.inp.focus(); }
+  }
+
+
+  // ====================== ⚜ Гильдии: закрытый чат для своих ======================
+  // Идея — из доработки другого игрока (01.11), переписано с подписями.
+  // • Сообщения шифруются ключом гильдии (AES-GCM 256) и ходят через ntfy.sh — бесплатный «почтовый ящик»;
+  //   адрес выводится из ключа, так что без ключа его не узнать. Сервер видит только шифр.
+  // • У каждого игрока своя пара ключей ECDSA P-256 (в этом браузере). Открытый ключ он передаёт главе
+  //   ЛИЧНЫМ сообщением игры — отправителя личных проверяет сервер игры, значит, подделать нельзя.
+  //   Глава подписывает состав, каждый — свои сообщения: выдать себя за другого нельзя, чужой с кодом писать не может.
+  // • Приглашение (LGG2:…) глава шлёт в личные; в нём ключ гильдии и открытый ключ главы.
+  // • Исключение и «сменить ключ» — новый ключ и новый адрес, оставшимся новое приглашение уходит в личные само.
+  // • Сервер держит сообщения ~12 часов; пропущенное дольше подтянется от участников, кто в сети (догон).
+  // • На браузер — одно подключение (Web Locks), остальные окна получают сообщения через BroadcastChannel.
+  // Честно: ключ гильдии проходит через личные игры, то есть его технически может увидеть сервер игры.
+  const NTFY = 'https://ntfy.sh', GD_MAX = 400;
+  const GD_HASH = (/[#&]lgg=([^&]+)/.exec(location.hash) || [])[1] || '';   // открыли ссылку-приглашение
+  const GD = { list: [], cur: '', view: '', un: new Map(), es: new Map(), keys: new Map(), sure: '', busy: false, note: '', id: null, lead: false, bc: null, inv: [], old: [], seenSync: new Set() };
+  const gdLK = () => 'lgmc_g2_' + (S.me || '_');
+  const gdHK = (g) => 'lgmc_g2h_' + g.id;
+  const B64 = {
+    enc: (u8) => { let s = ''; for (const b of u8) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
+    dec: (s) => { s = String(s).replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); },
+  };
+  const gdRnd = (n) => B64.enc(crypto.getRandomValues(new Uint8Array(n)));
+  const gdOn = () => !!(window.crypto && crypto.subtle);
+  // перечитать из общего хранилища, НЕ подменяя объекты: на них держатся ссылки в ожидающих действиях
+  function gdLoad() {
+    const v = lsGet(gdLK(), []), arr = Array.isArray(v) ? v.filter((g) => g && g.id) : [];
+    GD.list = arr.map((x) => { const o = GD.list.find((y) => y.id === x.id); if (!o) return x; for (const k of Object.keys(o)) if (!(k in x)) delete o[k]; return Object.assign(o, x); });
+    return GD.list;
+  }
+  function gdSave() { lsSet(gdLK(), GD.list); }
+  const gdGet = (id) => GD.list.find((g) => g.id === id) || null;
+  const gdCur = () => gdGet(GD.cur) || GD.list.find((g) => !g.gone) || GD.list[0] || null;
+  const gdName = (g) => (g && g.name) || 'Гильдия';
+  const gdMem = (g) => Object.keys((g.roster && g.roster.m) || {});
+  const gdIsMem = (g, l) => !!(g.roster && g.roster.m && g.roster.m[l]);
+  const gdOwn = (g) => !!g && g.owner === S.me;
+  // роли: подпись и право звать — назначает только глава, лежат в подписанном составе
+  const gdRole = (g, l) => (g && g.roster && g.roster.r && g.roster.r[l]) || null;
+  const gdCanInv = (g) => !!g && !g.gone && (gdOwn(g) || (!g.wait && !!(gdRole(g, S.me) || {}).z));
+  const GD_ROLES = ['Заместитель', 'Казначей', 'Ветеран', 'Рекрутёр', 'Новичок'];
+  const gdRoleTag = (g, l) => { const r = l === g.owner ? { t: 'глава' } : gdRole(g, l); return r && r.t ? `<small class="grl">${l === g.owner ? '👑 ' : ''}${esc(r.t)}</small>` : ''; };
+  // «сделать один раз на весь браузер» — окон с чатом может быть несколько
+  function gdOnce(id, ttl = 60000) {
+    try {
+      const k = 'lgmc_g2once', now = Date.now(), done = (JSON.parse(localStorage.getItem(k) || '[]') || []).filter((x) => now - x[1] < ttl);
+      if (done.some((x) => x[0] === id)) return false;
+      done.push([id, now]); localStorage.setItem(k, JSON.stringify(done.slice(-60))); return true;
+    } catch { return true; }
+  }
+
+  // ---- ключи ----
+  async function gdIdent() {   // своя пара ECDSA: создаётся один раз на браузер и игрока
+    if (GD.id && GD.id.me === S.me) return GD.id;
+    const k = 'lgmc_g2id_' + S.me; let v = lsGet(k, null);
+    if (!v || !v.pub || !v.jwk) {
+      const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+      v = { pub: B64.enc(new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey))), jwk: await crypto.subtle.exportKey('jwk', kp.privateKey) };
+      lsSet(k, v);
+    }
+    GD.id = { me: S.me, pub: v.pub, priv: await crypto.subtle.importKey('jwk', v.jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']) };
+    return GD.id;
+  }
+  const PUBC = new Map();
+  async function gdPubKey(b64) { if (!PUBC.has(b64)) PUBC.set(b64, await crypto.subtle.importKey('raw', B64.dec(b64), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])); return PUBC.get(b64); }
+  async function gdAes(g) {
+    const k = g.id + ':' + g.ep;
+    if (!GD.keys.has(k)) {
+      const raw = B64.dec(g.key), h = new Uint8Array(await crypto.subtle.digest('SHA-256', raw));
+      GD.keys.set(k, { k: await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']), topic: 'lgg2_' + B64.enc(h.slice(0, 15)) });
+    }
+    return GD.keys.get(k);
+  }
+  async function gdSign(obj) {
+    const id = await gdIdent(), p = JSON.stringify(obj);
+    const s = B64.enc(new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, id.priv, new TextEncoder().encode(p))));
+    return { p, s };
+  }
+  async function gdVerify(pub, env) {
+    try { return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, await gdPubKey(pub), B64.dec(env.s), new TextEncoder().encode(env.p)); } catch { return false; }
+  }
+  async function gdSeal(g, env) {
+    const { k } = await gdAes(g), iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, k, new TextEncoder().encode(JSON.stringify(env))));
+    const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+    return 'g2.' + B64.enc(out);
+  }
+  async function gdOpen(g, s) {
+    try {
+      if (!/^g2\./.test(s || '')) return null;
+      const raw = B64.dec(s.slice(3)), { k } = await gdAes(g);
+      const env = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(0, 12) }, k, raw.slice(12))));
+      return env && typeof env.p === 'string' && typeof env.s === 'string' ? env : null;
+    } catch { return null; }
+  }
+  // проверить подписанную запись: состав и переезд — подпись главы, остальное — подпись участника из состава
+  async function gdCheck(g, env) {
+    let d; try { d = JSON.parse(env.p); } catch { return null; }
+    if (!d || d.g !== g.id || typeof d.k !== 'string') return null;
+    const f = nickOf(d.f); if (!f) return null;
+    const byOwner = d.k === 'roster' || d.k === 'moved';
+    const pub = byOwner ? (f === g.owner ? g.opk : null) : g.roster && g.roster.m && g.roster.m[f];
+    if (!pub || !(await gdVerify(pub, env))) return null;
+    d.f = f; return d;
+  }
+
+  // ---- приглашения и ключи в личных игры ----
+  // LGG2:<гильдия>.<поколение>.<ключ гильдии>.<открытый ключ главы> — от главы; LGK2:<гильдия>.<мой открытый ключ> — главе
+  // ссылка-приглашение: тот же код + «.<метка ссылки>~<ник главы>» — глава примет ключ по метке, а не только у тех, кого позвал сам
+  const GD_INV = /LGG2:([A-Za-z0-9_-]{8})\.(\d{1,5})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{87})(?:\.([A-Za-z0-9_-]{8})~([a-z0-9_]{1,25}))?/i;
+  const GD_KEYM = /LGK2:([A-Za-z0-9_-]{8})\.([A-Za-z0-9_-]{87})(?:\.([A-Za-z0-9_-]{8}))?/;
+  const GD_LINK_TTL = 7 * 864e5;
+  const gdLinkCode = (g, x) => `LGG2:${g.id}.${g.ep}.${g.key}.${g.opk}.${x.t}~${g.owner}`;
+  const gdLinkUrl = (g, x) => `${ORIGIN}/site/ver?minechat=${encodeURIComponent(g.ch || S.ch)}&room=guild#lgg=${gdLinkCode(g, x)}`;
+  const gdLinkOk = (g, x) => x && Date.now() - x.at < GD_LINK_TTL && (!x.n || (x.used || []).length < x.n);
+  // разобрать ссылку или код, вставленные вручную или открытые по ссылке
+  function gdParseInv(text, ch) {
+    const x = GD_INV.exec(String(text || '')); if (!x || !x[5]) return null;
+    const from = nickOf(x[6]); if (!from) return null;
+    return { id: x[1], ep: +x[2], key: x[3], opk: x[4], tok: x[5], from, ch: ch || S.ch, at: Date.now(), name: '', link: 1 };
+  }
+  const GD_OLD = /LGG1:[A-Za-z0-9_-]{8}\.\d{1,4}\.[A-Za-z0-9_-]{43}/;
+  const gdInvText = (g) => `⚜ Зову в гильдию «${gdName(g).slice(0, 30)}» — закрытый чат в «Чате Легиона» (github.com/frebertor-sudo/legion-chat-window): LGG2:${g.id}.${g.ep}.${g.key}.${g.opk}`;
+  async function gdDm(ch, to, text) {
+    try {
+      const r = await pfetch(`/c/${ch}/api/dm/say`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, text }) });
+      const j = await r.json().catch(() => null); return j || { ok: false, error: `HTTP ${r.status}` };
+    } catch { return { ok: false, error: 'нет связи' }; }
+  }
+  async function gdDmRead(ch, l) {
+    try { const r = await pfetch(`/c/${ch}/api/dm?with=${encodeURIComponent(l)}`, { credentials: 'same-origin' }); const j = await r.json().catch(() => null); return j && j.ok ? (j.list || []) : []; } catch { return []; }
+  }
+  // пришли личные (живьём или подгрузкой) — проверить, нет ли там приглашения или ключа
+  function gdScanDm(ch, list) {
+    if (!S.me || !gdOn()) return;
+    let found = false;
+    for (const m of list || []) {
+      const from = nickOf(m.fl), t = String(m.t || ''); if (!from || from === S.me) continue;
+      let x = GD_INV.exec(t);
+      if (x) { found = true; const own = x[6] ? nickOf(x[6]) : from; gdSeeInvite({ id: x[1], ep: +x[2], key: x[3], opk: x[4], tok: x[5] || '', from: own || from, via: own && own !== from ? from : '', ch, at: m.at || 0, name: ((/«([^»]{1,40})»/.exec(t) || [])[1] || '') }); continue; }
+      x = GD_KEYM.exec(t);
+      if (x) { found = true; gdSeeKey({ id: x[1], pub: x[2], tok: x[3] || '', from, ch }); continue; }
+      if (GD_OLD.test(t) && !GD.old.some((o) => o.from === from)) { GD.old.push({ from, at: m.at || 0 }); found = true; }
+    }
+    if (found) { gdTabVis(); gdBadge(); if (S.room === 'guild') gdSoft(); }
+  }
+  function gdSeeInvite(p) {
+    gdLoad();
+    const g = gdGet(p.id);
+    if (g) {
+      // глава сменил ключ: новое поколение от того же главы с тем же ключом главы — переходим сами
+      if (!g.gone || g.gone === 'moved') if (p.ep > g.ep && p.from === g.owner && !p.via && !p.tok && p.opk === g.opk && gdOnce('mv|' + g.id + '|' + p.ep, 864e5)) gdRekeyTo(g, p);
+      return;
+    }
+    const i = GD.inv.findIndex((x) => x.id === p.id);
+    if (i < 0) GD.inv.push(p); else if (GD.inv[i].ep < p.ep) GD.inv[i] = p;
+  }
+  async function gdSeeKey(p) {
+    gdLoad();
+    const g = gdGet(p.id);
+    if (!gdOwn(g) || g.gone) return;
+    const was = g.roster.m[p.from];
+    if (was === p.pub) { if ((g.invited || []).some((x) => x.l === p.from)) { g.invited = g.invited.filter((x) => x.l !== p.from); gdSave(); } return; }
+    // принять ключ только у приглашённого (или у участника, который сменил браузер — он тоже приходит по приглашению)
+    const link = p.tok ? (g.links || []).find((x) => x.t === p.tok) : null;
+    const byLink = link && (gdLinkOk(g, link) || (link.used || []).includes(p.from));
+    if (!(g.invited || []).some((x) => x.l === p.from) && !byLink) return;
+    if (!gdOnce('key|' + g.id + '|' + p.from + '|' + p.pub, 864e5)) return;
+    if (byLink && !(link.used || []).includes(p.from)) link.used = [...(link.used || []), p.from];
+    if (byLink) g.mch = Object.assign({}, g.mch, { [p.from]: p.ch });
+    g.roster.m[p.from] = p.pub; g.mch = Object.assign({}, g.mch, { [p.from]: p.ch }); g.invited = (g.invited || []).filter((x) => x.l !== p.from); gdSave();
+    await gdRoster(g);
+    gdSys(g, `${pmName(p.from)} в гильдии${byLink ? ' (по ссылке)' : ''}`);
+    if (S.room === 'guild') gdSoft();
+  }
+  // проверить личные с теми, от кого ждём ответа (вдруг пришло, пока чат был закрыт)
+  async function gdPollDm() {
+    if (!S.me) return;
+    gdLoad();
+    for (const g of GD.list) {
+      if (g.gone && g.gone !== 'moved') continue;
+      if (gdOwn(g)) for (const x of g.invited || []) gdScanDm(x.ch, await gdDmRead(x.ch, x.l));
+      else if (g.owner && (g.wait || g.gone === 'moved')) gdScanDm(g.ch, await gdDmRead(g.ch, g.owner));
+    }
+  }
+
+  // ---- сеть: ntfy.sh ----
+  async function gdPost(g, d) {
+    try {
+      const env = await gdSign(Object.assign({ g: g.id, f: S.me, ts: Date.now() }, d));
+      const { topic } = await gdAes(g);
+      // без Content-Type — «простой» запрос, без предварительного OPTIONS
+      const r = await pfetch(NTFY + '/', { method: 'POST', credentials: 'omit', body: JSON.stringify({ topic, message: await gdSeal(g, env) }) });
+      return r.ok ? env : r.status === 429 ? 'limit' : null;
+    } catch { return null; }
+  }
+  // одно подключение на браузер: кто держит замок — слушает ntfy и пересылает остальным окнам
+  function gdLead() {
+    try { GD.bc = new BroadcastChannel('lgmc-g2'); GD.bc.onmessage = (e) => { const d = e.data || {}; if (d.me === S.me && d.t === 'n') gdIncoming(d.gid, d.ep, d.msg); if (d.t === 'sub') gdSubAll(); }; } catch {}
+    const go = () => { GD.lead = true; gdSubAll(); return new Promise(() => {}); };
+    try { if (navigator.locks && navigator.locks.request) { navigator.locks.request('lgmc-g2-lead', go); return; } } catch {}
+    go();
+  }
+  function gdSubAll() {
+    if (!GD.lead || !S.me) return;
+    gdLoad();
+    const want = new Set();
+    Promise.all(GD.list.filter((g) => !g.gone).map(async (g) => { const { topic } = await gdAes(g); want.add(topic); gdSub(g, topic); })).then(() => {
+      for (const [t, x] of GD.es) if (!want.has(t)) { try { x.es.close(); } catch {} GD.es.delete(t); }
+    });
+  }
+  function gdSub(g, topic) {
+    if (GD.es.has(topic)) return;
+    const sk = 'lgmc_g2s_' + topic, since = lsGet(sk, '') || '12h';
+    let es; try { es = new PES(`${NTFY}/${topic}/sse?since=${encodeURIComponent(since)}`); } catch { return; }
+    const x = { es, gid: g.id, ep: g.ep, ok: false }; GD.es.set(topic, x);
+    es.addEventListener('open', () => { x.ok = true; gdDot(); if (!x.asked) { x.asked = true; gdAskSync(g); } });
+    es.addEventListener('message', (e) => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.event && m.event !== 'message') return;
+      if (m.id) lsSet(sk, m.id);
+      const msg = { id: m.id, time: m.time, message: m.message };
+      gdIncoming(g.id, g.ep, msg);
+      try { if (GD.bc) GD.bc.postMessage({ t: 'n', me: S.me, gid: g.id, ep: g.ep, msg }); } catch {}
+    });
+    es.onerror = () => { x.ok = false; gdDot(); };
+  }
+  function gdDot() { if (S.room !== 'guild' || !S.el) return; const n = [...GD.es.values()]; S.el.dot.className = !GD.lead ? 'ok' : n.some((x) => x.ok) ? 'ok' : n.length ? 'bad' : ''; S.el.dot.title = S.el.dot.className === 'bad' ? 'Нет связи с ntfy.sh — переподключаюсь' : 'Гильдия на связи'; }
+
+  // ---- история (общая для всех окон этого браузера) ----
+  function gdHist(g) { const h = lsGet(gdHK(g), []); return Array.isArray(h) ? h : []; }
+  function gdKeep(g, items) {   // items: {id, f, n, t, at, sys?, env?}
+    const h = gdHist(g), ids = new Set(h.map((x) => x.id)); let n = 0;
+    for (const x of items) { if (!x.id || ids.has(x.id)) continue; ids.add(x.id); h.push(x); n++; }
+    if (!n) return 0;
+    h.sort((a, b) => a.at - b.at); if (h.length > GD_MAX) h.splice(0, h.length - GD_MAX);
+    lsSet(gdHK(g), h); return n;
+  }
+  const gdSys = (g, t, id) => gdKeep(g, [{ id: id || 'sys:' + gdRnd(5), sys: 1, t, at: Date.now() }]);
+
+  // ---- пришла запись ----
+  async function gdIncoming(gid, ep, msg) {
+    gdLoad();
+    const g = gdGet(gid); if (!g || g.ep !== ep) return;
+    const env = await gdOpen(g, msg.message); if (!env) return;
+    await gdApply(g, env, (msg.time || 0) * 1000 || Date.now(), true);
+  }
+  async function gdApply(g, env, at, live) {
+    const d = await gdCheck(g, env); if (!d) return;
+    let changed = false;
+    if (d.k === 'msg' && d.t) {
+      const ts = Math.min(+d.ts || at, Date.now() + 60000);
+      const n = gdKeep(g, [{ id: String(d.id || ''), f: d.f, t: String(d.t).slice(0, 500), at: ts, env }]);
+      changed = !!n;
+      if (n && live && d.f !== S.me) {
+        const viewing = S.room === 'guild' && GD.cur === g.id && GD.view === 'chat' && !hidden();
+        if (!viewing) {
+          GD.un.set(g.id, (GD.un.get(g.id) || 0) + 1); gdBadge();
+          pmToast(d.f, `⚜ ${gdName(g)} · ${dispName(d.f)}: ${String(d.t).slice(0, 70)}`, 'Гильдия', 'guild:' + g.id);
+          czBeepOnce('dm', 'g2|' + d.id);
+        }
+      }
+    } else if (d.k === 'roster') {
+      const v = +d.v || 0;
+      if (v > ((g.roster && g.roster.v) || 0) && d.m && typeof d.m === 'object') {
+        const was = g.roster ? Object.keys(g.roster.m || {}) : [];
+        const m = {}; for (const [l, p] of Object.entries(d.m)) { const n = nickOf(l); if (n && /^[A-Za-z0-9_-]{87}$/.test(p)) m[n] = p; }
+        const r = {}; for (const [l, x] of Object.entries(d.r && typeof d.r === 'object' ? d.r : {})) { const n = nickOf(l); if (n && m[n] && x && (x.t || x.z)) r[n] = { t: String(x.t || '').slice(0, 20), z: !!x.z }; }
+        g.roster = { v, m, r }; g.name = String(d.name || g.name || '').slice(0, 40);
+        if (!Object.keys(m).length) { g.gone = 'closed'; gdSys(g, 'Глава распустил гильдию', 'r' + v); }
+        else if (!m[S.me] && (was.includes(S.me) || !g.wait)) { g.gone = 'kicked'; gdSys(g, 'Тебя исключили из гильдии', 'r' + v); }
+        else if (g.wait && m[S.me] === (await gdIdent()).pub) { delete g.wait; gdSys(g, 'Глава подтвердил — можно писать', 'w' + v); setTimeout(() => { if (GD.lead) gdAskSync(g); }, 500); }
+        if (was.length) for (const l of Object.keys(m)) if (!was.includes(l) && l !== S.me) gdSys(g, `${dispName(l)} вступил в гильдию`, 'j' + v + l);
+        if (was.length) for (const l of was) if (!m[l] && l !== S.me) gdSys(g, `${dispName(l)} больше не в гильдии`, 'x' + v + l);
+        gdSave(); changed = true;
+        if (g.gone) gdSubAll();
+      }
+    } else if (d.k === 'moved' && !g.gone && !gdOwn(g)) {
+      g.gone = 'moved'; gdSave(); changed = true;
+      gdSys(g, 'Глава сменил ключ гильдии — новое приглашение придёт в личные, чат перейдёт на него сам', 'm' + d.ts);
+      if (!gdOwn(g)) setTimeout(gdPollDm, 4000);
+    } else if (d.k === 'leave' && gdOwn(g) && gdIsMem(g, d.f) && d.f !== S.me) {
+      if (gdOnce('lv|' + g.id + '|' + d.f + '|' + d.ts, 864e5)) { delete g.roster.m[d.f]; gdSave(); await gdRoster(g); gdSys(g, `${dispName(d.f)} вышел из гильдии. Он знает старый ключ — можно «🔑 Сменить ключ»`); changed = true; }
+    } else if (d.k === 'inv' && gdOwn(g) && d.f !== S.me && (gdRole(g, d.f) || {}).z && /^[A-Za-z0-9_-]{8}$/.test(d.tok || '')) {
+      if (!(g.links || []).some((x) => x.t === d.tok)) { g.links = (g.links || []).concat({ t: d.tok, at: Math.min(+d.ts || Date.now(), Date.now()), n: d.n ? 1 : 0, used: [], by: d.f }); }
+      const l = nickOf(d.l); if (l && !gdIsMem(g, l)) g.invited = (g.invited || []).filter((x) => x.l !== l).concat({ l, ch: nickOf(d.ch) || g.ch, at: Date.now(), by: d.f });
+      gdSave(); changed = true;
+    } else if (d.k === 'sync?' && d.f !== S.me && GD.lead) {
+      gdSyncReply(g, d);
+    } else if (d.k === 'sync' && Array.isArray(d.items)) {
+      GD.seenSync.add(d.rq);
+      let n = 0; for (const e of d.items.slice(0, 60)) if (e && typeof e.p === 'string') { const before = gdHist(g).length; await gdApply(g, e, at, false); if (gdHist(g).length > before) n++; }
+      changed = n > 0;
+    }
+    if (changed && S.room === 'guild' && GD.cur === g.id) { const keep = S.stick; gdSoft(); if (keep && GD.view === 'chat') toBottom(); inputState(); }
+    if (changed) gdTabVis();
+  }
+
+  // ---- догон истории: «у кого есть сообщения новее …?» — отвечает один, кто в сети ----
+  async function gdAskSync(g) {
+    if (g.wait) return;
+    const h = gdHist(g).filter((x) => !x.sys), last = h.length ? h[h.length - 1].at : 0;
+    await gdPost(g, { k: 'sync?', rq: gdRnd(6), since: last });
+  }
+  function gdSyncReply(g, d) {
+    const since = +d.since || 0, items = gdHist(g).filter((x) => x.env && x.at > since);
+    if (!items.length) return;
+    setTimeout(async () => {
+      if (GD.seenSync.has(d.rq)) return;   // уже ответил кто-то другой
+      const out = []; let size = 0;
+      for (let i = items.length - 1; i >= 0; i--) { const s = JSON.stringify(items[i].env).length; if (size + s > 2400) break; size += s; out.unshift(items[i].env); }
+      if (out.length) await gdPost(g, { k: 'sync', rq: d.rq, items: out });
+    }, 400 + Math.random() * 2200);
+  }
+
+  // ---- действия ----
+  async function gdRoster(g) { g.roster.v = (g.roster.v || 0) + 1; gdSave(); return gdPost(g, { k: 'roster', v: g.roster.v, name: g.name, m: g.roster.m, r: g.roster.r || {} }); }
+  async function gdCreate(name) {
+    name = String(name || '').trim().slice(0, 40);
+    if (!name) { S.el.err.textContent = 'Назови гильдию'; return; }
+    if (!S.me) { S.el.err.textContent = 'Войди через Twitch на сайте игры'; return; }
+    const id = await gdIdent();
+    gdLoad();
+    const g = { id: gdRnd(6), ep: 1, key: gdRnd(32), name, owner: S.me, opk: id.pub, ch: S.ch, roster: { v: 0, m: { [S.me]: id.pub } }, invited: [] };
+    GD.list.push(g); GD.cur = g.id; gdSave();
+    const r = await gdRoster(g);
+    gdSys(g, `Гильдия «${name}» создана. Пригласи участников — им нужен «Чат Легиона» 3.18 или новее.`);
+    GD.view = 'members'; gdTabVis(); gdSubAll(); try { GD.bc && GD.bc.postMessage({ t: 'sub' }); } catch {}
+    gdRender(); inputState();
+    if (!r) S.el.err.textContent = 'Гильдия создана, но связи с ntfy.sh сейчас нет — сообщения уйдут, когда появится';
+  }
+  async function gdInvite(g, who) {
+    const l = nickOf(who); if (!l) { S.el.err.textContent = 'Напиши ник игрока'; return; }
+    if (l === S.me) { S.el.err.textContent = 'Ты уже в гильдии'; return; }
+    if (!gdCanInv(g)) { S.el.err.textContent = 'Звать в гильдию может глава или тот, кому он это разрешил'; return; }
+    if (!S.flags.dm) { S.el.err.textContent = 'На этом канале личные выключены — пригласить не получится'; return; }
+    let text = gdInvText(g);
+    if (!gdOwn(g)) {   // заместитель: приглашение с меткой; главе — подписанная запись, чтобы он принял ключ
+      const x = { t: gdRnd(6), at: Date.now(), n: 1, used: [], by: S.me };
+      const ok = await gdPost(g, { k: 'inv', tok: x.t, n: 1, l, ch: S.ch });
+      if (!ok || typeof ok !== 'object') { S.el.err.textContent = 'Нет связи с ntfy.sh — попробуй позже'; return; }
+      text = `⚜ Зову в гильдию «${gdName(g).slice(0, 30)}» — закрытый чат в «Чате Легиона» (github.com/frebertor-sudo/legion-chat-window): ${gdLinkCode(g, x)}`;
+    }
+    const r = await gdDm(S.ch, l, text);
+    if (r && r.ok) {
+      g.invited = (g.invited || []).filter((x) => x.l !== l).concat({ l, ch: S.ch, at: Date.now() }); gdSave();
+      S.el.err.textContent = ''; GD.note = `Приглашение ушло ${pmName(l)} в личные. Он появится в составе, когда примет его (тебе нужно быть в сети).`;
+      if (S.room !== 'guild') { okMsg(`⚜ ${GD.note}`); GD.note = ''; }
+    } else S.el.err.textContent = `Личное ${pmName(l)} не ушло: ${(r && (ERR[r.error] || r.error)) || 'нет связи'}`;
+    gdRender();
+  }
+  async function gdJoin(p) {
+    if (!S.flags.dm && p.ch === S.ch) { S.el.err.textContent = 'На этом канале личные выключены'; return; }
+    const id = await gdIdent();
+    const r = await gdDm(p.ch, p.from, `⚜ Вступаю в гильдию — ключ для «Чата Легиона»: LGK2:${p.id}.${id.pub}${p.tok ? '.' + p.tok : ''}`);
+    if (!r || !r.ok) { S.el.err.textContent = `Не получилось ответить ${pmName(p.from)}: ${(r && (ERR[r.error] || r.error)) || 'нет связи'}`; return; }
+    gdLoad();
+    let g = gdGet(p.id);
+    if (!g) { g = { id: p.id, ep: p.ep, key: p.key, name: p.name, owner: p.from, opk: p.opk, ch: p.ch, roster: { v: 0, m: {} }, wait: 1 }; GD.list.push(g); }
+    else Object.assign(g, { ep: p.ep, key: p.key, opk: p.opk, owner: p.from, ch: p.ch, wait: 1 }), delete g.gone;
+    gdSave(); GD.inv = GD.inv.filter((x) => x.id !== p.id);
+    gdSys(g, `Ты принял приглашение. Ждём, пока ${pmName(p.from)} подтвердит — он должен быть в сети.`);
+    GD.cur = g.id; GD.view = 'chat'; gdTabVis(); gdSubAll(); try { GD.bc && GD.bc.postMessage({ t: 'sub' }); } catch {}
+    gdRender(true); inputState();
+  }
+  async function gdRekeyTo(g, p) {   // переход участника на новый ключ от главы
+    Object.assign(g, { ep: p.ep, key: p.key, ch: p.ch }); delete g.gone; g.roster = { v: 0, m: {} }; g.wait = 1; gdSave();
+    // новый ключ: моя запись в составе уже есть у главы — ждём его состав по новому адресу
+    gdSys(g, 'Гильдия перешла на новый ключ');
+    gdSubAll(); try { GD.bc && GD.bc.postMessage({ t: 'sub' }); } catch {}
+    if (S.room === 'guild') gdSoft();
+  }
+  // исключить или просто сменить ключ: новый ключ и адрес, состав — на новом месте, оставшимся — приглашение в личные
+  async function gdRekey(g, kick) {
+    if (!gdOwn(g) || GD.busy) return;
+    GD.busy = true; gdRender();
+    if (kick) { delete g.roster.m[kick]; if (g.roster.r) delete g.roster.r[kick]; g.invited = (g.invited || []).filter((x) => x.l !== kick); }
+    await gdRoster(g);                       // по старому ключу: исключённый узнает, что его убрали
+    await gdPost(g, { k: 'moved' });
+    g.ep += 1; g.key = gdRnd(32); g.roster.v += 1; g.links = []; gdSave();
+    gdSubAll(); try { GD.bc && GD.bc.postMessage({ t: 'sub' }); } catch {}
+    await gdRoster(g);
+    gdSys(g, kick ? `${pmName(kick)} исключён. Новый ключ рассылаю остальным…` : 'Ключ сменён. Рассылаю новый остальным…');
+    let bad = 0;
+    for (const l of gdMem(g).filter((x) => x !== S.me)) {
+      const r = await gdDm((g.mch && g.mch[l]) || g.ch || S.ch, l, gdInvText(g));
+      if (!(r && r.ok)) bad++;
+      await new Promise((ok) => setTimeout(ok, 1300));   // у личных игры есть ограничение на частоту
+    }
+    GD.busy = false; GD.note = bad ? `Не дошло до ${bad} — позови их ещё раз` : 'Готово: у оставшихся новый ключ';
+    gdRender();
+  }
+  async function gdLeave(g) {
+    if (gdOwn(g)) { g.roster.m = {}; await gdRoster(g); }   // глава уходит — гильдия распускается
+    else if (!g.gone) await gdPost(g, { k: 'leave' });
+    gdLoad(); GD.list = GD.list.filter((x) => x.id !== g.id); gdSave();
+    try { localStorage.removeItem(gdHK(g)); } catch {}
+    GD.cur = (GD.list[0] && GD.list[0].id) || ''; GD.view = GD.cur ? 'chat' : 'home';
+    gdSubAll(); try { GD.bc && GD.bc.postMessage({ t: 'sub' }); } catch {}
+    gdTabVis(); gdRender(); inputState();
+  }
+  async function gdSay(t) {
+    const g = gdCur(); if (!g || g.gone || g.wait) return;
+    S.el.send.disabled = true;
+    const env = await gdPost(g, { k: 'msg', id: gdRnd(6), t: String(t).slice(0, 500) });
+    S.el.send.disabled = false;
+    if (env && typeof env === 'object') { S.el.inp.value = ''; S.el.err.textContent = ''; await gdApply(g, env, Date.now(), false); GD.view = 'chat'; gdRender(true); }
+    else S.el.err.textContent = env === 'limit' ? 'Слишком часто — подожди минуту' : 'Нет связи с ntfy.sh — сообщение не ушло';
+    if (!S.el.inp.disabled) S.el.inp.focus();
+  }
+
+  // ---- вид ----
+  const gdHas = () => GD.list.length > 0 || GD.inv.length > 0;
+  function gdTabVis() {
+    const b = S.el && S.el.room && S.el.room.querySelector('[data-r="guild"]'); if (!b) return;
+    b.hidden = !(CZ.guilds || gdHas() || S.room === 'guild');
+    S.el.room.classList.toggle('many', !b.hidden);   // шесть вкладок: в узком окне у неактивных — только значки
+  }
+  function gdBadge() {
+    const n = [...GD.un.values()].reduce((a, b) => a + b, 0) + GD.inv.length, b = S.el && S.el.room && S.el.room.querySelector('[data-r="guild"] .rb');
+    if (b) { b.hidden = !n || S.room === 'guild'; b.textContent = n > 99 ? '99+' : String(n); }
+  }
+  function gdBar() {
+    const bar = S.el.gdbar; if (!bar) return;
+    const g = gdCur(), show = S.room === 'guild' && !!g && GD.view !== 'home';
+    bar.hidden = !show; if (!show) return;
+    const own = gdOwn(g), n = gdMem(g).length;
+    const st = g.gone === 'kicked' ? 'тебя исключили' : g.gone === 'closed' ? 'гильдия распущена' : g.gone === 'moved' ? 'ждём новый ключ от главы' : g.wait ? 'ждём подтверждения главы' : `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'участник' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'участника' : 'участников'}${own ? ' · ты глава' : ' · глава ' + esc(pmName(g.owner))}`;
+    bar.innerHTML = `<span class="who"><span class="av" style="--avc:#c9a24a" aria-hidden="true">⚜</span><span style="min-width:0"><b>${esc(gdName(g))}</b><small title="Сообщения зашифрованы и подписаны. Ключ гильдии передаётся через личные игры. Сервер ntfy.sh хранит шифр около 12 часов, старое подтягивается у участников в сети.">${st} · 🔒 шифр</small></span></span>
+      <span class="acts"><button type="button" data-gd="view:chat" aria-pressed="${GD.view === 'chat'}" title="Переписка" aria-label="Переписка">💬</button><button type="button" data-gd="view:members" aria-pressed="${GD.view === 'members'}" title="Состав" aria-label="Состав">👥</button><button type="button" data-gd="view:home" title="Все гильдии, создать, приглашения" aria-label="Все гильдии">⚜</button></span>`;
+  }
+  function gdRender(stick) {
+    if (S.room !== 'guild') return;
+    gdLoad();
+    const log = S.el.log; log.classList.add('pm'); S.el.empty.hidden = true;
+    const g = gdCur();
+    if (!g) GD.view = 'home'; else if (!GD.view) GD.view = 'chat';
+    if (g) GD.cur = g.id;
+    gdBar(); gdBadge();
+    const f = document.createDocumentFragment();
+    const li = (cls, html) => { const x = document.createElement('li'); if (cls) x.className = cls; x.innerHTML = html; f.appendChild(x); return x; };
+    const note = GD.note ? `<p class="gdn">${esc(GD.note)}</p>` : ''; GD.note = '';
+    if (!gdOn()) li('pm0', '<b>Гильдии недоступны</b>Этот браузер не умеет шифровать (нет WebCrypto).');
+    else if (GD.view === 'home') {
+      li('pm0 gdc', `<b>⚜ Гильдии — закрытый чат для своих</b>Сообщения зашифрованы и подписаны: читают только участники, подделать чужое сообщение нельзя. Ключ гильдии передаётся через личные игры. Сообщения идут через ntfy.sh (сервер видит только шифр) и хранятся там около 12 часов — старое подтянется у участников, кто в сети.${note}`);
+      if (GD.inv.length) { li('sec', 'Тебя зовут'); for (const p of GD.inv) li('conv', `${avatar(p.from)}<span class="cv"><b>${esc(p.name || 'Гильдия')}</b><span>${p.link ? 'ссылка от' : 'приглашение от'} ${esc(pmName(p.from))}${p.via ? ' · через ' + esc(pmName(p.via)) : ''}</span></span><span class="acts"><button type="button" class="ok" data-gd="join:${esc(p.id)}">Вступить</button><button type="button" data-gd="skip:${esc(p.id)}" aria-label="Отклонить">✕</button></span>`); }
+      for (const o of GD.old) li('pm0 gds', `${esc(pmName(o.from))} зовёт в гильдию старого формата (LGG1, без подписей) — попроси пригласить заново из этой версии.`);
+      if (GD.list.length) {
+        li('sec', 'Мои гильдии');
+        for (const x of GD.list) { const u = GD.un.get(x.id) || 0; li('conv', `<span class="av" style="--avc:#c9a24a" aria-hidden="true">⚜</span><span class="cv"><b>${esc(gdName(x))}</b><span>${x.gone === 'kicked' ? 'тебя исключили' : x.gone === 'closed' ? 'распущена' : x.wait ? 'ждём подтверждения главы' : `${gdMem(x).length} в составе${gdOwn(x) ? ' · ты глава' : ''}`}</span></span>${u ? `<span class="cu">${u}</span>` : ''}<span class="acts"><button type="button" class="ok" data-gd="open:${esc(x.id)}">Открыть</button></span>`); }
+      }
+      li('sec', 'Вступить по ссылке или коду');
+      li('gdf', `<form data-gdf="code" autocomplete="off"><input name="v" maxlength="400" placeholder="Вставь ссылку или код LGG2:…" aria-label="Ссылка или код приглашения" spellcheck="false"><button type="submit">Вступить</button></form>`);
+      li('sec', 'Создать гильдию');
+      li('gdf', `<form data-gdf="create" autocomplete="off"><input name="v" maxlength="40" placeholder="Название гильдии" aria-label="Название гильдии"><button type="submit" class="ok">Создать</button></form>`);
+    } else if (GD.view === 'members') {
+      const own = gdOwn(g), live = !g.gone, inv = gdCanInv(g);
+      if (inv) {
+        li('sec', 'Пригласить игрока');
+        li('gdf', `<form data-gdf="invite" autocomplete="off"><input name="v" maxlength="26" placeholder="ник игрока" aria-label="Ник игрока" spellcheck="false"><button type="submit" class="ok">Пригласить</button></form>${note}<small class="gdh">Приглашение уходит в личные игры. Игроку нужен «Чат Легиона» 3.18 или новее; в состав он попадёт, когда примет приглашение, а ты будешь в сети.</small>`);
+      } else if (note) li('gdf', note);
+      li('sec', `Состав · ${gdMem(g).length}`);
+      for (const l of gdMem(g).sort((a, b) => (b === g.owner) - (a === g.owner) || !!gdRole(g, b) - !!gdRole(g, a) || a.localeCompare(b))) {
+        const ro = gdRole(g, l);
+        li('conv', `${avatar(l)}<span class="cv"><b style="color:${ncol(l)}">${esc(dispName(l))}</b><span>${l === g.owner ? '👑 глава' : ro && ro.t ? '🏷 ' + esc(ro.t) : 'участник'}${ro && ro.z ? ' · может звать' : ''}${l === S.me ? ' · это ты' : ''}</span></span>${own && live && l !== S.me ? `<span class="acts"><button type="button" data-gd="role:${esc(l)}" aria-pressed="${GD.roleEdit === l}" title="Назначить роль">🏷 Роль</button><button type="button" class="${GD.sure === l ? 'sure' : ''}" data-gd="kick:${esc(l)}"${GD.busy ? ' disabled' : ''}>${GD.sure === l ? 'Точно исключить?' : 'Исключить'}</button></span>` : ''}`);
+        if (own && live && GD.roleEdit === l) li('gdf gdrole', `<form data-gdf="role" data-l="${esc(l)}" autocomplete="off"><input name="v" maxlength="20" list="gdroles" value="${esc((ro && ro.t) || '')}" placeholder="Роль для ${esc(dispName(l))}" aria-label="Название роли"><datalist id="gdroles">${GD_ROLES.map((x) => `<option value="${esc(x)}">`).join('')}</datalist><button type="submit" class="ok">Сохранить</button>${ro ? `<button type="button" data-gd="roleoff:${esc(l)}">Убрать</button>` : ''}</form><label class="gdz"><input type="checkbox" name="z"${ro && ro.z ? ' checked' : ''}> может звать в гильдию (приглашения и ссылки; в состав всё равно добавляет глава)</label>`);
+      }
+      if (inv) {
+        const links = (g.links || []).filter((x) => gdLinkOk(g, x) && (own || x.by === S.me));
+        li('sec', 'Ссылка-приглашение');
+        li('gdf', `<div class="gdl"><button type="button" class="ok" data-gd="lnew:1">🔗 Ссылка на одного</button><button type="button" data-gd="lnew:0">🔗 Ссылка для всех</button></div><small class="gdh">Ничего не отправляется — скопируй и передай сам, куда удобно. По ссылке можно читать гильдию, пока ты не сменишь ключ; писать — после подтверждения (чат подтвердит сам, когда ты в сети). Ссылка действует 7 дней.</small>`);
+        for (const x of links) {
+          const left = x.n ? `на одного${(x.used || []).length ? ' · использована' : ''}` : `для всех · вступили: ${(x.used || []).length}`;
+          const till = new Date(x.at + GD_LINK_TTL).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+          li('conv gdlk', `<span class="av" style="--avc:#c9a24a" aria-hidden="true">🔗</span><span class="cv"><b>${left}</b><span>до ${esc(till)}${(x.used || []).length ? ' · ' + x.used.map((l) => esc(dispName(l))).join(', ') : ''}</span></span><span class="acts"><button type="button" class="ok" data-gd="lcopy:${esc(x.t)}" title="Скопировать ссылку">⧉ Ссылка</button><button type="button" data-gd="lcode:${esc(x.t)}" title="Скопировать код — вставить в поле «Вступить по ссылке или коду»">⧉ Код</button><button type="button" data-gd="lrev:${esc(x.t)}" aria-label="Отозвать ссылку" title="Отозвать">✕</button></span>`);
+        }
+      }
+      if (own && (g.invited || []).length) { li('sec', 'Приглашены, ждём ответа'); for (const x of g.invited) li('conv', `${avatar(x.l)}<span class="cv"><b>${esc(dispName(x.l))}</b><span>приглашение в личных</span></span><span class="acts"><button type="button" data-gd="uninv:${esc(x.l)}">Отозвать</button></span>`); }
+      li('gdf', `${own && live ? `<button type="button" data-gd="rekey"${GD.busy ? ' disabled' : ''} title="Новый ключ и адрес — тот, кто ушёл или получил старый ключ, больше ничего не прочитает">🔑 Сменить ключ</button> ` : ''}<button type="button" class="${GD.sure === '!leave' ? 'sure' : ''}" data-gd="leave">${GD.sure === '!leave' ? (own ? 'Точно распустить?' : 'Точно выйти?') : own ? 'Распустить гильдию' : g.gone ? 'Убрать из списка' : 'Выйти из гильдии'}</button>`);
+    } else {
+      const L = gdHist(g);
+      let prev = null, day = 0;
+      for (const m of L) {
+        if (!day || !sameDay(day, m.at)) { li('day', dayName(m.at)); day = m.at; }
+        if (m.sys) { li('pm0 gds', esc(m.t)); prev = null; continue; }
+        const me = m.f === S.me, cont = prev && prev.f === m.f && sameDay(prev.at, m.at) && m.at - prev.at < 5 * 60000;
+        const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}`, `${!me && !cont ? `<span class="gnm"><span class="n" data-l="${esc(m.f)}" style="color:${ncol(m.f)}">${esc(dispName(m.f))}</span>${gdRoleTag(g, m.f)}</span>` : ''}${fmtText(m.t)}<span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}">${hhmm(m.at)}</span>`);
+        x.dataset.key = 'g:' + m.id;
+        prev = m;
+      }
+      if (!L.some((m) => !m.sys)) li('pm0', g.gone === 'kicked' ? '<b>Гильдия недоступна</b>Тебя исключили.' : g.gone === 'closed' ? '<b>Гильдия распущена</b>' : g.wait ? '<b>Почти готово</b>Глава подтвердит тебя, когда будет в сети, — тогда можно писать.' : '<b>Здесь пока тихо</b>Напиши первым — прочитают только участники гильдии.');
+      GD.un.delete(g.id); gdBadge();
+    }
+    log.innerHTML = ''; log.appendChild(f);
+    if (GD.view === 'chat' && stick !== false) toBottom();
+  }
+  // перерисовать, не сбив набор в поле гильдии
+  function gdSoft() { const a = document.activeElement; if (a && a.closest && a.closest('[data-gdf]') && S.el.log.contains(a)) gdBar(); else gdRender(false); }
+  function gdEnter() {
+    gdLoad(); GD.sure = '';
+    const g = gdCur(); GD.view = GD.fromLink ? 'home' : g ? (GD.view === 'members' ? 'members' : 'chat') : 'home'; GD.fromLink = false;
+    if (g) GD.cur = g.id;
+    gdDot(); gdRender(true); inputState(); gdBadge();
+    gdPollDm();
+  }
+  function gdCopy(t, btn) { const lab = btn.textContent; copyText(t, btn); setTimeout(() => { if (btn.isConnected) { btn.textContent = lab; btn.classList.remove('ok'); } }, 1300); }
+  // принять ссылку или код: показать «Тебя зовут» (или сразу вступить, если вставили вручную)
+  function gdTakeLink(text, now) {
+    const p = gdParseInv(text);
+    if (!p) { if (now) S.el.err.textContent = 'Это не похоже на ссылку-приглашение в гильдию'; return null; }
+    if (p.from === S.me) { if (now) S.el.err.textContent = 'Это твоя же ссылка'; return null; }
+    gdLoad(); const g = gdGet(p.id);
+    if (g && !g.gone && !g.wait && g.ep >= p.ep) { GD.cur = g.id; GD.view = 'chat'; if (now) { gdRender(true); inputState(); } return null; }
+    GD.inv = GD.inv.filter((x) => x.id !== p.id).concat(p);
+    gdTabVis(); gdBadge();
+    if (now) gdJoin(p);
+    return p;
+  }
+  function gdClick(e) {
+    const b = e.target.closest('[data-gd]'); if (!b || b.disabled) return;
+    e.stopPropagation();
+    const [a, ...rest] = b.dataset.gd.split(':'), v = rest.join(':'), g = gdCur();
+    if (a === 'view') { GD.view = v; GD.sure = ''; gdRender(v === 'chat'); inputState(); return; }
+    if (a === 'open') { GD.cur = v; GD.view = 'chat'; gdRender(true); inputState(); return; }
+    if (a === 'join') { const p = GD.inv.find((x) => x.id === v); if (p) gdJoin(p); return; }
+    if (a === 'skip') { GD.inv = GD.inv.filter((x) => x.id !== v); gdTabVis(); gdRender(); return; }
+    if (!g) return;
+    if (a === 'lnew') {
+      if (!gdCanInv(g)) return;
+      const x = { t: gdRnd(6), at: Date.now(), n: v === '1' ? 1 : 0, used: [], by: S.me };
+      g.links = (g.links || []).filter((y) => gdLinkOk(g, y)).concat(x); gdSave();
+      GD.note = gdOwn(g) ? 'Ссылка готова — нажми «⧉ Ссылка», чтобы скопировать' : 'Ссылка готова. По ней вступят, когда глава будет в сети';
+      if (!gdOwn(g)) gdPost(g, { k: 'inv', tok: x.t, n: x.n });
+      gdRender(); return;
+    }
+    if (a === 'role') { if (!gdOwn(g)) return; GD.roleEdit = GD.roleEdit === v ? '' : v; gdRender(); const i = S.el.log.querySelector('[data-gdf="role"] input[name="v"]'); if (i) i.focus(); return; }
+    if (a === 'roleoff') { if (!gdOwn(g) || !g.roster.r) return; delete g.roster.r[v]; GD.roleEdit = ''; GD.note = `${dispName(v)}: роль снята`; gdRoster(g).then(() => gdRender()); gdRender(); return; }
+    if (a === 'lcopy' || a === 'lcode') { const x = (g.links || []).find((y) => y.t === v); if (x) gdCopy(a === 'lcopy' ? gdLinkUrl(g, x) : gdLinkCode(g, x), b); return; }
+    if (a === 'lrev') { g.links = (g.links || []).filter((x) => x.t !== v); gdSave(); gdRender(); return; }
+    if (a === 'uninv') { g.invited = (g.invited || []).filter((x) => x.l !== v); gdSave(); gdRender(); return; }
+    if (a === 'rekey') { gdRekey(g, ''); return; }
+    if (a === 'kick') { if (GD.sure !== v) { GD.sure = v; gdRender(); return; } GD.sure = ''; gdRekey(g, v); return; }
+    if (a === 'leave') { if (GD.sure !== '!leave') { GD.sure = '!leave'; gdRender(); return; } GD.sure = ''; gdLeave(g); }
+  }
+  function gdBoot() {   // после /api/me: знаем, кто мы
+    if (!S.me || !gdOn()) { gdTabVis(); return; }
+    if (GD.bootMe === S.me) { gdTabVis(); gdBadge(); return; }
+    GD.bootMe = S.me; GD.inv = []; GD.old = []; GD.id = null;
+    gdLoad(); gdTabVis(); gdBadge();
+    if (!GD.bc) gdLead(); else gdSubAll();
+    setTimeout(gdPollDm, 3000);
+    if (GD_HASH && !GD.hashDone) {
+      GD.hashDone = true;
+      let code = GD_HASH; try { code = decodeURIComponent(code); } catch {}
+      if (gdTakeLink(code, false)) { GD.view = 'home'; GD.fromLink = true; }
+      try { history.replaceState(null, '', location.pathname + location.search); } catch {}
+    }
+  }
+  function gdInit() {
+    S.el.gdbar = document.getElementById('gdbar');
+    for (const el of [S.el.log, S.el.gdbar]) el.addEventListener('click', (e) => { if (S.room === 'guild') gdClick(e); }, true);
+    S.el.log.addEventListener('submit', (e) => {
+      const fm = e.target.closest('[data-gdf]'); if (!fm || S.room !== 'guild') return;
+      e.preventDefault(); const v = (fm.querySelector('input') || {}).value || '';
+      if (fm.dataset.gdf === 'role') {
+        const g = gdCur(), l = nickOf(fm.dataset.l), zb = fm.parentElement && fm.parentElement.querySelector('[name="z"]'), z = !!(zb && zb.checked);
+        if (!g || !gdOwn(g) || !l || !gdIsMem(g, l)) return;
+        const t = v.trim().slice(0, 20); g.roster.r = Object.assign({}, g.roster.r);
+        if (t || z) g.roster.r[l] = { t, z }; else delete g.roster.r[l];
+        GD.roleEdit = ''; GD.note = t || z ? `${dispName(l)}: ${t || 'без названия'}${z ? ' · может звать' : ''}` : `${dispName(l)}: роль снята`;
+        gdRoster(g).then(() => gdRender()); gdRender(); return;
+      }
+      if (fm.dataset.gdf === 'code') gdTakeLink(v, true); else if (fm.dataset.gdf === 'create') gdCreate(v); else if (fm.dataset.gdf === 'invite' && gdCur()) gdInvite(gdCur(), v);
+    }, true);
+    window.addEventListener('storage', (e) => {   // другое окно изменило гильдии или переписку
+      if (!e.key || !(e.key === gdLK() || e.key.startsWith('lgmc_g2h_'))) return;
+      gdLoad(); gdTabVis();
+      if (S.room === 'guild') { const keep = S.stick; gdSoft(); if (keep && GD.view === 'chat') toBottom(); inputState(); }
+    });
+    setInterval(() => { if (S.me && !hidden()) gdPollDm(); }, 90000);
   }
 
   window.__lgMineChat = S;   // для отладки
