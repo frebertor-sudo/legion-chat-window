@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.1
+// @version      3.18.2
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -83,7 +83,7 @@
           <button type="button" data-m="r" title="Прикрепить справа" aria-label="Прикрепить справа">◨</button>
         </div><div class="lgmc-body"></div>
         <div class="lgmc-grip" title="Потяни, чтобы изменить ширину" aria-hidden="true"></div>
-        <div class="lgmc-corner" title="Потяни, чтобы изменить размер" aria-hidden="true"></div>
+        <div class="lgmc-corner" data-rz="se" title="Потяни, чтобы изменить размер" aria-hidden="true"></div><div class="lgmc-rz" data-rz="n" aria-hidden="true"></div><div class="lgmc-rz" data-rz="s" aria-hidden="true"></div><div class="lgmc-rz" data-rz="e" aria-hidden="true"></div><div class="lgmc-rz" data-rz="w" aria-hidden="true"></div><div class="lgmc-rz" data-rz="ne" aria-hidden="true"></div><div class="lgmc-rz" data-rz="nw" aria-hidden="true"></div><div class="lgmc-rz" data-rz="sw" aria-hidden="true"></div>
         <div class="lgmc-shield" hidden></div>`;
       const snap = document.createElement('div'); snap.id = 'lgmc-snap'; snap.hidden = true;
       const st = document.createElement('style');
@@ -105,6 +105,16 @@
         #lgmc-dock .lgmc-grip:hover,#lgmc-dock.drag-w .lgmc-grip{background:linear-gradient(90deg,transparent 4px,#ff9fd0 4px,#ff9fd0 6px,transparent 6px)}
         #lgmc-dock .lgmc-corner{display:none;position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:2;background:linear-gradient(135deg,transparent 55%,#4a4068 55%,#4a4068 62%,transparent 62%,transparent 72%,#4a4068 72%,#4a4068 79%,transparent 79%)}
         #lgmc-dock.m-f .lgmc-corner{display:block}
+        #lgmc-dock .lgmc-rz{display:none;position:absolute;z-index:2}
+        #lgmc-dock.m-f .lgmc-rz{display:block}
+        #lgmc-dock .lgmc-rz[data-rz="n"]{top:0;left:14px;right:14px;height:5px;cursor:ns-resize}
+        #lgmc-dock .lgmc-rz[data-rz="s"]{bottom:0;left:14px;right:18px;height:6px;cursor:ns-resize}
+        #lgmc-dock .lgmc-rz[data-rz="e"]{right:0;top:14px;bottom:18px;width:6px;cursor:ew-resize}
+        #lgmc-dock .lgmc-rz[data-rz="w"]{left:0;top:14px;bottom:14px;width:6px;cursor:ew-resize}
+        #lgmc-dock .lgmc-rz[data-rz="ne"]{right:0;top:0;width:14px;height:14px;cursor:nesw-resize}
+        #lgmc-dock .lgmc-rz[data-rz="nw"]{left:0;top:0;width:14px;height:14px;cursor:nwse-resize}
+        #lgmc-dock .lgmc-rz[data-rz="sw"]{left:0;bottom:0;width:14px;height:14px;cursor:nesw-resize}
+        #lgmc-dock .lgmc-rz:hover,#lgmc-dock.drag-size .lgmc-rz.on{background:rgba(255,159,208,.35);border-radius:4px}
         #lgmc-dock .lgmc-shield{position:fixed;inset:0;z-index:3}
         #lgmc-dock{opacity:var(--lgmc-op,1);transition:opacity .15s}
         #lgmc-dock.ophov:hover,#lgmc-dock.ophov:focus-within,#lgmc-dock[class*="drag-"]{opacity:1}
@@ -132,7 +142,7 @@
         @media (max-width:640px){#lgmc-dock.m-r,#lgmc-dock.m-l{width:100vw!important;border:0}#lgmc-dock .lgmc-grip{display:none}}`;
       document.head.appendChild(st);
       document.body.appendChild(dock); document.body.appendChild(snap);
-      const bar = dock.querySelector('.lgmc-bar'), grip = dock.querySelector('.lgmc-grip'), corner = dock.querySelector('.lgmc-corner'), shield = dock.querySelector('.lgmc-shield');
+      const bar = dock.querySelector('.lgmc-bar'), grip = dock.querySelector('.lgmc-grip'), shield = dock.querySelector('.lgmc-shield');
       // перетаскивание: поверх рамки — прозрачный щит, иначе рамка «съедает» движение мыши
       const drag = (cls, onMove, onUp, lazy) => {
         dock.classList.add(cls); if (!lazy) shield.hidden = false;
@@ -170,11 +180,20 @@
       });
       bar.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) setMode(L.mode === 'f' ? L.side || 'r' : 'f'); });
       bar.addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) setMode(b.dataset.m); });
-      // размер плавающего окна — за уголок
-      corner.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        const ox = L.x + L.fw - e.clientX, oy = L.y + L.fh - e.clientY; // где взялись за уголок — без скачка
-        drag('drag-size', (ev) => { L.fw = Math.max(minW, Math.min(vw() - L.x, ev.clientX + ox - L.x)); L.fh = Math.max(240, Math.min(vh() - L.y, ev.clientY + oy - L.y)); apply(); });
+      // размер плавающего окна — за любой край или угол; противоположный край стоит на месте
+      for (const h of dock.querySelectorAll('[data-rz]')) h.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault(); e.stopPropagation();
+        const d = h.dataset.rz, x0 = L.x, y0 = L.y, w0 = L.fw, h0 = L.fh, sx = e.clientX, sy = e.clientY;
+        h.classList.add('on');
+        drag('drag-size', (ev) => {
+          const dx = ev.clientX - sx, dy = ev.clientY - sy;
+          if (d.includes('e')) L.fw = Math.max(minW, Math.min(vw() - x0, w0 + dx));
+          if (d.includes('w')) { L.fw = Math.max(minW, Math.min(x0 + w0, w0 - dx)); L.x = x0 + w0 - L.fw; }
+          if (d.includes('s')) L.fh = Math.max(240, Math.min(vh() - y0, h0 + dy));
+          if (d.includes('n')) { L.fh = Math.max(240, Math.min(y0 + h0, h0 - dy)); L.y = y0 + h0 - L.fh; }
+          apply();
+        }, () => h.classList.remove('on'));
       });
       window.addEventListener('resize', apply);
       // прозрачность — из настроек чата (⚙ в окне чата, тот же localStorage): меняется сразу
@@ -815,6 +834,16 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #gdbar .acts button[aria-pressed="true"]{border-color:var(--acc)}
 #log li.gdf .gdl{display:flex;gap:6px;flex-wrap:wrap}
 #log li.conv.gdlk{cursor:default}
+#log li.b{position:relative}
+#log li.b .gdre{position:absolute;top:-9px;right:6px;width:24px;height:20px;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--mut);font:12px/18px var(--ff);cursor:pointer;opacity:0}
+#log li.b.me .gdre{right:auto;left:6px}
+#log li.b:hover .gdre,#log li.b .gdre:focus-visible{opacity:1}#log li.b .gdre:hover{color:var(--tx);border-color:var(--acc)}
+@media (hover:none){#log li.b .gdre{opacity:.6}}
+#log .gdq{display:block;max-width:100%;margin:1px 0 3px;padding:2px 8px;border-left:2px solid var(--acc);border-radius:4px;background:color-mix(in srgb,var(--tx) 6%,transparent);color:var(--mut);font-size:.84em;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+#log .gdq:hover,#log .gdq:focus-visible{color:var(--tx);outline:none}
+#log .gdq.me{background:color-mix(in srgb,var(--acc) 14%,transparent)}
+#log .gdq .rqi{width:12px;height:12px;vertical-align:-2px;margin-right:4px}
+#log li.b.tome{box-shadow:inset 3px 0 0 var(--acc)}
 #log .grl{display:inline-block;font:700 10px var(--ff);padding:0 6px;margin-left:6px;border-radius:999px;background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc-tx);vertical-align:1px}
 #log li.gdf .gdz{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mut);margin-top:6px}
 #log li.gdf .gdz input{flex:none;width:16px;height:16px;margin:0;padding:0;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--acc);box-shadow:none}
@@ -1061,6 +1090,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   // ---------- Канал и комната ----------
   async function switchTo(ch, room) {
     if (!okLogin(ch)) return;
+    if (S.reply && (S.reply.gid || room === 'guild') && typeof replyCancel === 'function') replyCancel();
     const chChanged = ch !== S.ch;
     const wasCity = usesCity(S.room) && S.inCity;
     const keepCity = wasCity && !chChanged && usesCity(room);   // Город ↔ Всё: герой остаётся на Ярмарке
@@ -3973,13 +4003,14 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     let changed = false;
     if (d.k === 'msg' && d.t) {
       const ts = Math.min(+d.ts || at, Date.now() + 60000);
-      const n = gdKeep(g, [{ id: String(d.id || ''), f: d.f, t: String(d.t).slice(0, 500), at: ts, env }]);
+      const re = d.re && typeof d.re === 'object' && nickOf(d.re.f) ? { id: String(d.re.id || '').slice(0, 12), f: nickOf(d.re.f), s: String(d.re.s || '').slice(0, 80) } : null;
+      const n = gdKeep(g, [Object.assign({ id: String(d.id || ''), f: d.f, t: String(d.t).slice(0, 500), at: ts, env }, re ? { re } : {})]);
       changed = !!n;
       if (n && live && d.f !== S.me) {
         const viewing = S.room === 'guild' && GD.cur === g.id && GD.view === 'chat' && !hidden();
         if (!viewing) {
           GD.un.set(g.id, (GD.un.get(g.id) || 0) + 1); gdBadge();
-          pmToast(d.f, `⚜ ${gdName(g)} · ${dispName(d.f)}: ${String(d.t).slice(0, 70)}`, 'Гильдия', 'guild:' + g.id);
+          pmToast(d.f, `⚜ ${gdName(g)} · ${dispName(d.f)}${d.re && nickOf(d.re.f) === S.me ? ' ответил тебе' : ''}: ${String(d.t).slice(0, 70)}`, 'Гильдия', 'guild:' + g.id);
           czBeepOnce('dm', 'g2|' + d.id);
         }
       }
@@ -4125,9 +4156,10 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   async function gdSay(t) {
     const g = gdCur(); if (!g || g.gone || g.wait) return;
     S.el.send.disabled = true;
-    const env = await gdPost(g, { k: 'msg', id: gdRnd(6), t: String(t).slice(0, 500) });
+    const r = S.reply && S.reply.gid === g.id ? { id: S.reply.gmid, f: S.reply.l, s: S.reply.snip } : null;
+    const env = await gdPost(g, Object.assign({ k: 'msg', id: gdRnd(6), t: String(t).slice(0, 500) }, r ? { re: r } : {}));
     S.el.send.disabled = false;
-    if (env && typeof env === 'object') { S.el.inp.value = ''; S.el.err.textContent = ''; await gdApply(g, env, Date.now(), false); GD.view = 'chat'; gdRender(true); }
+    if (env && typeof env === 'object') { if (r) replyCancel(); S.el.inp.value = ''; S.el.err.textContent = ''; await gdApply(g, env, Date.now(), false); GD.view = 'chat'; gdRender(true); }
     else S.el.err.textContent = env === 'limit' ? 'Слишком часто — подожди минуту' : 'Нет связи с ntfy.sh — сообщение не ушло';
     if (!S.el.inp.disabled) S.el.inp.focus();
   }
@@ -4207,8 +4239,8 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
         if (!day || !sameDay(day, m.at)) { li('day', dayName(m.at)); day = m.at; }
         if (m.sys) { li('pm0 gds', esc(m.t)); prev = null; continue; }
         const me = m.f === S.me, cont = prev && prev.f === m.f && sameDay(prev.at, m.at) && m.at - prev.at < 5 * 60000;
-        const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}`, `${!me && !cont ? `<span class="gnm"><span class="n" data-l="${esc(m.f)}" style="color:${ncol(m.f)}">${esc(dispName(m.f))}</span>${gdRoleTag(g, m.f)}</span>` : ''}${fmtText(m.t)}<span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}">${hhmm(m.at)}</span>`);
-        x.dataset.key = 'g:' + m.id;
+        const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}`, `${!me && !cont ? `<span class="gnm"><span class="n" data-l="${esc(m.f)}" style="color:${ncol(m.f)}">${esc(dispName(m.f))}</span>${gdRoleTag(g, m.f)}</span>` : ''}${m.re ? `<span class="gdq${m.re.f === S.me ? ' me' : ''}" data-gq="${esc(m.re.id)}" role="button" tabindex="0" title="К сообщению">${RQ_ICO}<b style="color:${ncol(m.re.f)}">@${esc(dispName(m.re.f))}</b>: ${esc(m.re.s)}</span>` : ''}${fmtText(m.t)}<button type="button" class="gdre" data-gd="re:${esc(m.id)}" title="Ответить" aria-label="Ответить">↩</button><span class="bt" title="${esc(new Date(m.at).toLocaleString('ru-RU'))}">${hhmm(m.at)}</span>`);
+        x.dataset.key = 'g:' + m.id; if (m.re && m.re.f === S.me && !me) x.classList.add('tome');
         prev = m;
       }
       if (!L.some((m) => !m.sys)) li('pm0', g.gone === 'kicked' ? '<b>Гильдия недоступна</b>Тебя исключили.' : g.gone === 'closed' ? '<b>Гильдия распущена</b>' : g.wait ? '<b>Почти готово</b>Глава подтвердит тебя, когда будет в сети, — тогда можно писать.' : '<b>Здесь пока тихо</b>Напиши первым — прочитают только участники гильдии.');
@@ -4243,8 +4275,14 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
     const b = e.target.closest('[data-gd]'); if (!b || b.disabled) return;
     e.stopPropagation();
     const [a, ...rest] = b.dataset.gd.split(':'), v = rest.join(':'), g = gdCur();
+    if (a === 're') {
+      const m = gdHist(g).find((x) => x.id === v && !x.sys); if (!m) return;
+      let snip = String(m.t).replace(/\s+/g, ' ').trim(); if (snip.length > 40) snip = snip.slice(0, 39).trimEnd() + '…';
+      S.reply = { l: m.f, n: dispName(m.f), snip, key: 'g:' + m.id, gid: g.id, gmid: m.id };
+      replyBar(); if (!S.el.inp.disabled) S.el.inp.focus(); return;
+    }
     if (a === 'view') { GD.view = v; GD.sure = ''; gdRender(v === 'chat'); inputState(); return; }
-    if (a === 'open') { GD.cur = v; GD.view = 'chat'; gdRender(true); inputState(); return; }
+    if (a === 'open') { GD.cur = v; GD.view = 'chat'; if (S.reply && S.reply.gid !== v) replyCancel(); gdRender(true); inputState(); return; }
     if (a === 'join') { const p = GD.inv.find((x) => x.id === v); if (p) gdJoin(p); return; }
     if (a === 'skip') { GD.inv = GD.inv.filter((x) => x.id !== v); gdTabVis(); gdRender(); return; }
     if (!g) return;
@@ -4282,6 +4320,13 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
   function gdInit() {
     S.el.gdbar = document.getElementById('gdbar');
     for (const el of [S.el.log, S.el.gdbar]) el.addEventListener('click', (e) => { if (S.room === 'guild') gdClick(e); }, true);
+    const jump = (q) => {
+      const li = S.el.log.querySelector(`li[data-key="g:${CSS.escape(q.dataset.gq)}"]`);
+      if (!li) { okTip('Этого сообщения уже нет в истории'); return; }
+      li.scrollIntoView({ block: 'center', behavior: 'smooth' }); li.classList.remove('flash'); void li.offsetWidth; li.classList.add('flash');
+    };
+    S.el.log.addEventListener('click', (e) => { const q = S.room === 'guild' && e.target.closest('.gdq'); if (q) { e.stopPropagation(); jump(q); } }, true);
+    S.el.log.addEventListener('keydown', (e) => { const q = S.room === 'guild' && e.target.closest && e.target.closest('.gdq'); if (q && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); jump(q); } });
     S.el.log.addEventListener('submit', (e) => {
       const fm = e.target.closest('[data-gdf]'); if (!fm || S.room !== 'guild') return;
       e.preventDefault(); const v = (fm.querySelector('input') || {}).value || '';
