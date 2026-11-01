@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.19.0
+// @version      3.19.0.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -106,6 +106,9 @@
         #lgmc-dock .lgmc-grip:hover,#lgmc-dock.drag-w .lgmc-grip{background:linear-gradient(90deg,transparent 4px,#ff9fd0 4px,#ff9fd0 6px,transparent 6px)}
         #lgmc-dock .lgmc-corner{display:none;position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:2;background:linear-gradient(135deg,transparent 55%,#4a4068 55%,#4a4068 62%,transparent 62%,transparent 72%,#4a4068 72%,#4a4068 79%,transparent 79%)}
         #lgmc-dock.m-f .lgmc-corner{display:block}
+        #lgmc-dock.mini .lgmc-rz:not([data-rz="e"]):not([data-rz="w"]),#lgmc-dock.mini .lgmc-corner{display:none!important}
+        #lgmc-dock.mini{width:65px!important;border-radius:14px}
+        #lgmc-dock.mini.m-r,#lgmc-dock.mini.m-l{border-radius:0}
         #lgmc-dock .lgmc-rz{display:none;position:absolute;z-index:2}
         #lgmc-dock.m-f .lgmc-rz{display:block}
         #lgmc-dock .lgmc-rz[data-rz="n"]{top:0;left:14px;right:14px;height:5px;cursor:ns-resize}
@@ -154,7 +157,10 @@
       // ширина прикреплённой панели
       grip.addEventListener('pointerdown', (e) => {
         e.preventDefault();
-        drag('drag-w', (ev) => { L.w = clampW(L.mode === 'l' ? ev.clientX : vw() - ev.clientX); apply(); });
+        drag('drag-w', (ev) => {   // уже минимума — свернуть до колонки; потянул обратно — развернуть
+          const raw = L.mode === 'l' ? ev.clientX : vw() - ev.clientX, m = raw < minW - 90;
+          L.mini = m; if (!m) L.w = clampW(raw); apply();
+        });
       });
       // перемещение за полоску: прикреплённая — отрывается под курсором, у края — прилипает
       bar.addEventListener('pointerdown', (e) => {
@@ -212,6 +218,7 @@
           const dx = ev.clientX - sx, dy = ev.clientY - sy;
           if (d.includes('e')) L.fw = Math.max(minW, Math.min(vw() - x0, w0 + dx));
           if (d.includes('w')) { L.fw = Math.max(minW, Math.min(x0 + w0, w0 - dx)); L.x = x0 + w0 - L.fw; }
+          if (d === 'e' || d === 'w') { const raw = d === 'e' ? w0 + dx : w0 - dx; L.mini = raw < minW - 90; if (L.mini && d === 'w') L.x = x0 + w0 - 65; }
           if (d.includes('s')) L.fh = Math.max(240, Math.min(vh() - y0, h0 + dy));
           if (d.includes('n')) { L.fh = Math.max(240, Math.min(y0 + h0, h0 - dy)); L.y = y0 + h0 - L.fh; }
           apply();
@@ -248,15 +255,16 @@
       L.fw = Math.max(minW, Math.min(vw(), +L.fw || 400)); L.fh = Math.max(240, Math.min(vh(), +L.fh || 620));
       L.x = Math.max(0, Math.min(vw() - L.fw, +L.x || 0)); L.y = Math.max(0, Math.min(vh() - L.fh, +L.y || 0));
       dock.classList.toggle('m-r', L.mode === 'r'); dock.classList.toggle('m-l', L.mode === 'l'); dock.classList.toggle('m-f', L.mode === 'f');
-      dock.style.setProperty('--lgmc-w', L.w + 'px');
+      dock.classList.toggle('mini', !!L.mini);
+      dock.style.setProperty('--lgmc-w', (L.mini ? 65 : L.w) + 'px');
       dock.style.setProperty('--fx', Math.round(L.x) + 'px'); dock.style.setProperty('--fy', Math.round(L.y) + 'px');
-      dock.style.setProperty('--fw', Math.round(L.fw) + 'px'); dock.style.setProperty('--fh', Math.round(L.fh) + 'px');
+      dock.style.setProperty('--fw', (L.mini ? 65 : Math.round(L.fw)) + 'px'); dock.style.setProperty('--fh', Math.round(L.fh) + 'px');
       for (const b of dock.querySelectorAll('[data-m]')) b.setAttribute('aria-pressed', String(b.dataset.m === L.mode));
       // боковая колонка чата — у края экрана; только когда рамка уже загрузилась (трогать пустую рамку нельзя — сорвёт запуск чата в ней)
-      if (frame && frame.lgReady) try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode }, location.origin); } catch {}
+      if (frame && frame.lgReady) try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode, mini: !!L.mini }, location.origin); } catch {}
       // кнопки «💬 Чат / ⧉» не прячутся под панелью, прикреплённой слева
       const g = document.getElementById('lgmc-btns');
-      if (g) g.style.left = !dock.hidden && L.mode === 'l' && vw() > 640 ? (L.w + 10) + 'px' : '10px';
+      if (g) g.style.left = !dock.hidden && L.mode === 'l' && vw() > 640 ? ((L.mini ? 65 : L.w) + 10) + 'px' : '10px';
     }
 
     // из какого чата игры открыли: та же комната («Всё» и «Личные», если ты там был, не сбиваются)
@@ -342,8 +350,8 @@
       if (e.origin !== location.origin || !e.data || typeof e.data.lgmc !== 'string') return;
       if (e.data.lgmc === 'close' || e.data.lgmc === 'popped') setOpen(false);
       if (frame && e.source === frame.contentWindow && e.data.lgmc === 'drag' && dockFromFrame) { dockFromFrame(e.data); return; }
-      if (frame && e.source === frame.contentWindow && e.data.lgmc === 'mode') { if (/^[lrf]$/.test(e.data.m)) setMode(e.data.m); else if (e.data.m === 'toggle') setMode(L.mode === 'f' ? L.side || 'r' : 'f'); return; }
-      if (e.data.lgmc === 'ready' && frame && e.source === frame.contentWindow) { frame.lgReady = true; if (e.data.ctl) { const b = dock.querySelector('.lgmc-bar'); if (b) b.classList.add('off'); } try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode }, location.origin); } catch {} return; }
+      if (frame && e.source === frame.contentWindow && e.data.lgmc === 'mode') { if (/^[lrf]$/.test(e.data.m)) setMode(e.data.m); else if (e.data.m === 'toggle') setMode(L.mode === 'f' ? L.side || 'r' : 'f'); else if (e.data.m === 'mini' || e.data.m === 'full') { L.mini = e.data.m === 'mini'; apply(); saveL(); } return; }
+      if (e.data.lgmc === 'ready' && frame && e.source === frame.contentWindow) { frame.lgReady = true; if (e.data.ctl) { const b = dock.querySelector('.lgmc-bar'); if (b) b.classList.add('off'); } try { frame.contentWindow.postMessage({ lgmc: 'side', side: L.mode, mini: !!L.mini }, location.origin); } catch {} return; }
       // окно обмена — в «Городе» игры: открыть эту вкладку
       if (e.data.lgmc === 'citytab') { const b = document.querySelector('nav [data-tab="city"], [data-tab="city"]'); if (b) b.click(); else { location.hash = '#city'; location.reload(); } return; }
       // «📍 встать в город» из панели: игра помнит город во вкладке и открывает «Город» по #city — перезагружаем страницу игры
@@ -874,6 +882,12 @@ header .hr{touch-action:none}
 #rail #dctl{flex-direction:column;margin-top:auto;padding-top:8px;gap:3px}
 #rail #dctl button{width:44px;line-height:26px}
 #rail #dctl #dgrip{order:-1}
+#rail #dctl #dmini{order:-2;font:700 17px/26px var(--ff)}
+#dctl #dmini[hidden]{display:none}
+html.mini body{padding:0!important}
+html.mini body>:not(#rail){display:none!important}
+html.mini #rail{width:100%;border:0}
+html.mini #rail #room button[aria-pressed="true"]::before{display:none}
 #rail[hidden]{display:none}
 html.rail body{padding-left:64px}
 html.rail-r #rail{left:auto;right:0;border-right:0;border-left:1px solid var(--line)}
@@ -977,7 +991,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
 <body>
 <nav id="rail" aria-label="Чаты и последние собеседники" hidden><div id="rchans" role="group" aria-label="Последние собеседники"></div></nav>
 <header>
-  <div class="hr">${EMBED ? '<span id="dctl"><button id="dgrip" type="button" title="Потяни, чтобы перенести панель; двойной щелчок — окном или прикрепить" aria-label="Перенести панель">⠿</button><button type="button" data-dm="l" title="Прикрепить слева" aria-label="Прикрепить слева">◧</button><button type="button" data-dm="f" title="Плавающее окно — двигать и менять размер" aria-label="Плавающее окно">❐</button><button type="button" data-dm="r" title="Прикрепить справа" aria-label="Прикрепить справа">◨</button></span>' : ''}<span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
+  <div class="hr">${EMBED ? '<span id="dctl"><button id="dmini" type="button" aria-pressed="false">«</button><button id="dgrip" type="button" title="Потяни, чтобы перенести панель; двойной щелчок — окном или прикрепить" aria-label="Перенести панель">⠿</button><button type="button" data-dm="l" title="Прикрепить слева" aria-label="Прикрепить слева">◧</button><button type="button" data-dm="f" title="Плавающее окно — двигать и менять размер" aria-label="Плавающее окно">❐</button><button type="button" data-dm="r" title="Прикрепить справа" aria-label="Прикрепить справа">◨</button></span>' : ''}<span id="dot" title="Связь"></span><select id="chan" title="Стример" aria-label="Стример"></select><a id="livebadge" target="_blank" rel="noopener" hidden>● В ЭФИРЕ</a><button id="modb" class="hb" type="button" title="Модерация чата" aria-label="Модерация чата" aria-expanded="false" hidden>🔨</button><button id="bmk" class="hb" type="button" title="Закладки — сохранённые сообщения" aria-label="Закладки" aria-pressed="false">⭐</button><button id="czb" class="hb" type="button" title="Настройки чата" aria-label="Настройки чата" aria-pressed="false">⚙</button><button id="theme" class="hb" type="button"></button><span class="po" id="pctl"><button class="hb" type="button" data-pc="dn" title="Мельче" aria-label="Шрифт мельче">A−</button><button class="hb" type="button" data-pc="up" title="Крупнее" aria-label="Шрифт крупнее">A+</button><button class="hb" type="button" data-pc="t" aria-pressed="true" title="Время у сообщений">🕒</button><button class="hb" type="button" data-pc="i" aria-pressed="true" title="Значки классов и ролей">🛡</button><button class="hb" type="button" data-pc="m" aria-pressed="false" title="Только лента: поле ввода появляется при наведении">⌨</button></span>${EMBED ? '<button id="popb" class="hb" type="button" title="Открыть отдельным окном" aria-label="Открыть отдельным окном">⧉</button><button id="closeb" class="hb" type="button" title="Скрыть чат" aria-label="Скрыть чат">✕</button>' : '<button id="pin" class="hb" type="button" aria-pressed="false">📌</button>'}</div>
   <div class="hr r2"><span class="seg" id="room" role="group" aria-label="Чат"><button type="button" data-r="mine">${rlab('mine')}</button><button type="button" data-r="city">${rlab('city')}</button><button type="button" data-r="all" title="Все чаты стримера в одной ленте">${rlab('all')}</button><button type="button" data-r="pm" title="Личные сообщения и друзья">${rlab('pm')}<b class="rb" hidden></b></button><button type="button" data-r="ping" title="Сообщения, где тебя упомянули по @нику">${rlab('ping')}<b class="rb" hidden></b></button><button type="button" data-r="guild" title="Гильдия — закрытый чат для своих" hidden>${rlab('guild')}<b class="rb" hidden></b></button></span><select id="mine" title="Шахта" hidden></select><div id="ctabs" role="tablist" hidden></div></div>
 </header>
 <div id="bmp" role="dialog" aria-label="Закладки" hidden></div><div id="fbar" role="search" hidden><input id="fq" type="search" maxlength="60" placeholder="Найти в сообщениях" aria-label="Найти в сообщениях" autocomplete="off" spellcheck="false"><span id="fn" aria-live="polite"></span><button type="button" class="hb" data-f="prev" title="Предыдущее (Shift+Enter)" aria-label="Предыдущее">↑</button><button type="button" class="hb" data-f="next" title="Следующее (Enter)" aria-label="Следующее">↓</button><button type="button" class="hb" data-f="only" aria-pressed="false" title="Показывать только найденные сообщения">Только найденные</button><button type="button" class="hb" data-f="close" title="Закрыть поиск (Esc)" aria-label="Закрыть поиск">✕</button></div>
@@ -1211,6 +1225,9 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     if (on && S.el.room.parentElement !== rail) rail.insertBefore(S.el.room, rail.firstChild);
     if (!on && S.el.room.parentElement !== r2) r2.insertBefore(S.el.room, r2.firstChild);
     rail.hidden = !on;
+    for (const d of docs()) d.documentElement.classList.toggle('mini', !!(EMBED && on && S.mini));
+    const mb = document.getElementById('dmini');
+    if (mb) { mb.hidden = !on; const toR = side === 'r'; mb.textContent = S.mini ? (toR ? '«' : '»') : (toR ? '»' : '«'); mb.title = S.mini ? 'Развернуть чат' : 'Свернуть до колонки — останутся комнаты и собеседники'; mb.setAttribute('aria-label', mb.title); mb.setAttribute('aria-pressed', String(!!S.mini)); }
     const ctl = document.getElementById('dctl');
     if (ctl) {   // ⠿ и «слева / окном / справа»: в колонке — внизу, без колонки — в начале шапки
       const hr = document.querySelector('header .hr');
@@ -1240,6 +1257,11 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     });
     document.addEventListener('dblclick', (e) => { if ((e.target.closest && e.target.closest('#dgrip')) || emptyHead(e.target)) post({ lgmc: 'mode', m: 'toggle' }); });
     document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#dctl [data-dm]'); if (b) post({ lgmc: 'mode', m: b.dataset.dm }); });
+    document.addEventListener('click', (e) => {
+      const t = e.target.closest && e.target; if (!t) return;
+      if (t.closest('#dmini')) { post({ lgmc: 'mode', m: S.mini ? 'full' : 'mini' }); return; }
+      if (S.mini && t.closest('#rail #room [data-r], #rchans [data-rpeer]')) post({ lgmc: 'mode', m: 'full' });   // свёрнут: щелчок по комнате или собеседнику — развернуть
+    }, true);
   }
   // в колонке под комнатами — последние, с кем переписывался: значок класса, непрочитанные, «в сети»
   function railChans() {
@@ -1256,7 +1278,8 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
   }
   window.addEventListener('message', (e) => {
     if (e.source !== window.parent || e.origin !== location.origin || !e.data || e.data.lgmc !== 'side' || !/^[lrf]$/.test(e.data.side)) return;
-    if (S.dockSide !== e.data.side) { S.dockSide = e.data.side; railApply(); }
+    const mini = !!e.data.mini;
+    if (S.dockSide !== e.data.side || S.mini !== mini) { S.dockSide = e.data.side; S.mini = mini; railApply(); }
   });
   if (EMBED) try { window.parent.postMessage({ lgmc: 'ready', ctl: 1 }, location.origin); } catch {}   // панель в игре: «готов» — пришли, с какой ты стороны
   document.addEventListener('click', async (e) => {
