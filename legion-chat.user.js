@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.2.1
+// @version      3.18.2.2
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -835,12 +835,13 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #log li.gdf .gdl{display:flex;gap:6px;flex-wrap:wrap}
 #log li.conv.gdlk{cursor:default}
 #log li.b{position:relative}
-#log li.b .gdact{position:absolute;top:-11px;right:6px;display:flex;gap:2px;opacity:0;transition:opacity .1s}
-#log li.b.me .gdact{right:auto;left:6px}
+#log li.b .gdact{position:absolute;bottom:calc(100% - 4px);left:8px;z-index:3;display:flex;gap:2px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:0 4px 12px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .1s;white-space:nowrap}
+#log li.b.me .gdact{left:auto;right:8px}
+#log li.b:hover .gdact,#log li.b .gdact:focus-within{pointer-events:auto}
 #log li.b:hover .gdact,#log li.b .gdact:focus-within{opacity:1}
-@media (hover:none){#log li.b .gdact{opacity:.7}}
-#log li.b .gdact button{height:22px;min-width:24px;padding:0 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--mut);font:12px/20px var(--ff);cursor:pointer}
-#log li.b .gdact button:hover{color:var(--tx);border-color:var(--acc)}
+@media (hover:none){#log li.b .gdact{opacity:.7;pointer-events:auto}}
+#log li.b .gdact button{height:22px;min-width:24px;padding:0 4px;border:1px solid transparent;border-radius:6px;background:none;color:var(--mut);font:12px/20px var(--ff);cursor:pointer}
+#log li.b .gdact button:hover{color:var(--tx);background:color-mix(in srgb,var(--acc) 16%,transparent)}
 #log li.b .gdact button.sure{background:var(--bad);border-color:var(--bad);color:#fff}
 #log .gdel{color:var(--mut);font-style:italic}
 #log .ged{font-style:normal;opacity:.8}
