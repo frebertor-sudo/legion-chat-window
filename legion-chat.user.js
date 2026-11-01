@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.18.2.6
+// @version      3.18.2.7
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -848,6 +848,22 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 #room button[hidden]{display:none}
 #rail{position:fixed;top:0;bottom:0;left:0;width:64px;z-index:4;box-sizing:border-box;background:var(--hdr,var(--panel));border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:6px 0 10px}
 #rail::-webkit-scrollbar{display:none}
+/* нижняя строка как в Telegram: одна плоская полоса, значки без рамок, стрелка — только когда есть текст */
+footer{padding:2px 6px}
+#f{display:flex;align-items:flex-end;gap:0}
+#f>#pb{order:1}#f>#gpb{order:2}#f>#tgt{order:3}#f>#in{order:4}#f>#emb{order:5}#f>#send{order:6}
+#f>#pb,#f>#emb,#f>#gpb,#f>#send{flex:none;width:40px;min-height:42px;height:42px;padding:0;border:0!important;border-radius:10px;background:none!important;box-shadow:none!important;color:var(--mut);display:grid;place-items:center;cursor:pointer;transition:color .12s}
+#f>#pb:hover:not(:disabled),#f>#emb:hover:not(:disabled),#f>#gpb:hover:not(:disabled),#f>#pb[aria-expanded="true"],#f>#emb[aria-expanded="true"],#f>#gpb[aria-pressed="true"]{color:var(--acc-tx)}
+#f>#pb:disabled,#f>#emb:disabled,#f>#gpb:disabled{opacity:.35;cursor:default}
+#f>#gpb[hidden]{display:none}
+#f>#send{color:var(--acc)}#f>#send:hover:not(:disabled){color:var(--acc-tx);background:color-mix(in srgb,var(--acc) 12%,transparent)!important}
+#f>#in:placeholder-shown~#send{display:none}
+#f>#in{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;padding:11px 8px;min-height:42px;height:42px;max-height:calc(6 * 1.4em + 22px)}
+#f>#in:focus{outline:none}
+#f>#in::placeholder{color:color-mix(in srgb,var(--mut) 85%,transparent)}
+#f>#tgt{align-self:center;margin:0 2px;background:color-mix(in srgb,var(--tx) 6%,transparent)!important;border:0!important;box-shadow:none!important;border-radius:999px;min-height:26px;height:26px;padding:0 8px;font-size:11.5px}
+html.pinned #f>#in{padding:8px 6px;min-height:36px;height:36px}
+html.pinned #f>#pb,html.pinned #f>#emb,html.pinned #f>#gpb,html.pinned #f>#send{width:34px;min-height:36px;height:36px}
 #dctl{display:flex;align-items:center;gap:2px;flex:none}
 #dctl button{border:0;background:none;color:var(--mut);border-radius:6px;padding:0 4px;font:14px/24px system-ui,sans-serif;cursor:pointer}
 #dctl button:hover{color:var(--tx);background:color-mix(in srgb,var(--tx) 8%,transparent)}
@@ -977,7 +993,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
 <div id="pp" role="dialog" aria-label="Пасты"><div class="pp-top"><input id="pq" type="search" placeholder="Найти пасту…" aria-label="Поиск пасты"><button type="button" class="pbtn" id="pnew">＋ Новая</button></div><ul id="pl"></ul>
 <div id="pe"><input id="pn" maxlength="40" placeholder="Название (например: «приветствие»)" aria-label="Название пасты"><textarea id="pt" maxlength="500" placeholder="Текст пасты — можно со стикерами" aria-label="Текст пасты"></textarea><div class="pe-b"><small id="pc">0 / 200</small><button type="button" class="pbtn alt" id="pcancel">Отмена</button><button type="button" class="pbtn" id="psave">Сохранить</button></div></div></div>
 <div id="rq" hidden></div><ul id="ac" role="listbox" aria-label="Подсказки ников" hidden></ul>
-<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false">📋</button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false">😺</button><button id="gpb" type="button" title="Сбор или опрос (или /сбор …, /опрос Вопрос | А | Б)" aria-label="Создать опрос" hidden>📊</button><textarea id="in" rows="1" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение" spellcheck="true"></textarea><button id="send" type="submit" aria-label="Отправить">➤</button></form></footer>
+<form id="f" autocomplete="off"><button id="pb" type="button" title="Сохранённые пасты" aria-label="Пасты" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="4" width="13" height="17" rx="2.2"/><path d="M9 4V2.8h6V4M8.8 9.5h6.4M8.8 13h6.4M8.8 16.5h3.6"/></svg></button><select id="tgt" title="Куда отправить" aria-label="Куда отправить" hidden></select><button id="emb" type="button" title="Стикеры (7TV, BTTV, FFZ)" aria-label="Стикеры" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.3 14.2a4.4 4.4 0 0 0 7.4 0"/><path d="M9 9.6h.01M15 9.6h.01" stroke-width="2.8"/></svg></button><button id="gpb" type="button" title="Сбор или опрос (или /сбор …, /опрос Вопрос | А | Б)" aria-label="Создать опрос" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg></button><textarea id="in" rows="1" maxlength="200" placeholder="Написать…" enterkeyhint="send" aria-label="Сообщение" spellcheck="true"></textarea><button id="send" type="submit" aria-label="Отправить" title="Отправить (Enter)"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l.05 6.5L15.5 12 3.45 13.9z"/></svg></button></form></footer>
 </body>`;
     { const st0 = document.querySelector('head style'); st0.textContent = st0.textContent.replace(/#log\b/g, ':is(#log,#pvlog)'); }   // пример в настройках выглядит как лента
     const $ = (id) => document.getElementById(id);
