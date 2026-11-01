@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.19.1.4
+// @version      3.19.1.5
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -856,7 +856,7 @@ header select{background:var(--field);border-color:var(--fieldb);border-radius:8
 :is(#dmbar,#gdbar) button,#log li.conv .acts button,#log li.pmmore button,#log li.pm0 button{border-radius:8px}
 #log li.sec{font-family:Comfortaa,var(--ff)}
 #room button[hidden]{display:none}
-#rail{position:fixed;top:0;bottom:0;left:0;width:64px;z-index:4;box-sizing:border-box;background:var(--hdr,var(--panel));border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:6px 0 10px}
+#rail{position:fixed;top:0;bottom:0;left:0;width:64px;z-index:4;box-sizing:border-box;background:var(--hdr,var(--panel));border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;padding:6px 0 8px}
 #rail::-webkit-scrollbar{display:none}
 /* нижняя строка как в Telegram: одна плоская полоса, значки без рамок, стрелка — только когда есть текст */
 footer{padding:2px 6px}
@@ -905,7 +905,10 @@ html.rail-r #rail #room button[aria-pressed="true"]::before{left:auto;right:-5px
 html.rail #rail #room .rb{position:absolute;top:1px;right:5px;margin:0;min-width:15px;padding:0 4px;font-size:10px;line-height:15px}
 html.rail #rail #room button[aria-pressed="true"] .rb{background:var(--bad);color:#fff}
 html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
-#rchans{display:flex;flex-direction:column;align-items:center;gap:9px;margin:8px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+#rchans{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;align-items:center;gap:9px;margin:8px 0 0;padding:10px 0 6px;border-top:1px solid var(--line)}
+#rchans::-webkit-scrollbar{display:none}
+#rail #room{flex:none}
+#rail #dctl{flex:none;border-top:1px solid var(--line)}
 #rchans:empty{display:none}
 #rchans .rpe{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;width:56px;padding:4px 0;border:0;border-radius:12px;background:none;color:var(--mut);cursor:pointer;font:600 9.5px/1.1 var(--ff)}
 #rchans .rpe:hover{background:color-mix(in srgb,var(--tx) 8%,transparent);color:var(--tx)}
@@ -1278,7 +1281,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     const box = document.getElementById('rchans'); if (!box || !S.el || !S.el.rail || S.el.rail.hidden) { if (box) box.innerHTML = ''; return; }
     const P = S.pm;
     if (!S.me || !S.flags.dm || !P || !P.last) { box.innerHTML = ''; return; }
-    const max = Math.max(3, Math.min(12, Math.floor((window.innerHeight - 330) / 50)));
+    const max = 30;   // список листается — комнаты сверху и кнопки снизу стоят на месте
     const peers = Object.keys(P.last).filter((l) => nickOf(l) && l !== S.me && !S.ign.has(l) && (P.last[l].at || P.un.get(l))).sort((a, b) => (P.last[b].at || 0) - (P.last[a].at || 0)).slice(0, max);
     box.innerHTML = peers.map((l) => {
       const n = P.un.get(l) || 0, f = pmFriend(l), on = !!(f && f.on), last = P.last[l] || {};
