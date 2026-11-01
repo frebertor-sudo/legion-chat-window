@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.19.1.1
+// @version      3.19.1.2
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -4599,6 +4599,12 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     if (now) gdJoin(p);
     return p;
   }
+  // «Точно?» — само снимается через 4 с, по Esc и по щелчку в любом другом месте
+  function gdSure(v) {
+    GD.sure = v; clearTimeout(GD.sureT);
+    if (v) GD.sureT = setTimeout(() => gdSure(''), 4000);
+    if (S.room === 'guild') gdRender(false);
+  }
   function gdClick(e) {
     const b = e.target.closest('[data-gd]'); if (!b || b.disabled) return;
     e.stopPropagation();
@@ -4627,7 +4633,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       replyBar(); S.el.inp.value = t; if (!S.el.inp.disabled) { S.el.inp.focus(); S.el.inp.setSelectionRange(t.length, t.length); }
       return;
     }
-    if (a === 'del') { if (GD.sure !== 'del:' + v) { GD.sure = 'del:' + v; gdRender(false); return; } GD.sure = ''; gdEv(g, { k: 'del', p: v }); return; }
+    if (a === 'del') { if (GD.sure !== 'del:' + v) { gdSure('del:' + v); return; } GD.sure = ''; gdEv(g, { k: 'del', p: v }); return; }
     if (a === 'pinm' && gdOwn(g)) {
       const m = gdHist(g).find((x) => x.id === v && (!x.k || x.k === 'msg')); if (!m) return;
       const last = gdHist(g).filter((x) => x.k === 'edit' && x.p === v && x.f === m.f).sort((p, q) => q.at - p.at)[0];
@@ -4659,8 +4665,8 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     if (a === 'lrev') { g.links = (g.links || []).filter((x) => x.t !== v); gdSave(); gdRender(); return; }
     if (a === 'uninv') { g.invited = (g.invited || []).filter((x) => x.l !== v); gdSave(); gdRender(); return; }
     if (a === 'rekey') { gdRekey(g, ''); return; }
-    if (a === 'kick') { if (GD.sure !== v) { GD.sure = v; gdRender(); return; } GD.sure = ''; gdRekey(g, v); return; }
-    if (a === 'leave') { if (GD.sure !== '!leave') { GD.sure = '!leave'; gdRender(); return; } GD.sure = ''; gdLeave(g); }
+    if (a === 'kick') { if (GD.sure !== v) { gdSure(v); return; } GD.sure = ''; gdRekey(g, v); return; }
+    if (a === 'leave') { if (GD.sure !== '!leave') { gdSure('!leave'); return; } GD.sure = ''; gdLeave(g); }
   }
   function gdBoot() {   // после /api/me: знаем, кто мы
     if (!S.me || !gdOn()) { gdTabVis(); return; }
@@ -4710,6 +4716,8 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       }
       if (fm.dataset.gdf === 'code') gdTakeLink(v, true); else if (fm.dataset.gdf === 'create') gdCreate(v); else if (fm.dataset.gdf === 'invite' && gdCur()) gdInvite(gdCur(), v);
     }, true);
+    document.addEventListener('pointerdown', (e) => { if (S.room === 'guild' && GD.sure && !(e.target.closest && e.target.closest('.sure'))) gdSure(''); }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.room === 'guild' && GD.sure) { e.preventDefault(); gdSure(''); } }, true);
     S.el.log.addEventListener('input', (e) => {
       if (S.room !== 'guild' || !GD.pd) return;
       const t = e.target;
