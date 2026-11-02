@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.19.3
+// @version      3.19.3.1
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -946,6 +946,23 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
 #log li.b .gdact button.sure{background:var(--bad);border-color:var(--bad);color:#fff}
 #log .gdel{color:var(--mut);font-style:italic}
 #log .ged{font-style:normal;opacity:.8}
+#log a.lnk{color:var(--acc-tx);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--acc) 45%,transparent);text-underline-offset:2px;overflow-wrap:anywhere}
+#log a.lnk:hover{text-decoration-color:currentColor}
+#log .gpv{display:flex;align-items:center;gap:8px;max-width:260px;margin-top:6px;padding:6px;border-radius:10px;border:1px solid var(--line);border-left:3px solid var(--acc);background:color-mix(in srgb,var(--tx) 5%,transparent);color:var(--tx);text-decoration:none}
+#log a.gpv:hover{border-color:var(--acc)}
+#log .gpv .gpi{flex:none;width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-size:18px;background:color-mix(in srgb,var(--acc) 16%,transparent)}
+#log .gpv .gpc{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+#log .gpv .gpc b{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#log .gpv .gpc small{font-size:11px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#log .gpv.img{display:block;padding:0;border-left-width:1px;overflow:hidden;max-width:240px;background:none}
+#log .gpv.img img{display:block;width:100%;max-height:200px;object-fit:cover}
+#log .gpv.yt{flex-direction:column;align-items:stretch;padding:0;overflow:hidden;max-width:240px}
+#log .gpv.yt .gpt{position:relative;display:block}
+#log .gpv.yt .gpt img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
+#log .gpv.yt .gpt i{position:absolute;inset:0;margin:auto;width:42px;height:30px;border-radius:9px;background:rgba(220,30,30,.92);color:#fff;font-style:normal;display:grid;place-items:center;font-size:14px}
+#log .gpv.yt .gpc{padding:5px 8px 6px}
+#log .gpv.tw .gpi{background:color-mix(in srgb,#9146ff 30%,transparent)}
+#log .gpv.inv button{flex:none;border:0;border-radius:999px;background:var(--acc);color:var(--on-acc);font:700 12px/26px var(--ff);padding:0 12px;cursor:pointer}
 #log .gtk{margin-left:4px;letter-spacing:-2px;color:var(--mut);font-weight:700}
 #log .gtk.rd{color:color-mix(in srgb,var(--acc) 60%,var(--mut))}
 #log .gtk.all{color:var(--acc-tx)}
@@ -3356,6 +3373,30 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
   }
 
   // ---------- Отрисовка сообщений ----------
+  // ссылка в слове: только http(s); хвостовую пунктуацию — не в ссылку
+  function linkOf(part) {
+    const m = /^(https?:\/\/[^\s<>"'`]+?)([.,!?;:)»]*)$/i.exec(part); if (!m) return null;
+    let url; try { url = new URL(m[1]); } catch { return null; }
+    if (!/^https?:$/.test(url.protocol)) return null;
+    const short = (url.host.replace(/^www\./, '') + (url.pathname === '/' ? '' : url.pathname) + url.search + (url.hash && !/lgg=/.test(url.hash) ? url.hash : '')).replace(/(.{38}).+/, '$1…');
+    return { url: url.href, short: /lgg=LGG2/.test(url.hash) ? '⚜ приглашение в гильдию' : short, tail: m[2], u: url };
+  }
+  // мини-превью первой ссылки (в гильдии): картинка, YouTube, Twitch, приглашение, просто сайт
+  function linkPreview(t) {
+    if (CZ.gdPreview === false) return '';
+    const word = String(t).split(/\s+/).map(linkOf).find(Boolean); if (!word) return '';
+    const u = word.u, host = u.host.replace(/^www\./, '').toLowerCase(), href = esc(u.href);
+    let hs = u.hash || ''; try { hs = decodeURIComponent(hs); } catch {}
+    const inv = /lgg=(LGG2[^&\s]+)/.exec(hs);
+    if (inv && host === 'play.multidonate.ru') return `<div class="gpv inv"><span class="gpi">⚜</span><span class="gpc"><b>Приглашение в гильдию</b><small>${esc(pmName(((/~([a-z0-9_]{1,25})/i.exec(inv[1]) || [])[1] || '').toLowerCase()) || 'от участника')}</small></span><button type="button" data-lgg="${esc(inv[1])}">Вступить</button></div>`;
+    if (/\.(png|jpe?g|gif|webp|avif)$/i.test(u.pathname)) return `<a class="gpv img" href="${href}" target="_blank" rel="noopener noreferrer nofollow"><img src="${href}" alt="" loading="lazy" referrerpolicy="no-referrer"></a>`;
+    let yt = null;
+    if (host === 'youtu.be') yt = u.pathname.slice(1, 12);
+    else if (/(^|\.)youtube\.com$/.test(host)) yt = u.searchParams.get('v') || (/^\/(shorts|embed|live)\/([\w-]{11})/.exec(u.pathname) || [])[2];
+    if (yt && /^[\w-]{11}$/.test(yt)) return `<a class="gpv yt" href="${href}" target="_blank" rel="noopener noreferrer nofollow"><span class="gpt"><img src="https://i.ytimg.com/vi/${yt}/mqdefault.jpg" alt="" loading="lazy" referrerpolicy="no-referrer"><i aria-hidden="true">▶</i></span><span class="gpc"><b>YouTube</b><small>${esc(word.short)}</small></span></a>`;
+    if (/(^|\.)twitch\.tv$/.test(host)) { const ch = (/^\/([a-z0-9_]{2,25})/i.exec(u.pathname) || [])[1]; return `<a class="gpv tw" href="${href}" target="_blank" rel="noopener noreferrer nofollow"><span class="gpi">📺</span><span class="gpc"><b>Twitch${ch ? ' · ' + esc(ch) : ''}</b><small>${/\/clip\//.test(u.pathname) || host.startsWith('clips.') ? 'клип' : 'канал'}</small></span></a>`; }
+    return `<a class="gpv" href="${href}" target="_blank" rel="noopener noreferrer nofollow"><span class="gpi">🔗</span><span class="gpc"><b>${esc(host)}</b><small>${esc(word.short)}</small></span></a>`;
+  }
   function fmtText(t) {
     // слова-коды эмоутов → картинки; @ники — подсветка; zero-width эмоуты (7TV) накладываются на предыдущий
     const out = [];
@@ -3375,6 +3416,8 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
         }
         out.push(img); continue;
       }
+      const u = linkOf(part);
+      if (u) { out.push(`<a class="lnk" href="${esc(u.url)}" target="_blank" rel="noopener noreferrer nofollow" title="${esc(u.url)}">${esc(u.short)}</a>${esc(u.tail)}`); continue; }
       const m = part.match(/^@([a-z0-9_]{2,25})(.*)$/i);
       out.push(m ? `<span class="at" data-at="${esc(m[1].toLowerCase())}" role="button" tabindex="0" title="Показать последние сообщения @${esc(m[1])}">@${esc(m[1])}</span>${esc(m[2])}` : esc(part));
     }
@@ -3643,7 +3686,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, gdRead: true, rail: 'auto', hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, gdRead: true, gdPreview: true, rail: 'auto', hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -3843,7 +3886,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
         </section>
         <section><h4>Сообщения</h4>
           ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}${tg('scrollbar', 'Полоса прокрутки')}${tg('hist', 'Помнить ленту между запусками (игра отдаёт только последние ~120)')}
-          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('tips', 'Подсказки над полем ввода: «Скопировано», «В закладках»…')}${tg('guilds', 'Вкладка ⚜ Гильдия — закрытый чат для своих (сама появится, если позовут)')}${tg('gdRead', 'Гильдии: отметки «прочитано» ✓✓ (выключишь — не видно ни твоих, ни чужих)')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
+          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('tips', 'Подсказки над полем ввода: «Скопировано», «В закладках»…')}${tg('guilds', 'Вкладка ⚜ Гильдия — закрытый чат для своих (сама появится, если позовут)')}${tg('gdRead', 'Гильдии: отметки «прочитано» ✓✓ (выключишь — не видно ни твоих, ни чужих)')}${tg('gdPreview', 'Гильдии: мини-превью ссылок (картинки и обложки YouTube грузятся с их сайтов)')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
           ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
         </section>
         <section><h4>Подсветка и фильтр</h4>
@@ -4584,7 +4627,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
           const rx = [...i.rx].filter(([, st]) => st.size).map(([e, st]) => `<button type="button" class="grc${st.has(S.me) ? ' on' : ''}" data-gd="react:${id}:${e}" title="${esc([...st].map(dispName).join(', '))}"${live ? '' : ' disabled'}>${e} ${st.size}</button>`).join('');
           const pick = GD.rpick === m.id ? `<div class="grp">${GD_EMO.map((e) => `<button type="button" data-gd="react:${id}:${e}" aria-label="Реакция ${e}">${e}</button>`).join('')}</div>` : '';
           const acts = live ? `<span class="gdact"><button type="button" data-gd="re:${id}" title="Ответить" aria-label="Ответить">↩</button><button type="button" data-gd="rpick:${id}" title="Реакция" aria-label="Реакция">☺</button>${me && !m.poll ? `<button type="button" data-gd="edit:${id}" title="Изменить" aria-label="Изменить">✏️</button>` : ''}${own ? `<button type="button" data-gd="pinm:${id}" title="Закрепить как объявление" aria-label="Закрепить">📌</button>` : ''}${me || own ? `<button type="button" class="${GD.sure === 'del:' + m.id ? 'sure' : ''}" data-gd="del:${id}" title="Удалить" aria-label="Удалить">${GD.sure === 'del:' + m.id ? 'Точно?' : '🗑'}</button>` : ''}</span>` : '';
-          body = `${name}${m.re ? `<span class="gdq${m.re.f === S.me ? ' me' : ''}" data-gq="${esc(m.re.id)}" role="button" tabindex="0" title="К сообщению">${RQ_ICO}<b style="color:${ncol(m.re.f)}">@${esc(dispName(m.re.f))}</b>: ${esc(m.re.s)}</span>` : ''}${m.poll ? '<b class="gpq">📊 </b>' : ''}${fmtText(i.t)}${poll}${rx ? `<div class="grx">${rx}</div>` : ''}${pick}${acts}${tm}`;
+          body = `${name}${m.re ? `<span class="gdq${m.re.f === S.me ? ' me' : ''}" data-gq="${esc(m.re.id)}" role="button" tabindex="0" title="К сообщению">${RQ_ICO}<b style="color:${ncol(m.re.f)}">@${esc(dispName(m.re.f))}</b>: ${esc(m.re.s)}</span>` : ''}${m.poll ? '<b class="gpq">📊 </b>' : ''}${fmtText(i.t)}${linkPreview(i.t)}${poll}${rx ? `<div class="grx">${rx}</div>` : ''}${pick}${acts}${tm}`;
         }
         const x = li(`b${me ? ' me' : ''}${cont ? ' cont' : ''}${i.del ? ' gdd' : ''}${m.poll ? ' gpl' : ''}${GD.sure === 'del:' + m.id || GD.rpick === m.id ? ' hot' : ''}`, body);
         x.dataset.key = 'g:' + m.id; if (m.re && m.re.f === S.me && !me) x.classList.add('tome');
@@ -4719,7 +4762,10 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       if (!li) { okTip('Этого сообщения уже нет в истории'); return; }
       li.scrollIntoView({ block: 'center', behavior: 'smooth' }); li.classList.remove('flash'); void li.offsetWidth; li.classList.add('flash');
     };
-    S.el.log.addEventListener('click', (e) => { const q = S.room === 'guild' && e.target.closest('.gdq'); if (q) { e.stopPropagation(); jump(q); } }, true);
+    S.el.log.addEventListener('click', (e) => {
+      const q = S.room === 'guild' && e.target.closest('.gdq'); if (q) { e.stopPropagation(); jump(q); return; }
+      const j = S.room === 'guild' && e.target.closest('[data-lgg]'); if (j) { e.stopPropagation(); gdTakeLink(j.dataset.lgg, true); }
+    }, true);
     S.el.log.addEventListener('keydown', (e) => { const q = S.room === 'guild' && e.target.closest && e.target.closest('.gdq'); if (q && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); jump(q); } });
     S.el.log.addEventListener('submit', (e) => {
       const fm = e.target.closest('[data-gdf]'); if (!fm || S.room !== 'guild') return;
