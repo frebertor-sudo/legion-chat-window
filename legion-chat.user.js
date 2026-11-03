@@ -2,7 +2,7 @@
 // @name         Легион — чат шахты и города в отдельном окне
 // @name:en      Legion — mine & town chat in a separate window
 // @namespace    https://play.multidonate.ru/legion-chat-window
-// @version      3.19.3.1
+// @version      3.19.3.2
 // @description  Чат шахты и города игры «Легион» (play.multidonate.ru): панель прямо в игре или отдельное окно, личные диалоги, стримеры, стикеры 7TV/BTTV/FFZ, пасты, модерация, темы
 // @description:en  Mine and town chat of the "Legion" game (play.multidonate.ru): in-game side panel or separate window, private messages, channel switching, emotes, pastes, moderation, themes
 // @author       feedfinek
@@ -798,6 +798,8 @@ html.pinned.mini #log{padding-bottom:12px}
 #sp .keys{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;margin:0}
 #sp .keys dt{font-family:ui-monospace,monospace;color:var(--acc-tx)}#sp .keys dd{margin:0;color:var(--mut)}
 #sp .ign{display:flex;flex-direction:column;gap:4px}#sp .ign div{display:flex;align-items:center;gap:8px;font-size:13px}#sp .ign div span{flex:1}
+.ctag{display:inline-block;font-size:.72em;font-weight:800;line-height:1.35;padding:0 4px;margin-right:4px;border-radius:4px;color:var(--cc);background:color-mix(in srgb,var(--cc) 18%,transparent);border:1px solid color-mix(in srgb,var(--cc) 45%,transparent);vertical-align:1px;letter-spacing:.02em;cursor:default}
+.ctcol{display:flex;align-items:center;gap:6px;margin:6px 0 2px}#log li.gdf .ctcol button{width:22px;height:22px;min-width:0;border-radius:50%;border:2px solid transparent;background:var(--cc);padding:0;cursor:pointer}#log .ctcol .ctag{margin-left:8px;font-size:.85em}#log li.gdf .ctcol button[aria-pressed="true"]{border-color:var(--tx);box-shadow:0 0 0 2px var(--cc)}
 #log .extm,:is(#dmbar,#gdbar) .extm{font-size:.78em;margin-left:3px;opacity:.85;cursor:default}
 #log .at[data-at]{cursor:pointer;border-radius:3px}
 #log .at[data-at]:hover,#log .at[data-at]:focus-visible{text-decoration:underline;outline:none}
@@ -1577,7 +1579,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       const key = src + ':' + msg.id;
       if (S.ids.has(key)) continue;
       const m = Object.assign({}, msg, { _src: src, _key: key });
-      if (extHas(m.t)) { extAdd(m.l); m.t = extStrip(m.t); }   // 🧩 метка Чата Легиона — запомнить и убрать из текста
+      extIn(m, m.l);   // 🧩 метка Чата Легиона и [ТЕГ] клана — запомнить и убрать из текста
       S.ids.add(key);
       // лента общая для двух источников — держим её по времени
       const last = S.list[S.list.length - 1];
@@ -2042,7 +2044,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     const cur = P.conv.get(l) || [], ids = new Set(cur.map((x) => x.id));
     let n = 0;
     const fresh = [];
-    for (const x of list) { const m = x.fl ? x : pmNorm(x); if (extHas(m.t)) { extAdd(m.fl); m.t = extStrip(m.t); } if (ids.has(m.id)) continue; ids.add(m.id); cur.push(m); fresh.push(m); n++; }
+    for (const x of list) { const m = x.fl ? x : pmNorm(x); extIn(m, m.fl); if (ids.has(m.id)) continue; ids.add(m.id); cur.push(m); fresh.push(m); n++; }
     if (fresh.length) gdScanDm(S.ch, fresh);
     if (!n && P.conv.has(l)) return 0;
     cur.sort((a, b) => a.at - b.at);
@@ -2228,7 +2230,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     }
     const fr = S.meFriends ? (st === 'friends' ? '' : st === 'out' ? '' : st === 'in' ? '<button type="button" data-pa="accept" title="Принять заявку в друзья">👥 Принять</button>' : st === 'blocked' ? '' : '<button type="button" data-pa="add" title="Добавить в друзья">👥＋</button>') : '';
     const blk = S.meFriends ? (st === 'blocked' ? '<button type="button" data-pa="unblock">Разблокировать</button>' : '<button type="button" data-pa="block" title="Заблокировать — не сможет писать тебе">🚫</button>') : '';
-    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:${ncol(l)}">${esc(pmName(l))}${extBadge(l)}${f ? ' <span class="frm" title="Друг">👥</span>' : ''}</b>${status}</span></span><span class="acts">${f ? coinBtn(f) + '<button type="button" data-pa="trade" title="Предложить обмен (окно обмена откроется в игре, в «Городе»)">🔄</button>' : ''}${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
+    bar.innerHTML = `<button type="button" data-pa="back" title="К диалогам (Esc)" aria-label="К диалогам">←</button><span class="who">${avatar(l)}<span style="min-width:0"><b style="color:${ncol(l)}">${clanChip(l)}${esc(pmName(l))}${extBadge(l)}${f ? ' <span class="frm" title="Друг">👥</span>' : ''}</b>${status}</span></span><span class="acts">${f ? coinBtn(f) + '<button type="button" data-pa="trade" title="Предложить обмен (окно обмена откроется в игре, в «Городе»)">🔄</button>' : ''}${fr}${blk}<button type="button" data-pa="report" title="Пожаловаться модераторам">⚑</button></span>`;
     bar.onclick = async (e) => {
       const cn = e.target.closest('[data-coin]');
       if (cn) { if (cn.getAttribute('aria-disabled') !== 'true') { cn.setAttribute('aria-disabled', 'true'); giveCoin(cn.dataset.coin); } return; }
@@ -2301,7 +2303,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       for (const l of peers) {
         const x = P.last[l], u = P.un.get(l) || 0, fd = pmFriend(l);
         const prev = x.t ? `${x.mine ? 'Ты: ' : ''}${esc(x.t)}` : (P.drafts[l] ? `Черновик: ${esc(P.drafts[l])}` : 'Нет сообщений — напиши первым');
-        li('conv', `${avIn(l, pmName(l))}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:${ncol(l)}">${esc(pmName(l))}${extBadge(l)}${isFr(l) ? ' <span class="frm" title="Друг">👥</span>' : ''}</b><span>${prev}</span></span>${x.at ? `<span class="ct">${shortTime(x.at)}</span>` : ''}${u ? `<span class="cu">${u > 99 ? '99+' : u}</span>` : ''}`,
+        li('conv', `${avIn(l, pmName(l))}${fd && fd.on ? '<i class="on"></i>' : ''}</span><span class="cv"><b style="color:${ncol(l)}">${clanChip(l)}${esc(pmName(l))}${extBadge(l)}${isFr(l) ? ' <span class="frm" title="Друг">👥</span>' : ''}</b><span>${prev}</span></span>${x.at ? `<span class="ct">${shortTime(x.at)}</span>` : ''}${u ? `<span class="cu">${u > 99 ? '99+' : u}</span>` : ''}`,
           { tabindex: '0', 'data-peer': l, 'data-n': pmName(l), 'aria-label': `Диалог с ${pmName(l)}${u ? `, непрочитанных: ${u}` : ''}` });
       }
       const friends = view === 'un' ? [] : fl.filter((u) => !P.last[u.l] && match(u.l));
@@ -3013,7 +3015,70 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
   }
   const isExt = (l) => CZ.extShow !== false && !!l && extMap().has(l);
   const extBadge = (l) => (isExt(l) ? '<span class="extm" title="Тоже с Чатом Легиона">🧩</span>' : '');
-  const markOut = (t) => (CZ.extTell !== false && t && t.length + EXT_MARK.length <= 200 ? t + EXT_MARK : t);
+  // ---------- [ТЕГ] клан-теги гильдий ----------
+  // Тег ставит глава гильдии (👥 Состав) — он лежит в подписанном составе, поэтому у своих он проверенный.
+  // Чтобы тег видели и вне гильдии (у всех с Чатом Легиона), к своим сообщениям чат добавляет невидимый код тега:
+  // U+2062, затем цифры по основанию 4 (U+2060 U+2061 U+2063 U+2064), затем U+2062. Такой код может подделать кто угодно,
+  // поэтому тег, совпадающий с тегом твоей гильдии, у не-участников не показываем.
+  const CLAN_AB = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя0123456789Ёё';
+  const CLAN_COL = ['#c9a24a', '#e0566b', '#4fa3e0', '#4cc38a', '#a77be8', '#f08a3c', '#3cc4c4', '#9aa3b5'];
+  const CLAN_D = '⁠⁡⁣⁤', CLAN_Q = '⁢', CLAN_RE = /⁢([⁠⁡⁣⁤]{4,40})⁢/, CLAN_KEY = 'lgmc_clan';
+  const clanOk = (t) => typeof t === 'string' && t.length >= 2 && t.length <= 5 && [...t].every((c) => CLAN_AB.includes(c));
+  const clanFix = (x) => (x && clanOk(x.t) ? { t: x.t, c: Math.max(0, Math.min(CLAN_COL.length - 1, x.c | 0)) } : null);
+  function clanEnc(x) {
+    let b = (x.c & 7).toString(2).padStart(3, '0');
+    for (const ch of x.t) b += CLAN_AB.indexOf(ch).toString(2).padStart(7, '0');
+    if (b.length % 2) b += '0';
+    let o = ''; for (let i = 0; i < b.length; i += 2) o += CLAN_D[parseInt(b.slice(i, i + 2), 2)];
+    return CLAN_Q + o + CLAN_Q;
+  }
+  function clanDec(code) {
+    let b = ''; for (const ch of code) b += CLAN_D.indexOf(ch).toString(2).padStart(2, '0');
+    const n = Math.floor((b.length - 3) / 7); if (n < 2 || n > 5) return null;
+    let t = ''; for (let i = 0; i < n; i++) { const k = parseInt(b.slice(3 + i * 7, 10 + i * 7), 2); if (k >= CLAN_AB.length) return null; t += CLAN_AB[k]; }
+    return clanFix({ t, c: parseInt(b.slice(0, 3), 2) });
+  }
+  let CLAN = null;
+  const clanMap = () => CLAN || (CLAN = new Map(Object.entries(lsGet(CLAN_KEY, {}) || {})));
+  function clanSet(l, x) {
+    const m = clanMap(), o = m.get(l);
+    if (x) { if (o && o.t === x.t && o.c === x.c && Date.now() - (o.at || 0) < 864e5) return; m.set(l, { t: x.t, c: x.c, at: Date.now() }); }
+    else { if (!o) return; m.delete(l); }
+    let a = [...m]; if (a.length > 3000) { a.sort((p, q) => q[1].at - p[1].at); a = a.slice(0, 3000); CLAN = new Map(a); }
+    lsSet(CLAN_KEY, Object.fromEntries(a));
+  }
+  const clanGuilds = () => { try { return GD.list.filter((g) => !g.gone && g.roster && g.roster.m && clanFix(g.roster.tag)); } catch { return []; } };
+  // тег, который ставлю я: выбранная в ⚙ гильдия, иначе первая с тегом
+  function clanMine() {
+    if (CZ.clanTell === false) return null;
+    const gs = clanGuilds().filter((g) => g.roster.m[S.me] && !g.wait);
+    const g = gs.find((x) => x.id === CZ.clanG) || gs[0];
+    return g ? Object.assign(clanFix(g.roster.tag), { g: g.name }) : null;
+  }
+  function clanOf(l0) {
+    const l = nickOf(l0); if (!l || CZ.clanShow === false) return null;
+    const gs = clanGuilds();
+    if (l === S.me) return clanMine();
+    const g = gs.find((x) => x.roster.m[l]);
+    if (g) return Object.assign(clanFix(g.roster.tag), { g: g.name, ok: 1 });
+    const x = clanMap().get(l);
+    if (!x || gs.some((y) => y.roster.tag.t.toLowerCase() === x.t.toLowerCase())) return null;   // чужой с тегом моей гильдии — подделка
+    return x;
+  }
+  const clanChip = (l) => { const x = clanOf(l); return x ? `<span class="ctag" style="--cc:${CLAN_COL[x.c]}" title="${x.g ? 'Клан-тег гильдии «' + esc(x.g) + '»' + (x.ok ? ' ✓ (по составу гильдии)' : '') : 'Клан-тег (из метки в сообщениях)'}">${esc(x.t)}</span>` : ''; };
+  // входящее сообщение: снять 🧩 и тег, запомнить; сообщение с меткой Чата Легиона без тега — тег убран
+  function extIn(m, who) {
+    if (typeof m.t !== 'string') return;
+    const l = nickOf(who), q = CLAN_RE.exec(m.t);
+    if (q) { m.t = m.t.replace(q[0], ''); if (l) clanSet(l, clanDec(q[1])); }
+    if (extHas(m.t)) { extAdd(who); m.t = extStrip(m.t); if (!q && l) clanSet(l, null); }
+  }
+  const markOut = (t) => {
+    if (!t) return t;
+    const x = clanMine(), c = x ? clanEnc(x) : '';
+    if (c && t.length + c.length + EXT_MARK.length <= 200) t += c;
+    return CZ.extTell !== false && t.length + EXT_MARK.length <= 200 ? t + EXT_MARK : t;
+  };
 
 
   // ---------- длинная лента: своя история в браузере ----------
@@ -3452,6 +3517,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     const isFr = !!l && (msg._fr || S.pm.frState.get(l) === 'friends');
     if (nEl && isFr) nEl.insertAdjacentHTML('afterend', '<span class="frm" title="Друг">👥</span>');
     if (nEl && isExt(l)) nEl.insertAdjacentHTML('afterend', extBadge(l));
+    if (nEl && l) { const ct = clanChip(l); if (ct) nEl.insertAdjacentHTML('beforebegin', ct); }
     // выделение: модераторы и админ чата, друзья (цвет и вкл/выкл — в ⚙)
     if (ri) li.classList.add('role', 'r-' + msg.r);
     if (isFr && l !== S.me) li.classList.add('fr');
@@ -3686,7 +3752,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     time: true, icons: true, awards: true, nickColor: true, emotes: true, emoteSize: 28,
     hl: '', hide: '', sound: false, volume: 50, css: '',
     hlMod: true, modColor: '#4f8df0', hlFriend: true, friendColor: '#3fbf6f',
-    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, liveAlert: true, tips: true, guilds: false, gdRead: true, gdPreview: true, rail: 'auto', hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
+    bgClear: 0, opac: 0, opHover: true, scrollbar: false, extShow: true, extTell: true, clanShow: true, clanTell: true, clanG: '', liveAlert: true, tips: true, guilds: false, gdRead: true, gdPreview: true, rail: 'auto', hist: true, histMax: 1000,   // прозрачность панели в игре: фона и всего чата (%), непрозрачный при наведении
   };
   const BASE_V = { dark: { bg: '#120e22', panel: '#1b1631', me: '#3b2146', hov: '#221c3c' }, light: { bg: '#fbf7fc', panel: '#f2eaf5', me: '#fde1f0', hov: '#efe3f2' } };
   // готовые схемы: тёмные и светлые (токены — те же, что у темы)
@@ -3886,7 +3952,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
         </section>
         <section><h4>Сообщения</h4>
           ${tg('time', 'Время')}${tg('icons', 'Значки классов и ролей')}${tg('awards', 'Награды у ников')}${tg('nickColor', 'Цветные ники')}${tg('emotes', 'Стикеры картинками')}${tg('scrollbar', 'Полоса прокрутки')}${tg('hist', 'Помнить ленту между запусками (игра отдаёт только последние ~120)')}
-          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('tips', 'Подсказки над полем ввода: «Скопировано», «В закладках»…')}${tg('guilds', 'Вкладка ⚜ Гильдия — закрытый чат для своих (сама появится, если позовут)')}${tg('gdRead', 'Гильдии: отметки «прочитано» ✓✓ (выключишь — не видно ни твоих, ни чужих)')}${tg('gdPreview', 'Гильдии: мини-превью ссылок (картинки и обложки YouTube грузятся с их сайтов)')}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
+          <label class="sel">Сколько сообщений держать в ленте <select data-sel="histMax">${[500, 1000, 2000, 3000].map((n) => `<option value="${n}"${histMax() === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label>${tg('liveAlert', 'Сообщать, когда стример игры начинает эфир 🔴')}${tg('tips', 'Подсказки над полем ввода: «Скопировано», «В закладках»…')}${tg('guilds', 'Вкладка ⚜ Гильдия — закрытый чат для своих (сама появится, если позовут)')}${tg('gdRead', 'Гильдии: отметки «прочитано» ✓✓ (выключишь — не видно ни твоих, ни чужих)')}${tg('gdPreview', 'Гильдии: мини-превью ссылок (картинки и обложки YouTube грузятся с их сайтов)')}${tg('clanShow', 'Показывать клан-теги гильдий перед никами')}${tg('clanTell', 'Ставить мой клан-тег (невидимая метка в сообщениях)')}${(() => { const gs = clanGuilds().filter((g) => g.roster.m[S.me]); return gs.length > 1 ? `<label class="sel">Мой клан-тег <select data-sel="clanG">${gs.map((g) => `<option value="${esc(g.id)}"${(CZ.clanG || gs[0].id) === g.id ? ' selected' : ''}>[${esc(g.roster.tag.t)}] ${esc(g.name || '')}</option>`).join('')}</select></label>` : ''; })()}${tg('extShow', 'Отмечать 🧩 тех, у кого тоже Чат Легиона')}${tg('extTell', 'Показывать другим, что у меня Чат Легиона (невидимая метка в сообщениях)')}
           ${CZ.emotes ? `<label class="rng">Размер стикеров <input type="range" min="18" max="56" step="2" data-rng="emoteSize" value="${CZ.emoteSize}"><output>${CZ.emoteSize}px</output></label>` : ''}
         </section>
         <section><h4>Подсветка и фильтр</h4>
@@ -3970,7 +4036,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
     sp.onchange = async (e) => {
       const t = e.target;
       if ('cityauto' in t.dataset) { lsSet(CITY_AUTO_KEY, t.checked); updateBar(); if (t.checked && isMix(S.room) && !S.inCity && !S.cityChk) cityEnter(); }
-      if (t.dataset.ck) { czSet({ [t.dataset.ck]: t.checked }, t.dataset.ck === 'emotes' || t.dataset.ck === 'extShow'); if (['emotes', 'sound'].includes(t.dataset.ck)) czRender(); if (t.dataset.ck === 'sound' && t.checked) czBeep('mention'); }
+      if (t.dataset.ck) { czSet({ [t.dataset.ck]: t.checked }, t.dataset.ck === 'emotes' || t.dataset.ck === 'extShow' || t.dataset.ck === 'clanShow'); if (['emotes', 'sound'].includes(t.dataset.ck)) czRender(); if (t.dataset.ck === 'sound' && t.checked) czBeep('mention'); }
       if (t.dataset.sel) czSet({ [t.dataset.sel]: t.dataset.sel === 'histMax' ? +t.value : t.value });
       if (t.dataset.cz === 'accent') czRender();
       if (t.dataset.cz === 'bgfile' && t.files && t.files[0]) {
@@ -4310,7 +4376,9 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
         const r = {}; for (const [l, x] of Object.entries(d.r && typeof d.r === 'object' ? d.r : {})) { const n = nickOf(l); if (n && m[n] && x && (x.t || x.z)) r[n] = { t: String(x.t || '').slice(0, 20), z: !!x.z }; }
         const pin = d.pin && d.pin.t ? { t: String(d.pin.t).slice(0, 300), at: +d.pin.at || 0 } : null, pin0 = g.roster && g.roster.pin;
         if (live && pin && (!pin0 || pin0.t !== pin.t) && was.length) gdSys(g, '📌 Глава закрепил объявление', 'p' + v);
-        g.roster = { v, m, r, pin }; g.name = String(d.name || g.name || '').slice(0, 40);
+        const tag = clanFix(d.tag), tag0 = g.roster && clanFix(g.roster.tag);
+        if (live && was.length && JSON.stringify(tag) !== JSON.stringify(tag0)) gdSys(g, tag ? `Глава поставил клан-тег [${tag.t}]` : 'Глава убрал клан-тег', 't' + v);
+        g.roster = { v, m, r, pin, tag }; g.name = String(d.name || g.name || '').slice(0, 40);
         if (!Object.keys(m).length) { g.gone = 'closed'; gdSys(g, 'Глава распустил гильдию', 'r' + v); }
         else if (!m[S.me] && (was.includes(S.me) || !g.wait)) { g.gone = 'kicked'; gdSys(g, 'Тебя исключили из гильдии', 'r' + v); }
         else if (g.wait && m[S.me] === (await gdIdent()).pub) { delete g.wait; gdSys(g, 'Глава подтвердил — можно писать', 'w' + v); setTimeout(() => { if (GD.lead) gdAskSync(g); }, 500); }
@@ -4367,7 +4435,7 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
   }
 
   // ---- действия ----
-  async function gdRoster(g) { g.roster.v = (g.roster.v || 0) + 1; gdSave(); return gdPost(g, { k: 'roster', v: g.roster.v, name: g.name, m: g.roster.m, r: g.roster.r || {}, pin: g.roster.pin || null }); }
+  async function gdRoster(g) { g.roster.v = (g.roster.v || 0) + 1; gdSave(); return gdPost(g, { k: 'roster', v: g.roster.v, name: g.name, m: g.roster.m, r: g.roster.r || {}, pin: g.roster.pin || null, tag: clanFix(g.roster.tag) }); }
   // шаблоны опроса
   const GD_TPL = {
     sbor: { n: '📅 Сбор', ph: 'Например: суббота 20:00 у ворот — кто идёт?', o: ['✅ Иду', '❌ Не иду', '🤔 Может быть'] },
@@ -4572,6 +4640,13 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
         li('conv', `${avatar(l)}<span class="cv"><b style="color:${ncol(l)}">${esc(dispName(l))}</b><span>${l === g.owner ? '👑 глава' : ro && ro.t ? '🏷 ' + esc(ro.t) : 'участник'}${ro && ro.z ? ' · может звать' : ''}${l === S.me ? ' · это ты' : gdRcpt() && gdReads(g)[l] ? ' · прочитал до ' + (sameDay(gdReads(g)[l], Date.now()) ? hhmm(gdReads(g)[l]) : dayName(gdReads(g)[l]) + ' ' + hhmm(gdReads(g)[l])) : ''}</span></span>${own && live && l !== S.me ? `<span class="acts"><button type="button" data-gd="role:${esc(l)}" aria-pressed="${GD.roleEdit === l}" title="Назначить роль">🏷 Роль</button><button type="button" class="${GD.sure === l ? 'sure' : ''}" data-gd="kick:${esc(l)}"${GD.busy ? ' disabled' : ''}>${GD.sure === l ? 'Точно исключить?' : 'Исключить'}</button></span>` : ''}`);
         if (own && live && GD.roleEdit === l) li('gdf gdrole', `<form data-gdf="role" data-l="${esc(l)}" autocomplete="off"><input name="v" maxlength="20" list="gdroles" value="${esc((ro && ro.t) || '')}" placeholder="Роль для ${esc(dispName(l))}" aria-label="Название роли"><datalist id="gdroles">${GD_ROLES.map((x) => `<option value="${esc(x)}">`).join('')}</datalist><button type="submit" class="ok">Сохранить</button>${ro ? `<button type="button" data-gd="roleoff:${esc(l)}">Убрать</button>` : ''}</form><label class="gdz"><input type="checkbox" name="z"${ro && ro.z ? ' checked' : ''}> может звать в гильдию (приглашения и ссылки; в состав всё равно добавляет глава)</label>`);
       }
+      { const tg = clanFix(g.roster.tag);
+        if (own && live) {
+          li('sec', 'Клан-тег');
+          const c0 = GD.tagC != null ? GD.tagC : tg ? tg.c : 0;
+          li('gdf', `<form data-gdf="tag" autocomplete="off"><input name="v" maxlength="5" value="${esc(tg ? tg.t : '')}" placeholder="2–5 букв или цифр, напр. КОТ" aria-label="Клан-тег" spellcheck="false"><button type="submit" class="ok">Поставить</button>${tg ? '<button type="button" data-gd="tagoff">Убрать</button>' : ''}</form><div class="ctcol" role="group" aria-label="Цвет тега">${CLAN_COL.map((c, k) => `<button type="button" data-gd="tagc:${k}" style="--cc:${c}" aria-pressed="${c0 === k}" aria-label="Цвет ${k + 1}"></button>`).join('')}${tg ? `<span class="ctag" style="--cc:${CLAN_COL[tg.c]}" title="Сейчас стоит">${esc(tg.t)}</span>` : ''}</div>${GD.note && /тег/i.test(GD.note) ? `<small class="gdh">${esc(GD.note)}</small>` : ''}<small class="gdh">Тег сам встанет перед ником у всех участников — в чате игры, личных и пингах. Его увидят все, у кого Чат Легиона 3.19.4 или новее. Буквы (русские или латинские) и цифры, 2–5 знаков.</small>`);
+        } else if (tg) { li('sec', 'Клан-тег'); li('gdf', `<span class="ctag" style="--cc:${CLAN_COL[tg.c]}">${esc(tg.t)}</span> <small class="gdh" style="display:inline">ставит глава; виден перед твоим ником у всех с Чатом Легиона (выключить — в ⚙)</small>`); }
+      }
       if (inv) {
         const links = (g.links || []).filter((x) => gdLinkOk(g, x) && (own || x.by === S.me));
         li('sec', 'Ссылка-приглашение');
@@ -4731,6 +4806,8 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
       if (!gdOwn(g)) gdPost(g, { k: 'inv', tok: x.t, n: x.n });
       gdRender(); return;
     }
+    if (a === 'tagc') { if (!gdOwn(g)) return; GD.tagC = Math.max(0, Math.min(CLAN_COL.length - 1, +v || 0)); const i = S.el.log.querySelector('[data-gdf="tag"] input'), keep = i ? i.value : null; gdRender(); const j = S.el.log.querySelector('[data-gdf="tag"] input'); if (j && keep != null) j.value = keep; return; }
+    if (a === 'tagoff') { if (!gdOwn(g) || g.gone) return; g.roster.tag = null; GD.tagC = null; GD.note = 'Клан-тег убран'; gdRoster(g).then(() => gdRender()); gdRender(); return; }
     if (a === 'role') { if (!gdOwn(g)) return; GD.roleEdit = GD.roleEdit === v ? '' : v; gdRender(); const i = S.el.log.querySelector('[data-gdf="role"] input[name="v"]'); if (i) i.focus(); return; }
     if (a === 'roleoff') { if (!gdOwn(g) || !g.roster.r) return; delete g.roster.r[v]; GD.roleEdit = ''; GD.note = `${dispName(v)}: роль снята`; gdRoster(g).then(() => gdRender()); gdRender(); return; }
     if (a === 'lcopy' || a === 'lcode') { const x = (g.links || []).find((y) => y.t === v); if (x) gdCopy(a === 'lcopy' ? gdLinkUrl(g, x) : gdLinkCode(g, x), b); return; }
@@ -4780,6 +4857,14 @@ html.rail .hr.r2:not(:has(>:not([hidden]))){display:none}
         const t = (fm.querySelector('[name="t"]').value || '').trim().slice(0, 300);
         g.roster.pin = t ? { t, at: Date.now() } : null; GD.view = 'chat';
         gdRoster(g).then(() => gdRender(false)); gdRender(true); inputState(); return;
+      }
+      if (fm.dataset.gdf === 'tag') {
+        const g = gdCur(); if (!g || !gdOwn(g) || g.gone) return;
+        const t = v.trim().replace(/[\s\[\]]/g, '');
+        if (!t) { g.roster.tag = null; GD.note = 'Клан-тег убран'; }
+        else if (!clanOk(t)) { GD.note = 'Тег — 2–5 букв (русские или латинские) или цифр, без пробелов и знаков'; gdRender(); return; }
+        else { g.roster.tag = { t, c: GD.tagC != null ? GD.tagC : (clanFix(g.roster.tag) || { c: 0 }).c }; GD.note = `Клан-тег [${t}] поставлен`; }
+        GD.tagC = null; gdRoster(g).then(() => gdRender()); gdRender(); return;
       }
       if (fm.dataset.gdf === 'role') {
         const g = gdCur(), l = nickOf(fm.dataset.l), zb = fm.parentElement && fm.parentElement.querySelector('[name="z"]'), z = !!(zb && zb.checked);
