@@ -26,7 +26,7 @@ base = {
     'manifest_version': 3,
     'name': 'Чат Легиона',
     'version': version,
-    'description': 'Чат шахты и города игры «Легион» (play.multidonate.ru): панель в игре, отдельное окно, личные, стикеры 7TV, модерация.',
+    'description': 'Весь чат игры «Легион» в одном окне, как в Telegram: шахта, город, личные, пинги и закрытые гильдии — прямо в игре.',
     'homepage_url': 'https://github.com/frebertor-sudo/legion-chat-window',
     'icons': ICONS,
     'action': {'default_title': 'Открыть чат Легиона', 'default_icon': ICONS},
